@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HiTOP-SR Module Builder</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #5b6570; --line: #d9dde2;
+    --accent: #1f5c8b; --accent-fg: #ffffff; --panel: #f6f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16191d; --fg: #e8eaed; --muted: #9aa4af; --line: #2f353c;
+      --accent: #5aa2d8; --accent-fg: #10151a; --panel: #1d2126;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 1.5rem 1.25rem 4rem; max-width: 56rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
+  h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
+  p { margin: .5rem 0; }
+  .lede { color: var(--muted); }
+  .notice {
+    border: 1px solid var(--line); border-left: 4px solid var(--accent);
+    background: var(--panel); padding: .75rem 1rem; margin: 1rem 0; border-radius: 4px;
+  }
+  #status { font-weight: 600; margin: 1rem 0 .25rem; }
+  #controls[hidden] { display: none; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .75rem 0; }
+  input[type=search] {
+    flex: 1 1 14rem; min-width: 10rem; padding: .4rem .6rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--bg); color: var(--fg); font: inherit;
+  }
+  button {
+    padding: .45rem .8rem; border: 1px solid var(--line); border-radius: 4px;
+    background: var(--panel); color: var(--fg); font: inherit; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  #scales {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: .1rem .75rem; border: 1px solid var(--line); border-radius: 4px;
+    padding: .75rem; max-height: 26rem; overflow-y: auto;
+  }
+  #scales label { display: flex; gap: .4rem; align-items: baseline; padding: .12rem 0; }
+  #scales .n { color: var(--muted); font-size: .85em; margin-left: auto; padding-left: .5rem; }
+  #tally { margin: .6rem 0; font-variant-numeric: tabular-nums; }
+  .downloads { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
+  fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 1rem 0 0; }
+  legend { color: var(--muted); font-size: .85rem; padding: 0 .35rem; }
+  #log {
+    white-space: pre-wrap; word-break: break-word; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 4px; padding: .6rem .75rem;
+    max-height: 16rem; overflow-y: auto; font-size: .8rem; line-height: 1.4;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+  }
+  footer { margin-top: 2.5rem; color: var(--muted); font-size: .85rem; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<h1>HiTOP-SR Module Builder</h1>
+<p class="lede">Tick the scales you want and download a ready-to-field questionnaire
+containing only those items, in Word, Qualtrics, or REDCap format.</p>
+
+<div class="notice">
+  <strong>This page builds blank questionnaires. It does not score anything.</strong>
+  It never asks for, receives, or transmits anyone's responses. The R package
+  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a>
+  <span id="pkgver"></span> is downloaded into your own browser and every file is
+  generated there — nothing you select or produce leaves this page.
+</div>
+
+<div id="status">Starting R in your browser…</div>
+
+<div id="controls" hidden>
+  <h2>Choose scales</h2>
+  <div class="toolbar">
+    <input type="search" id="filter" placeholder="Filter scales…" autocomplete="off">
+    <button type="button" id="selectAll">Select all</button>
+    <button type="button" id="clearAll">Clear</button>
+  </div>
+  <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
+  <p id="tally"></p>
+
+  <h2>Download</h2>
+  <fieldset>
+    <legend>Word paper size</legend>
+    <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
+    <label><input type="radio" name="papersize" value="a4"> A4</label>
+  </fieldset>
+  <div class="downloads">
+    <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
+    <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
+    <button type="button" class="primary" data-format="redcap" disabled>REDCap (.zip)</button>
+  </div>
+</div>
+
+<h2>Log</h2>
+<pre id="log" aria-live="polite"></pre>
+
+<footer>
+  Built with <a href="https://docs.r-wasm.org/webr/latest/">webR</a>. Source:
+  <a href="https://github.com/jmgirard/hitop-builder">jmgirard/hitop-builder</a>.
+  The instruments themselves are the property of the
+  <a href="https://renaissance.stonybrookmedicine.edu/HITOP">HiTOP Consortium</a>.
+</footer>
+
+<script type="module">
+import { WebR } from 'https://webr.r-wasm.org/v0.6.0/webr.mjs';
+
+const REPOS = ['https://jmgirard.r-universe.dev', 'https://repo.r-wasm.org'];
+const INSTRUMENT = 'hitopsr';
+
+const el = (id) => document.getElementById(id);
+const logPane = el('log');
+
+function log(text) {
+  logPane.textContent += text.endsWith('\n') ? text : text + '\n';
+  logPane.scrollTop = logPane.scrollHeight;
+}
+function status(text) { el('status').textContent = text; }
+
+// Each format names the package function that writes it, the extension the
+// browser should save it under, and the MIME type. Nothing here describes the
+// instrument's content -- item numbers and scale names come from the package.
+const FORMATS = {
+  docx: {
+    fn: 'generate_docx_hitopsr', ext: 'docx',
+    mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  },
+  qualtrics: {
+    fn: 'generate_qualtrics_hitopsr', ext: 'txt', mime: 'text/plain',
+  },
+  redcap: {
+    fn: 'generate_redcap_hitopsr', ext: 'zip', mime: 'application/zip',
+  },
+};
+
+let webR;
+let scales = [];
+
+function selected() {
+  return Array.from(document.querySelectorAll('#scales input:checked'))
+    .map((i) => i.value);
+}
+
+function refreshTally() {
+  const chosen = selected();
+  const items = scales
+    .filter((s) => chosen.includes(s.camelCase))
+    .reduce((a, s) => a + s.nItems, 0);
+  el('tally').textContent =
+    `${chosen.length} of ${scales.length} scales selected — ${items} items.`;
+  for (const b of document.querySelectorAll('.downloads button')) {
+    b.disabled = chosen.length === 0;
+  }
+}
+
+function renderScales() {
+  const box = el('scales');
+  box.textContent = '';
+  for (const s of scales) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = s.camelCase;
+    input.addEventListener('change', refreshTally);
+    const name = document.createElement('span');
+    name.textContent = s.Scale;
+    const n = document.createElement('span');
+    n.className = 'n';
+    n.textContent = `${s.nItems}`;
+    label.append(input, name, n);
+    box.append(label);
+  }
+  refreshTally();
+}
+
+function applyFilter() {
+  const q = el('filter').value.trim().toLowerCase();
+  for (const label of document.querySelectorAll('#scales label')) {
+    const text = label.querySelector('span').textContent.toLowerCase();
+    label.style.display = !q || text.includes(q) ? '' : 'none';
+  }
+}
+
+// Set every checkbox the filter currently leaves visible.
+function setVisible(checked) {
+  for (const label of document.querySelectorAll('#scales label')) {
+    if (label.style.display !== 'none') label.querySelector('input').checked = checked;
+  }
+  refreshTally();
+}
+
+async function download(format) {
+  const spec = FORMATS[format];
+  const chosen = selected();
+  if (!chosen.length) return;
+
+  const buttons = Array.from(document.querySelectorAll('.downloads button'));
+  buttons.forEach((b) => (b.disabled = true));
+  status(`Generating the ${spec.ext.toUpperCase()} file…`);
+
+  const path = `/tmp/module.${spec.ext}`;
+  try {
+    await webR.objs.globalEnv.bind('selected_scales', chosen);
+    const papersize =
+      document.querySelector('input[name=papersize]:checked').value;
+    await webR.objs.globalEnv.bind('paper_size', papersize);
+    await webR.objs.globalEnv.bind('out_path', path);
+
+    // The paper form is the only format taking a page size.
+    const extra = format === 'docx' ? ', papersize = paper_size' : '';
+    log(`> ${spec.fn}(file = out_path, module = <${chosen.length} scales>)`);
+    await webR.evalRVoid(`
+      unlink(out_path)
+      .m <- hitop::hitop_module("${INSTRUMENT}", scales = selected_scales)
+      hitop::${spec.fn}(file = out_path, module = .m${extra})
+    `, { captureStreams: false });
+
+    const bytes = await webR.FS.readFile(path);
+    const blob = new Blob([bytes], { type: spec.mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${INSTRUMENT}-module.${spec.ext}`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+    log(`  wrote ${bytes.length} bytes to ${a.download}`);
+    status('Ready.');
+  } catch (err) {
+    log(`  FAILED: ${err && err.message ? err.message : err}`);
+    status(`Could not generate the ${spec.ext.toUpperCase()} file — see the log.`);
+  } finally {
+    buttons.forEach((b) => (b.disabled = false));
+    refreshTally();
+  }
+}
+
+async function main() {
+  status('Starting R in your browser…');
+  webR = new WebR({ baseUrl: 'https://webr.r-wasm.org/v0.6.0/' });
+  await webR.init();
+  log('R started.');
+
+  // Stream R's own stdout/stderr into the log pane.
+  (async () => {
+    for (;;) {
+      const out = await webR.read();
+      if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
+    }
+  })();
+
+  status('Downloading the hitop package (about 20 seconds the first time)…');
+  log('> installPackages("hitop")');
+  await webR.installPackages(['hitop'], { repos: REPOS });
+  log('  installPackages("hitop") completed.');
+
+  log('> library(hitop)');
+  await webR.evalRVoid('library(hitop)', { captureStreams: false });
+  log('  library(hitop) completed.');
+
+  const version = await webR.evalRString('as.character(utils::packageVersion("hitop"))');
+  el('pkgver').textContent = `(version ${version})`;
+  log(`  hitop ${version}.`);
+
+  // The scale list is read from the package's own keying tables, never from a
+  // copy kept in this page.
+  const df = await webR.evalR(
+    `as.data.frame(hitop::available_scales("${INSTRUMENT}"))`
+  );
+  try {
+    scales = await df.toD3();
+  } finally {
+    webR.destroy(df);
+  }
+  log(`  available_scales("${INSTRUMENT}") returned ${scales.length} scales.`);
+
+  renderScales();
+  el('filter').addEventListener('input', applyFilter);
+  el('selectAll').addEventListener('click', () => setVisible(true));
+  el('clearAll').addEventListener('click', () => setVisible(false));
+  for (const b of document.querySelectorAll('.downloads button')) {
+    b.addEventListener('click', () => download(b.dataset.format));
+  }
+
+  el('controls').hidden = false;
+  status('Ready.');
+}
+
+main().catch((err) => {
+  status('Something went wrong starting R — see the log below.');
+  log(`FATAL: ${err && err.stack ? err.stack : err}`);
+});
+</script>
+</body>
+</html>
