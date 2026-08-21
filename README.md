@@ -40,12 +40,18 @@ the browser caches them afterwards.
 
 ## Repository layout
 
+Every tracked file:
+
 | Path | Purpose |
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes the repository to GitHub Pages on every push to `main` |
+| `README.md` | This file |
+| `LICENSE.md` | GPL-3 |
+| `.gitignore` | Keeps `.DS_Store` out |
 
-There is no build step and no R code in this repository.
+There is no build step, no R file, and no backend of any kind in this
+repository.
 
 ## Instrument content
 
