@@ -79,14 +79,25 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
   generated there — nothing you select or produce leaves this page.
 </div>
 
-<div id="status">Starting R in your browser…</div>
+<noscript>
+  <div class="notice">
+    <strong>This page needs JavaScript.</strong> It runs R inside your browser,
+    which is not possible with scripting disabled. The complete, unmodified
+    instruments are available as ready-made downloads on the
+    <a href="https://jmgirard.github.io/hitop/articles/download-hitopsr.html">HiTOP-SR
+    download page</a>.
+  </div>
+</noscript>
+
+<div id="status" role="status" aria-live="polite">Starting R in your browser…</div>
 
 <div id="controls" hidden>
   <h2>Choose scales</h2>
   <div class="toolbar">
-    <input type="search" id="filter" placeholder="Filter scales…" autocomplete="off">
+    <input type="search" id="filter" placeholder="Filter scales…" autocomplete="off"
+           aria-label="Filter the scale list by name">
     <button type="button" id="selectAll">Select all</button>
-    <button type="button" id="clearAll">Clear</button>
+    <button type="button" id="clearAll">Clear all</button>
   </div>
   <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
   <p id="tally"></p>
@@ -105,7 +116,7 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
 </div>
 
 <h2>Log</h2>
-<pre id="log" aria-live="polite"></pre>
+<pre id="log" role="log"></pre>
 
 <footer>
   Built with <a href="https://docs.r-wasm.org/webr/latest/">webR</a>. Source:
@@ -191,14 +202,31 @@ function applyFilter() {
     const text = label.querySelector('span').textContent.toLowerCase();
     label.style.display = !q || text.includes(q) ? '' : 'none';
   }
+  refreshSelectAllLabel();
 }
 
-// Set every checkbox the filter currently leaves visible.
-function setVisible(checked) {
+// Selecting applies to what the filter currently shows, so "select all" means
+// what it appears to mean while filtering. Clearing is deliberately NOT scoped
+// that way: a filtered clear would leave hidden scales ticked, and they would
+// silently reach the download.
+function selectVisible() {
   for (const label of document.querySelectorAll('#scales label')) {
-    if (label.style.display !== 'none') label.querySelector('input').checked = checked;
+    if (label.style.display !== 'none') label.querySelector('input').checked = true;
   }
   refreshTally();
+}
+
+function clearAll() {
+  for (const input of document.querySelectorAll('#scales input')) input.checked = false;
+  refreshTally();
+}
+
+// Say which scales "select all" will take, so its scope is never a surprise.
+function refreshSelectAllLabel() {
+  const shown = [...document.querySelectorAll('#scales label')]
+    .filter((l) => l.style.display !== 'none').length;
+  el('selectAll').textContent =
+    shown === scales.length ? 'Select all' : `Select all ${shown} shown`;
 }
 
 async function download(format) {
@@ -258,7 +286,13 @@ async function main() {
   // Stream R's own stdout/stderr into the log pane.
   (async () => {
     for (;;) {
-      const out = await webR.read();
+      let out;
+      try {
+        out = await webR.read();
+      } catch (err) {
+        log(`  (R output stopped: ${err && err.message ? err.message : err})`);
+        return;
+      }
       if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
     }
   })();
@@ -290,8 +324,8 @@ async function main() {
 
   renderScales();
   el('filter').addEventListener('input', applyFilter);
-  el('selectAll').addEventListener('click', () => setVisible(true));
-  el('clearAll').addEventListener('click', () => setVisible(false));
+  el('selectAll').addEventListener('click', selectVisible);
+  el('clearAll').addEventListener('click', clearAll);
   for (const b of document.querySelectorAll('.downloads button')) {
     b.addEventListener('click', () => download(b.dataset.format));
   }
