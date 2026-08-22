@@ -56,7 +56,7 @@ repository.
 ## Instrument content
 
 The HiTOP-SR is the property of the
-[HiTOP Consortium](https://renaissance.stonybrookmedicine.edu/HITOP). This app
+[HiTOP Society](https://hitop-system.org). This app
 reproduces the instrument as the `hitop` package encodes it and changes nothing
 about its items, wording, or response options.
 

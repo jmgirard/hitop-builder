@@ -73,10 +73,12 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
 
 <div class="notice">
   <strong>This page builds blank questionnaires. It does not score anything.</strong>
-  It never asks for, receives, or transmits anyone's responses. The R package
-  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a>
-  <span id="pkgver"></span> is downloaded into your own browser and every file is
-  generated there — nothing you select or produce leaves this page.
+  It never asks for, receives, or transmits anyone's responses. To work, the page
+  downloads R itself from <code>webr.r-wasm.org</code> and the
+  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
+  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>; both then
+  run inside your own browser, and every file is generated there. Your scale
+  selections and the files you build never leave this page.
 </div>
 
 <noscript>
@@ -89,7 +91,7 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
   </div>
 </noscript>
 
-<div id="status" role="status" aria-live="polite">Starting R in your browser…</div>
+<div id="status" role="status" aria-live="polite" hidden>Starting R in your browser…</div>
 
 <div id="controls" hidden>
   <h2>Choose scales</h2>
@@ -115,18 +117,32 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
   </div>
 </div>
 
-<h2>Log</h2>
-<pre id="log" role="log"></pre>
+<div id="logSection" hidden>
+  <h2>Log</h2>
+  <!-- Deliberately NOT a live region: role="log" carries an implicit
+       aria-live="polite", which made a screen reader narrate the whole webR
+       install transcript and queue "Ready." behind it. The status line above
+       is the only announced region. -->
+  <pre id="log" aria-live="off"></pre>
+</div>
 
 <footer>
   Built with <a href="https://docs.r-wasm.org/webr/latest/">webR</a>. Source:
   <a href="https://github.com/jmgirard/hitop-builder">jmgirard/hitop-builder</a>.
   The instruments themselves are the property of the
-  <a href="https://renaissance.stonybrookmedicine.edu/HITOP">HiTOP Consortium</a>.
+  <a href="https://hitop-system.org">HiTOP Society</a>.
 </footer>
 
+<script nomodule>
+  document.getElementById('status').hidden = false;
+  document.getElementById('status').textContent =
+    'This browser is too old to run R in the page. The ready-made instruments ' +
+    'are available at jmgirard.github.io/hitop.';
+</script>
+
 <script type="module">
-import { WebR } from 'https://webr.r-wasm.org/v0.6.0/webr.mjs';
+const WEBR_URL = 'https://webr.r-wasm.org/v0.6.0/webr.mjs';
+const WEBR_BASE = 'https://webr.r-wasm.org/v0.6.0/';
 
 const REPOS = ['https://jmgirard.r-universe.dev', 'https://repo.r-wasm.org'];
 const INSTRUMENT = 'hitopsr';
@@ -193,6 +209,11 @@ function renderScales() {
     label.append(input, name, n);
     box.append(label);
   }
+  // The browser can restore a filter value on a back-navigation or bfcache
+  // restore without firing `input`, so apply it once here rather than waiting
+  // for a keystroke -- otherwise the list shows every scale while the box
+  // shows a filter.
+  applyFilter();
   refreshTally();
 }
 
@@ -227,6 +248,7 @@ function refreshSelectAllLabel() {
     .filter((l) => l.style.display !== 'none').length;
   el('selectAll').textContent =
     shown === scales.length ? 'Select all' : `Select all ${shown} shown`;
+  el('selectAll').disabled = shown === 0;
 }
 
 async function download(format) {
@@ -278,8 +300,23 @@ async function download(format) {
 }
 
 async function main() {
+  // These say things that are only true once scripting runs, so the markup
+  // keeps them hidden and the noscript block speaks instead.
+  el('status').hidden = false;
+  el('logSection').hidden = false;
   status('Starting R in your browser…');
-  webR = new WebR({ baseUrl: 'https://webr.r-wasm.org/v0.6.0/' });
+
+  let WebR;
+  try {
+    ({ WebR } = await import(WEBR_URL));
+  } catch (err) {
+    status('Could not load R. This page needs to reach webr.r-wasm.org — a ' +
+           'network block or browser extension may be preventing it.');
+    log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
+    return;
+  }
+
+  webR = new WebR({ baseUrl: WEBR_BASE });
   await webR.init();
   log('R started.');
 
@@ -290,7 +327,12 @@ async function main() {
       try {
         out = await webR.read();
       } catch (err) {
-        log(`  (R output stopped: ${err && err.message ? err.message : err})`);
+        // The channel to R is gone; anything still awaiting it will never
+        // settle, so say so where the user is actually looking rather than
+        // leaving a stale "downloading…" on screen.
+        log(`  R output stopped: ${err && err.message ? err.message : err}`);
+        status('Lost the connection to R — reload the page to start again.');
+        for (const b of document.querySelectorAll('.downloads button')) b.disabled = true;
         return;
       }
       if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
