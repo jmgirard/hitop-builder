@@ -38,6 +38,24 @@ contains no copy of the instrument's content.
 The first load downloads R and the package, which takes roughly twenty seconds;
 the browser caches them afterwards.
 
+## Shuffling the Word form
+
+Under **Download**, a *Word item order* box shuffles the printed order of the
+items on the Word form. It is unticked by default, and it applies to the Word
+file only: in the Qualtrics and REDCap exports an item number names a collected
+data column, so those two downloads are the same whether the box is ticked or
+not — verified 2026-08-23 on a two-scale module, where the Qualtrics files came
+out byte-identical and the REDCap archives carried an identical
+`instrument.csv`.
+
+A shuffled Word file carries a crosswalk listing each printed number beside the
+original HiTOP-SR number it came from. Responses collected on such a form arrive
+in the printed order, not the instrument's own — put the columns back into the
+original HiTOP-SR order before scoring, or the scale scores come out wrong with
+no error raised. The package's
+[`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
+help page states the same reordering rule for callers working in R directly.
+
 ## Repository layout
 
 Every tracked file:

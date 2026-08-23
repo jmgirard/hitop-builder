@@ -110,6 +110,20 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
     <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
     <label><input type="radio" name="papersize" value="a4"> A4</label>
   </fieldset>
+  <fieldset>
+    <legend>Word item order</legend>
+    <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
+    <div class="notice" id="shuffleNote" hidden>
+      <strong>A shuffled form is not scored as it stands.</strong> Responses
+      collected from it arrive in the order the form prints, which is not the
+      instrument's own item order; put the collected columns back into the
+      original HiTOP-SR order before scoring, or the scale scores come out wrong
+      with no error to warn you. Every shuffled Word file carries a crosswalk
+      listing each printed number and the original number it came from. The
+      Qualtrics and REDCap files are never shuffled — there an item number names
+      a collected data column.
+    </div>
+  </fieldset>
   <div class="downloads">
     <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
     <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
@@ -237,6 +251,15 @@ function selectVisible() {
   refreshTally();
 }
 
+// The warning is shown only while the box is ticked, so an unshuffled build --
+// the default, and the common case -- carries no caution it does not need.
+// Called once at wiring time as well as on change: a back-navigation or
+// bfcache restore can bring the box back ticked without firing `change`, and
+// the note must not then be missing from a page that will shuffle.
+function refreshShuffleNote() {
+  el('shuffleNote').hidden = !el('shuffle').checked;
+}
+
 function clearAll() {
   for (const input of document.querySelectorAll('#scales input')) input.checked = false;
   refreshTally();
@@ -268,9 +291,17 @@ async function download(format) {
     await webR.objs.globalEnv.bind('paper_size', papersize);
     await webR.objs.globalEnv.bind('out_path', path);
 
-    // The paper form is the only format taking a page size.
-    const extra = format === 'docx' ? ', papersize = paper_size' : '';
-    log(`> ${spec.fn}(file = out_path, module = <${chosen.length} scales>)`);
+    // The paper form is the only format taking a page size, and the only one
+    // offered a shuffle: on the two online exports an item number names a
+    // collected data column, so reordering them would rename variables in
+    // dictionaries already in the field. `randomize` is passed to the DOCX
+    // call and to nothing else.
+    const shuffle = format === 'docx' && el('shuffle').checked;
+    const extra = format === 'docx'
+      ? `, papersize = paper_size, randomize = ${shuffle ? 'TRUE' : 'FALSE'}`
+      : '';
+    log(`> ${spec.fn}(file = out_path, module = <${chosen.length} scales>` +
+        `${shuffle ? ', randomize = TRUE' : ''})`);
     await webR.evalRVoid(`
       unlink(out_path)
       .m <- hitop::hitop_module("${INSTRUMENT}", scales = selected_scales)
@@ -368,6 +399,8 @@ async function main() {
   el('filter').addEventListener('input', applyFilter);
   el('selectAll').addEventListener('click', selectVisible);
   el('clearAll').addEventListener('click', clearAll);
+  el('shuffle').addEventListener('change', refreshShuffleNote);
+  refreshShuffleNote();
   for (const b of document.querySelectorAll('.downloads button')) {
     b.addEventListener('click', () => download(b.dataset.format));
   }
