@@ -55,6 +55,10 @@
   .downloads { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
   fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 1rem 0 0; }
   legend { color: var(--muted); font-size: .85rem; padding: 0 .35rem; }
+  #numbering label { display: block; padding: .1rem 0; }
+  .hint { color: var(--muted); font-size: .85rem; margin: .4rem 0 .1rem; }
+  .notice p:first-child { margin-top: 0; }
+  .notice p:last-child { margin-bottom: 0; }
   #log {
     white-space: pre-wrap; word-break: break-word; background: var(--panel);
     border: 1px solid var(--line); border-radius: 4px; padding: .6rem .75rem;
@@ -110,18 +114,31 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
     <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
     <label><input type="radio" name="papersize" value="a4"> A4</label>
   </fieldset>
+  <fieldset id="numbering">
+    <legend>Word item numbering</legend>
+    <label><input type="radio" name="numbering" value="renumber" checked>
+      Number the items 1 to n</label>
+    <label><input type="radio" name="numbering" value="original">
+      Keep the HiTOP-SR's own item numbers</label>
+    <p class="hint">With the instrument's own numbers, the printed number matches
+    the item number in this page's Qualtrics and REDCap exports, so paper
+    responses can be typed in without translating them.</p>
+  </fieldset>
   <fieldset>
     <legend>Word item order</legend>
     <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
     <div class="notice" id="shuffleNote" hidden>
-      <strong>A shuffled form is not scored as it stands.</strong> Responses
+      <p><strong>A shuffled form is not scored as it stands.</strong> Responses
       collected from it arrive in the order the form prints, which is not the
       instrument's own item order; put the collected columns back into the
       original HiTOP-SR order before scoring, or the scale scores come out wrong
-      with no error to warn you. Every shuffled Word file carries a crosswalk
-      listing each printed number and the original number it came from. The
-      Qualtrics and REDCap files are never shuffled — there an item number names
-      a collected data column.
+      with no error to warn you.</p>
+      <!-- What the shuffled file does about recovering the original order
+           depends on the numbering choice and on whether every scale is
+           ticked, so this sentence is written by refreshShuffleNote(). -->
+      <p id="shuffleCrosswalk"></p>
+      <p>The Qualtrics and REDCap files are never shuffled — there an item
+      number names a collected data column.</p>
     </div>
   </fieldset>
   <div class="downloads">
@@ -189,6 +206,27 @@ const FORMATS = {
 let webR;
 let scales = [];
 
+// Whether this instrument's scales tile its items exactly -- every item covered
+// once, numbered 1 to N with no gaps. Asked of R once at load rather than
+// assumed (see the call in main()); FALSE until then, so nothing can treat a
+// selection as the whole instrument before the answer is in.
+let tilesExactly = false;
+
+function numberingMode() {
+  return document.querySelector('input[name=numbering]:checked').value;
+}
+
+// Ticking every box means the visitor wants the whole instrument, not a module
+// that happens to contain every scale. That is an intent only this page can
+// see -- the package is handed an item set -- so the page drops `module` from
+// its calls here rather than the package collapsing such a module. It is
+// gated on tilesExactly: on an instrument whose scales overlap or leave gaps,
+// "every scale" is not the same item set as "no module", and the page keeps
+// passing the module.
+function wholeInstrument() {
+  return tilesExactly && selected().length === scales.length;
+}
+
 function selected() {
   return Array.from(document.querySelectorAll('#scales input:checked'))
     .map((i) => i.value);
@@ -204,6 +242,9 @@ function refreshTally() {
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = chosen.length === 0;
   }
+  // The shuffle notice reads the selection as well as the numbering choice, and
+  // every path that changes the selection already comes through here.
+  refreshShuffleNote();
 }
 
 function renderScales() {
@@ -256,8 +297,32 @@ function selectVisible() {
 // Called once at wiring time as well as on change: a back-navigation or
 // bfcache restore can bring the box back ticked without firing `change`, and
 // the note must not then be missing from a page that will shuffle.
+//
+// Its middle sentence tracks what generate_docx_hitopsr() actually prints,
+// which carries a crosswalk only when the form is shuffled AND renumbered AND
+// built from a module -- so exactly one of the four combinations below gets
+// one, and the other three must not claim it.
 function refreshShuffleNote() {
   el('shuffleNote').hidden = !el('shuffle').checked;
+  el('shuffleCrosswalk').textContent = crosswalkSentence();
+}
+
+function crosswalkSentence() {
+  if (numberingMode() === 'original') {
+    return 'This form prints the instrument\u2019s own item numbers, in a ' +
+      'shuffled order, so it carries no crosswalk \u2014 the printed number ' +
+      'already is the original one. Enter each response under its printed ' +
+      'item number.';
+  }
+  if (wholeInstrument()) {
+    return 'This form carries no crosswalk: a shuffled copy of the whole ' +
+      'instrument would print 405 pairs on a participant-facing page. ' +
+      'Nothing on the paper records the printed order, so keep your own ' +
+      'record of it, or build the form from a selection of scales, which ' +
+      'does carry one.';
+  }
+  return 'This form carries a crosswalk listing each printed number and the ' +
+    'original HiTOP-SR number it came from.';
 }
 
 function clearAll() {
@@ -292,20 +357,34 @@ async function download(format) {
     await webR.objs.globalEnv.bind('out_path', path);
 
     // The paper form is the only format taking a page size, and the only one
-    // offered a shuffle: on the two online exports an item number names a
-    // collected data column, so reordering them would rename variables in
-    // dictionaries already in the field. `randomize` is passed to the DOCX
-    // call and to nothing else.
+    // offered a shuffle or a numbering choice: on the two online exports an
+    // item number names a collected data column, so reordering or renumbering
+    // them would rename variables in dictionaries already in the field.
+    // `randomize` and `renumber` are passed to the DOCX call and to nothing
+    // else.
     const shuffle = format === 'docx' && el('shuffle').checked;
+    const renumber = numberingMode() === 'renumber';
+    const whole = wholeInstrument();
+    if (!whole && chosen.length === scales.length) {
+      log('  keeping the module: the ticked scales do not cover this ' +
+          'instrument\u2019s items as 1..N with no gaps.');
+    }
     const extra = format === 'docx'
-      ? `, papersize = paper_size, randomize = ${shuffle ? 'TRUE' : 'FALSE'}`
+      ? `, papersize = paper_size, renumber = ${renumber ? 'TRUE' : 'FALSE'}` +
+        `, randomize = ${shuffle ? 'TRUE' : 'FALSE'}`
       : '';
-    log(`> ${spec.fn}(file = out_path, module = <${chosen.length} scales>` +
+    const moduleArg = whole ? '' : ', module = .m';
+    const modulePrelude = whole
+      ? ''
+      : `.m <- hitop::hitop_module("${INSTRUMENT}", scales = selected_scales)`;
+    log(`> ${spec.fn}(file = out_path` +
+        `${whole ? '' : `, module = <${chosen.length} scales>`}` +
+        `${format === 'docx' && !renumber ? ', renumber = FALSE' : ''}` +
         `${shuffle ? ', randomize = TRUE' : ''})`);
     await webR.evalRVoid(`
       unlink(out_path)
-      .m <- hitop::hitop_module("${INSTRUMENT}", scales = selected_scales)
-      hitop::${spec.fn}(file = out_path, module = .m${extra})
+      ${modulePrelude}
+      hitop::${spec.fn}(file = out_path${moduleArg}${extra})
     `, { captureStreams: false });
 
     const bytes = await webR.FS.readFile(path);
@@ -313,7 +392,9 @@ async function download(format) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${INSTRUMENT}-module.${spec.ext}`;
+    // A file built from every scale is the instrument, not a module, and is
+    // named for what it contains.
+    a.download = `${INSTRUMENT}${whole ? '' : '-module'}.${spec.ext}`;
     document.body.append(a);
     a.click();
     a.remove();
@@ -395,11 +476,31 @@ async function main() {
   }
   log(`  available_scales("${INSTRUMENT}") returned ${scales.length} scales.`);
 
+  // Ask the package -- never assume -- whether this instrument's scales tile
+  // its items exactly: every item covered once, so the union of all scales is
+  // 1..N with no gaps and no overlap. Only then does ticking every box mean
+  // "the whole instrument", and only then may the page drop `module`, which is
+  // what gives the Word file the instrument's own header instead of the module
+  // one. TRUE for the HiTOP-SR's 76 scales over items 1-405, verified
+  // 2026-08-23; the check is here so a future instrument that does not tile
+  // trips it deliberately rather than silently mislabelling a form.
+  tilesExactly = await webR.evalRBoolean(`
+    local({
+      .all <- hitop::hitop_module("${INSTRUMENT}",
+        scales = hitop::available_scales("${INSTRUMENT}")$camelCase)
+      identical(as.integer(.all$items), seq_along(.all$items))
+    })
+  `);
+  log(`  every scale ticked covers items 1..N with no gaps: ${tilesExactly}.`);
+
   renderScales();
   el('filter').addEventListener('input', applyFilter);
   el('selectAll').addEventListener('click', selectVisible);
   el('clearAll').addEventListener('click', clearAll);
   el('shuffle').addEventListener('change', refreshShuffleNote);
+  for (const r of document.querySelectorAll('input[name=numbering]')) {
+    r.addEventListener('change', refreshShuffleNote);
+  }
   refreshShuffleNote();
   for (const b of document.querySelectorAll('.downloads button')) {
     b.addEventListener('click', () => download(b.dataset.format));
