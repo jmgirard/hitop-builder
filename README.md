@@ -38,6 +38,39 @@ contains no copy of the instrument's content.
 The first load downloads R and the package, which takes roughly twenty seconds;
 the browser caches them afterwards.
 
+## Numbering the Word form
+
+Under **Download**, a *Word item numbering* group chooses which numbers the
+Word form prints beside its items:
+
+- **Number the items 1 to n** — the default — numbers the printed items from
+  `1` down the page, so a module form does not show the full instrument's
+  gapped numbers.
+- **Keep the HiTOP-SR's own item numbers** prints each item's original
+  HiTOP-SR number instead.
+
+The choice applies to the Word file only. In the Qualtrics and REDCap exports
+an item number names a collected data column, so those two downloads come out
+the same either way — verified 2026-08-23 on a two-scale module, where the
+Qualtrics files were byte-identical between the two settings and the REDCap
+archives carried an identical `instrument.csv`.
+
+Those original numbers are what the online exports use for their field names,
+so paper responses can be typed into a project built from this page without
+translating them. The same two-scale module printed items 238, 275, 344, 358,
+392 and 398 on the Word form and named its REDCap fields `hsr_238` through
+`hsr_398` (verified 2026-08-23).
+
+## Ticking every scale
+
+Ticking all 76 scales builds the whole instrument rather than a module that
+happens to contain every scale. The Word form is then headed
+`HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads are
+named `hitopsr.docx`, `hitopsr.txt` and `hitopsr.zip` rather than
+`hitopsr-module.*`. The Qualtrics and REDCap files themselves are unchanged by
+this — verified 2026-08-23 against the files the page produced beforehand, the
+Qualtrics `.txt` byte-identical and the REDCap `instrument.csv` identical.
+
 ## Shuffling the Word form
 
 Under **Download**, a *Word item order* box shuffles the printed order of the
@@ -48,11 +81,29 @@ not — verified 2026-08-23 on a two-scale module, where the Qualtrics files cam
 out byte-identical and the REDCap archives carried an identical
 `instrument.csv`.
 
-A shuffled Word file carries a crosswalk listing each printed number beside the
-original HiTOP-SR number it came from. Responses collected on such a form arrive
-in the printed order, not the instrument's own — put the columns back into the
-original HiTOP-SR order before scoring, or the scale scores come out wrong with
-no error raised. The package's
+Responses collected on a shuffled form arrive in the printed order, not the
+instrument's own — put the columns back into the original HiTOP-SR order before
+scoring, or the scale scores come out wrong with no error raised.
+
+A shuffled Word file carries a crosswalk — each printed number beside the
+original HiTOP-SR number it came from — only when the form is numbered `1 to n`
+*and* built from a selection of scales. The other three combinations carry
+none, and the page's on-screen notice says so in each. Verified 2026-08-23 by
+reading the four built files back:
+
+| Numbering | Selection | Crosswalk |
+|---|---|---|
+| 1 to n | some scales | yes |
+| 1 to n | every scale | no |
+| the instrument's own numbers | some scales | no |
+| the instrument's own numbers | every scale | no |
+
+With the instrument's own numbers there is nothing to cross-walk: the printed
+number already is the original one, so responses can be entered under it. With
+every scale ticked the page builds the whole instrument, and the package prints
+no crosswalk for a shuffled full instrument — that would be 405 pairs on a
+participant-facing page — so nothing on that form records the order it was
+printed in. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
