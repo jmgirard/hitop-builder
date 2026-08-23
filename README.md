@@ -61,6 +61,15 @@ translating them. The same two-scale module printed items 238, 275, 344, 358,
 392 and 398 on the Word form and named its REDCap fields `hsr_238` through
 `hsr_398` (verified 2026-08-23).
 
+Combined with the *Word item order* box, the numbering choice decides whether a
+shuffled form can be traced back to the instrument's numbers. Numbered `1 to n`,
+a shuffled module form prints a crosswalk; with the instrument's own numbers
+there is nothing to cross-walk, so it prints none and each response is entered
+under its printed number. Ticking every scale leaves a shuffled form with no
+crosswalk either way. The page's on-screen notice says which of these applies,
+and [Shuffling the Word form](#shuffling-the-word-form) below tabulates all four
+— verified 2026-08-23.
+
 ## Ticking every scale
 
 Ticking all 76 scales builds the whole instrument rather than a module that
