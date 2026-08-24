@@ -41,14 +41,29 @@ the browser caches them afterwards.
 
 ## What the page shows
 
-Under *Choose scales*, a *Filter the scale list by name* box narrows the
-*HiTOP-SR scales* group; each row carries a scale's name and its item count,
-and a tally below the group says how many scales and how many items are
-currently selected. Under *Download* sit four settings groups — *Word paper
-size*, *Word item numbering*, *Word item order*, and *Qualtrics and REDCap
-naming* — and then one button per format. A *Log* beneath them records what
-the page asked R to do and what R replied; it is where a failed download says
-what went wrong.
+The page works in three steps, one on screen at a time. A *Steps* bar above them
+says which step you are on, and its three buttons — *Choose scales*, *Set
+options*, *Download* — jump straight to any of them; at the foot of each step
+sit buttons to the steps either side of it: Continue on the first, Back on the
+last, both in the middle. Nothing gates moving on: the download step is
+reachable with no scale selected, and its buttons say there that they are off
+until one is.
+
+1. **Choose scales.** A *Filter the scale list by name* box narrows the
+   *HiTOP-SR scales* group; each row carries a scale's name and its item count,
+   and a tally below the group says how many scales and how many items are
+   currently selected.
+2. **Set options.** Four settings groups — *Word paper size*, *Word item
+   numbering*, *Word item order*, and *Qualtrics and REDCap naming*.
+3. **Download.** One button per format: Word, Qualtrics, REDCap.
+
+Steps two and three each open with the same tally the first step ends on,
+followed by a *Change the selection* button back to the scale list, so neither
+is a blind continuation of the choice you made.
+
+Below the three steps, a *Log* records what the page asked R to do and what R
+replied; it is where a failed download says what went wrong. It stays visible on
+every step, as does the status line above them.
 
 *Word paper size* chooses between **US Letter**, the default, and **A4**. Like
 the other two Word groups it reaches the Word form only — the Qualtrics and
@@ -56,7 +71,7 @@ REDCap exports carry no page size at all.
 
 ## Numbering the Word form
 
-Under **Download**, a *Word item numbering* group chooses which numbers the
+Under **Set options**, a *Word item numbering* group chooses which numbers the
 Word form prints beside its items:
 
 - **Number the items 1 to n** — the default — numbers the printed items from
@@ -88,7 +103,7 @@ and [Shuffling the Word form](#shuffling-the-word-form) below tabulates all four
 
 ## Naming the Qualtrics and REDCap exports
 
-Under **Download**, a *Qualtrics and REDCap naming* group sets what the import
+Under **Set options**, a *Qualtrics and REDCap naming* group sets what the import
 creates in the target system. None of it reaches the Word form, and none of it
 changes the items, their wording, or their response options.
 
@@ -132,7 +147,7 @@ Qualtrics `.txt` byte-identical and the REDCap `instrument.csv` identical.
 
 ## Shuffling the Word form
 
-Under **Download**, a *Word item order* box shuffles the printed order of the
+Under **Set options**, a *Word item order* box shuffles the printed order of the
 items on the Word form. It is unticked by default, and it applies to the Word
 file only: in the Qualtrics and REDCap exports an item number names a collected
 data column, so those two downloads are the same whether the box is ticked or

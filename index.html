@@ -206,6 +206,52 @@
 
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
 
+  /* ---- Steps --------------------------------------------------------- */
+  /* One step is on screen at a time. The bar above them says which, and its
+     buttons jump straight to any of the three, so nothing is reachable only
+     by walking forward. */
+  #stepbar ol {
+    list-style: none; display: flex; flex-wrap: wrap; gap: var(--s2);
+    margin: var(--s5) 0 0; padding: 0;
+  }
+  #stepbar li { flex: 1 1 10rem; }
+  #stepbar button {
+    width: 100%; display: flex; gap: var(--s2); align-items: baseline;
+    text-align: left; background: var(--surface); border-color: var(--line);
+    font-size: var(--t-small); font-weight: 500;
+  }
+  #stepbar button[aria-current=step] {
+    background: var(--accent-weak); border-color: var(--accent);
+    border-style: solid; font-weight: 600;
+  }
+  #stepbar .num {
+    font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted);
+  }
+  #stepbar button[aria-current=step] .num { color: var(--accent); }
+
+  .step[hidden] { display: none; }
+  /* Entering a step moves focus to its heading, so the ring has to paint on a
+     heading as well as on a control: a programmatic focus does not match
+     :focus-visible. */
+  .step > h2:focus { outline: 3px solid var(--focus); outline-offset: 4px; }
+
+  .recap {
+    display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
+    color: var(--muted); font-size: var(--t-small); margin: var(--s3) 0;
+  }
+  .linkish {
+    background: none; border: none; padding: 0;
+    color: var(--accent); font: inherit; text-decoration: underline;
+    text-underline-offset: 2px; cursor: pointer;
+  }
+  .linkish:hover { background: none; border: none; }
+
+  .stepnav {
+    display: flex; flex-wrap: wrap; gap: var(--s2);
+    margin-top: var(--s6); padding-top: var(--s4);
+    border-top: 1px solid var(--line);
+  }
+
   /* ---- Log ----------------------------------------------------------- */
   #log {
     white-space: pre-wrap; word-break: break-word;
@@ -229,7 +275,8 @@
     body { padding: var(--s5) var(--s4) var(--s6); }
     h1 { font-size: 1.5rem; }
     fieldset { padding: var(--s2) var(--s3) var(--s3); }
-    .downloads button { flex: 1 1 100%; }
+    .downloads button, .stepnav button { flex: 1 1 100%; }
+    #stepbar li { flex: 1 1 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
     button:active:not(:disabled) { transform: none; }
@@ -263,68 +310,103 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
 <div id="status" role="status" aria-live="polite" hidden>Starting R in your browser…</div>
 
 <div id="controls" hidden>
-  <h2>Choose scales</h2>
-  <div class="toolbar">
-    <input type="search" id="filter" placeholder="Filter scales…" autocomplete="off"
-           aria-label="Filter the scale list by name">
-    <button type="button" id="selectAll">Select all</button>
-    <button type="button" id="clearAll">Clear all</button>
-  </div>
-  <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
-  <p id="tally"></p>
+  <!-- The numeral is decoration beside the step name: hiding it from the
+       accessibility tree leaves each button named for its step and nothing
+       else, which is what its heading is called too. -->
+  <nav id="stepbar" aria-label="Steps">
+    <ol>
+      <li><button type="button" data-goto="0"><span class="num" aria-hidden="true">1</span> <span>Choose scales</span></button></li>
+      <li><button type="button" data-goto="1"><span class="num" aria-hidden="true">2</span> <span>Set options</span></button></li>
+      <li><button type="button" data-goto="2"><span class="num" aria-hidden="true">3</span> <span>Download</span></button></li>
+    </ol>
+  </nav>
 
-  <h2>Download</h2>
-  <fieldset>
-    <legend>Word paper size</legend>
-    <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
-    <label><input type="radio" name="papersize" value="a4"> A4</label>
-  </fieldset>
-  <fieldset id="numbering">
-    <legend>Word item numbering</legend>
-    <label><input type="radio" name="numbering" value="renumber" checked>
-      Number the items 1 to n</label>
-    <label><input type="radio" name="numbering" value="original">
-      Keep the HiTOP-SR's own item numbers</label>
-    <p class="hint">The instrument's own numbers are what this page's Qualtrics
-    and REDCap exports use for their field names, so a paper response can be
-    typed into a project built here without translating its number.</p>
-  </fieldset>
-  <fieldset>
-    <legend>Word item order</legend>
-    <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
-    <div class="notice" id="shuffleNote" hidden>
-      <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-      come back in the order the form printed, which is not the instrument's
-      own; put those columns into the original HiTOP-SR order before scoring, or
-      the scale scores come out wrong and nothing warns you.</p>
-      <!-- What the shuffled file does about recovering the original order
-           depends on the numbering choice and on whether every scale is
-           ticked, so this sentence is written by refreshShuffleNote(). -->
-      <p id="shuffleCrosswalk"></p>
-      <p>The Qualtrics and REDCap files are never shuffled: there an item
-      number names a collected data column.</p>
+  <section class="step" id="step1" hidden>
+    <h2 tabindex="-1">Choose scales</h2>
+    <div class="toolbar">
+      <input type="search" id="filter" placeholder="Filter scales…" autocomplete="off"
+             aria-label="Filter the scale list by name">
+      <button type="button" id="selectAll">Select all</button>
+      <button type="button" id="clearAll">Clear all</button>
     </div>
-  </fieldset>
-  <fieldset id="naming">
-    <legend>Qualtrics and REDCap naming</legend>
-    <p class="hint">These name what the import creates in the target system.
-    None of them reaches the Word form, and none changes the items, their
-    wording, or their response options. Each box starts at the package's own
-    default; empty one and that default is used again.</p>
-    <label for="blockName">Qualtrics block name</label>
-    <input type="text" id="blockName" autocomplete="off">
-    <label for="idPrefix">Qualtrics question ID prefix</label>
-    <input type="text" id="idPrefix" autocomplete="off">
-    <label for="formName">REDCap form name</label>
-    <input type="text" id="formName" autocomplete="off">
-    <label class="check"><input type="checkbox" id="required" checked>
-      Mark every REDCap item as required</label>
-  </fieldset>
-  <div class="downloads">
-    <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
-    <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
-    <button type="button" class="primary" data-format="redcap" disabled>REDCap (.zip)</button>
-  </div>
+    <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
+    <p id="tally"></p>
+    <div class="stepnav">
+      <button type="button" class="primary" data-goto="1">Continue to options</button>
+    </div>
+  </section>
+
+  <section class="step" id="step2" hidden>
+    <h2 tabindex="-1">Set options</h2>
+    <p class="recap"><span class="recapText"></span>
+      <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
+    <fieldset>
+      <legend>Word paper size</legend>
+      <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
+      <label><input type="radio" name="papersize" value="a4"> A4</label>
+    </fieldset>
+    <fieldset id="numbering">
+      <legend>Word item numbering</legend>
+      <label><input type="radio" name="numbering" value="renumber" checked>
+        Number the items 1 to n</label>
+      <label><input type="radio" name="numbering" value="original">
+        Keep the HiTOP-SR's own item numbers</label>
+      <p class="hint">The instrument's own numbers are what this page's Qualtrics
+      and REDCap exports use for their field names, so a paper response can be
+      typed into a project built here without translating its number.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Word item order</legend>
+      <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
+      <div class="notice" id="shuffleNote" hidden>
+        <p><strong>A shuffled form is not scored as it stands.</strong> Responses
+        come back in the order the form printed, which is not the instrument's
+        own; put those columns into the original HiTOP-SR order before scoring, or
+        the scale scores come out wrong and nothing warns you.</p>
+        <!-- What the shuffled file does about recovering the original order
+             depends on the numbering choice and on whether every scale is
+             ticked, so this sentence is written by refreshShuffleNote(). -->
+        <p id="shuffleCrosswalk"></p>
+        <p>The Qualtrics and REDCap files are never shuffled: there an item
+        number names a collected data column.</p>
+      </div>
+    </fieldset>
+    <fieldset id="naming">
+      <legend>Qualtrics and REDCap naming</legend>
+      <p class="hint">These name what the import creates in the target system.
+      None of them reaches the Word form, and none changes the items, their
+      wording, or their response options. Each box starts at the package's own
+      default; empty one and that default is used again.</p>
+      <label for="blockName">Qualtrics block name</label>
+      <input type="text" id="blockName" autocomplete="off">
+      <label for="idPrefix">Qualtrics question ID prefix</label>
+      <input type="text" id="idPrefix" autocomplete="off">
+      <label for="formName">REDCap form name</label>
+      <input type="text" id="formName" autocomplete="off">
+      <label class="check"><input type="checkbox" id="required" checked>
+        Mark every REDCap item as required</label>
+    </fieldset>
+    <div class="stepnav">
+      <button type="button" data-goto="0">Back to scales</button>
+      <button type="button" class="primary" data-goto="2">Continue to download</button>
+    </div>
+  </section>
+
+  <section class="step" id="step3" hidden>
+    <h2 tabindex="-1">Download</h2>
+    <p class="recap"><span class="recapText"></span>
+      <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
+    <p class="hint">Each button builds its file in this browser and saves it.
+    They turn on once at least one scale is ticked.</p>
+    <div class="downloads">
+      <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
+      <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
+      <button type="button" class="primary" data-format="redcap" disabled>REDCap (.zip)</button>
+    </div>
+    <div class="stepnav">
+      <button type="button" data-goto="1">Back to options</button>
+    </div>
+  </section>
 </div>
 
 <div id="logSection" hidden>
@@ -423,19 +505,52 @@ function selected() {
     .map((i) => i.value);
 }
 
-function refreshTally() {
+// ---- Steps -------------------------------------------------------------
+// The three sections are shown one at a time. Nothing here gates moving on:
+// a visitor with no scale ticked can still reach the download step and read
+// why its buttons are off, which is what the tally and the disabled state say.
+const STEP_IDS = ['step1', 'step2', 'step3'];
+
+function showStep(index, { focus = true } = {}) {
+  STEP_IDS.forEach((id, k) => { el(id).hidden = k !== index; });
+  for (const b of document.querySelectorAll('#stepbar button')) {
+    if (Number(b.dataset.goto) === index) b.setAttribute('aria-current', 'step');
+    else b.removeAttribute('aria-current');
+  }
+  refreshRecap();
+  // Focus lands on the step's own heading rather than its first control: it
+  // names the step a keyboard or screen-reader visitor has just arrived at,
+  // and leaves the whole step ahead of them in tab order.
+  if (focus) el(STEP_IDS[index]).querySelector('h2').focus();
+}
+
+// Steps two and three each repeat the sentence step one ends on, so neither is
+// a blind continuation of the choice made there. The scale names themselves
+// stay on step one, the only place they can be changed.
+function refreshRecap() {
+  const text = selectionSentence();
+  for (const span of document.querySelectorAll('.recapText')) span.textContent = text;
+}
+
+// One sentence, written once and shown in three places: the tally under the
+// scale list and the recap line at the head of each later step.
+function selectionSentence() {
   const chosen = selected();
   const items = scales
     .filter((s) => chosen.includes(s.camelCase))
     .reduce((a, s) => a + s.nItems, 0);
-  el('tally').textContent =
-    `${chosen.length} of ${scales.length} scales selected — ${items} items.`;
+  return `${chosen.length} of ${scales.length} scales selected — ${items} items.`;
+}
+
+function refreshTally() {
+  el('tally').textContent = selectionSentence();
   for (const b of document.querySelectorAll('.downloads button')) {
-    b.disabled = chosen.length === 0;
+    b.disabled = selected().length === 0;
   }
-  // The shuffle notice reads the selection as well as the numbering choice, and
-  // every path that changes the selection already comes through here.
+  // The shuffle notice and the later steps' recap line both read the selection,
+  // and every path that changes the selection already comes through here.
   refreshShuffleNote();
+  refreshRecap();
 }
 
 function renderScales() {
@@ -744,8 +859,17 @@ async function main() {
   for (const b of document.querySelectorAll('.downloads button')) {
     b.addEventListener('click', () => download(b.dataset.format));
   }
+  // Every control that moves between steps -- the bar's three buttons, the
+  // Back and Continue pair at the foot of each step, and the recap's change
+  // link -- says where it goes in the same attribute, so there is one handler.
+  for (const b of document.querySelectorAll('[data-goto]')) {
+    b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
+  }
 
   el('controls').hidden = false;
+  // No focus move on the first paint: the page has just finished loading and
+  // the visitor has not asked to go anywhere yet.
+  showStep(0, { focus: false });
   status('Ready.');
 }
 
