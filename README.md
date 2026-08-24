@@ -24,7 +24,8 @@ and the R code runs inside the browser tab.
 The page loads [webR](https://docs.r-wasm.org/webr/latest/) — R compiled to
 WebAssembly — and installs the `hitop` package from
 [jmgirard.r-universe.dev](https://jmgirard.r-universe.dev), which builds a
-WebAssembly binary of the package from its source repository. It then calls the
+WebAssembly binary of the package from its source repository and redirects the
+download itself to `r2.ropensci.org`. It then calls the
 package's own `available_scales()` to list the scales and its
 `generate_docx_hitopsr()`, `generate_qualtrics_hitopsr()`, and
 `generate_redcap_hitopsr()` to write each file.
