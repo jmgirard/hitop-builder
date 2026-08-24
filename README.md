@@ -31,12 +31,27 @@ package's own `available_scales()` to list the scales and its
 
 The page always installs whatever version r-universe currently serves, and
 displays that version once it loads; it was **`hitop` 0.2.0** when this README
-was last checked (2026-08-21). Every scale name and item number the page shows
+was last checked (2026-08-24). Every scale name and item number the page shows
 is read from the installed package's keying tables at runtime — this repository
 contains no copy of the instrument's content.
 
 The first load downloads R and the package, which takes roughly twenty seconds;
 the browser caches them afterwards.
+
+## What the page shows
+
+Under *Choose scales*, a *Filter the scale list by name* box narrows the
+*HiTOP-SR scales* group; each row carries a scale's name and its item count,
+and a tally below the group says how many scales and how many items are
+currently selected. Under *Download* sit four settings groups — *Word paper
+size*, *Word item numbering*, *Word item order*, and *Qualtrics and REDCap
+naming* — and then one button per format. A *Log* beneath them records what
+the page asked R to do and what R replied; it is where a failed download says
+what went wrong.
+
+*Word paper size* chooses between **US Letter**, the default, and **A4**. Like
+the other two Word groups it reaches the Word form only — the Qualtrics and
+REDCap exports carry no page size at all.
 
 ## Numbering the Word form
 
