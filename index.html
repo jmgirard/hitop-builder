@@ -604,12 +604,19 @@ function setFormat(format) {
   for (const panel of document.querySelectorAll('.fmtpanel')) {
     panel.hidden = panel.dataset.panel !== format;
   }
+  el('step3h').textContent = FORMATS[format].heading;
+  el('downloadBtn').textContent = FORMATS[format].button;
+}
+
+// The mark on a format card says which screen the visitor just came from, so
+// only an actual choice writes it -- the page's own starting format is not a
+// choice anyone made, and marking it would announce one option as current on
+// the screen whose whole purpose is to make that choice.
+function markFormatChoice(format) {
   for (const b of document.querySelectorAll('[data-choose]')) {
     if (b.dataset.choose === format) b.setAttribute('aria-current', 'true');
     else b.removeAttribute('aria-current');
   }
-  el('step3h').textContent = FORMATS[format].heading;
-  el('downloadBtn').textContent = FORMATS[format].button;
 }
 
 function showStep(index, { focus = true } = {}) {
@@ -963,7 +970,11 @@ async function main() {
   // Choosing a format both records the choice and moves to its screen, so the
   // choice is never made and then left behind on a screen it does not affect.
   for (const b of document.querySelectorAll('[data-choose]')) {
-    b.addEventListener('click', () => { setFormat(b.dataset.choose); showStep(2); });
+    b.addEventListener('click', () => {
+      setFormat(b.dataset.choose);
+      markFormatChoice(b.dataset.choose);
+      showStep(2);
+    });
   }
   // Every control that moves between steps -- the bar's three buttons, the
   // Back and Continue pair at the foot of each step, and the recap's change
