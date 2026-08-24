@@ -43,8 +43,9 @@ the browser caches them afterwards.
 
 The page works in three steps, one on screen at a time. A *Steps* bar above them
 says which step you are on, and its three buttons — *Choose scales*, *Set
-options*, *Download* — jump straight to any of them; each step also carries Back
-and Continue buttons at its foot. Nothing gates moving on: the download step is
+options*, *Download* — jump straight to any of them; at the foot of each step
+sit buttons to the steps either side of it: Continue on the first, Back on the
+last, both in the middle. Nothing gates moving on: the download step is
 reachable with no scale selected, and its buttons say there that they are off
 until one is.
 
