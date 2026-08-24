@@ -69,6 +69,11 @@
     font: var(--t-body)/1.55 var(--font);
     -webkit-text-size-adjust: 100%;
   }
+  /* A way back to the package documentation. This page is standalone -- it
+     carries none of the pkgdown site's navigation -- so without this link a
+     visitor who arrives from the Instruments menu has no way back but Back. */
+  .upnav { margin: 0 0 var(--s4); font-size: var(--t-small); }
+  .upnav a { color: var(--muted); }
   h1 {
     font-size: var(--t-h1); line-height: 1.2; letter-spacing: -.01em;
     margin: 0 0 var(--s2);
@@ -284,6 +289,11 @@
 </style>
 </head>
 <body>
+
+<nav class="upnav">
+  <a href="https://jmgirard.github.io/hitop/"><span aria-hidden="true">←</span>
+  <code>hitop</code> package documentation</a>
+</nav>
 
 <h1>HiTOP-SR Module Builder</h1>
 <p class="lede">Choose the HiTOP-SR scales you need and download a questionnaire
