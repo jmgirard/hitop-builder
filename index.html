@@ -5,100 +5,261 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HiTOP-SR Module Builder</title>
 <style>
+  /* ---- Tokens -------------------------------------------------------- */
+  /* Colours are stated as a light set and redefined for the dark scheme;
+     the page follows the operating system and offers no control of its own.
+     Every text pair below clears 4.5:1 against the surface it is painted on,
+     the disabled buttons, hints, links and log pane included. */
   :root {
-    --bg: #ffffff; --fg: #1a1a1a; --muted: #5b6570; --line: #d9dde2;
-    --accent: #1f5c8b; --accent-fg: #ffffff; --panel: #f6f7f9;
+    --bg: #ffffff;
+    --surface: #f4f6f8;
+    --surface-2: #e9edf1;
+    --fg: #16202b;
+    --muted: #4d5a67;
+    --disabled-fg: #5a6773;
+    --accent: #185a8c;
+    --accent-fg: #ffffff;
+    --accent-weak: #dbe8f4;
+    --line: #c7d0d9;
+    --line-strong: #6f7d8b;
+    --focus: #0b4f86;
+
+    /* Spacing, on a 4px step. */
+    --s1: .25rem; --s2: .5rem; --s3: .75rem; --s4: 1rem;
+    --s5: 1.5rem; --s6: 2rem; --s7: 3rem;
+
+    /* Type. */
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --t-h1: 1.75rem; --t-h2: 1.125rem; --t-body: 1rem; --t-small: .875rem;
+    --t-micro: .8125rem;
+
+    --r1: 6px; --r2: 10px;
+
+    /* Lets the browser paint checkboxes, radios and scrollbars in the scheme
+       the page is using, rather than a light control on a dark surface. */
+    color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #16191d; --fg: #e8eaed; --muted: #9aa4af; --line: #2f353c;
-      --accent: #5aa2d8; --accent-fg: #10151a; --panel: #1d2126;
+      --bg: #14181d;
+      --surface: #1c2229;
+      --surface-2: #262e37;
+      --fg: #e6ebf0;
+      --muted: #a3b0bd;
+      --disabled-fg: #98a4b1;
+      --accent: #7ab8e8;
+      --accent-fg: #0b1219;
+      --accent-weak: #223343;
+      --line: #3a444f;
+      --line-strong: #78848f;
+      --focus: #9ccbf0;
+      color-scheme: dark;
     }
   }
+
+  /* ---- Base ---------------------------------------------------------- */
   * { box-sizing: border-box; }
   body {
-    margin: 0 auto; padding: 1.5rem 1.25rem 4rem; max-width: 56rem;
-    background: var(--bg); color: var(--fg);
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0 auto;
+    padding: var(--s6) var(--s5) var(--s7);
+    max-width: 54rem;
+    background: var(--bg);
+    color: var(--fg);
+    font: var(--t-body)/1.55 var(--font);
+    -webkit-text-size-adjust: 100%;
   }
-  h1 { font-size: 1.5rem; margin: 0 0 .25rem; }
-  h2 { font-size: 1.05rem; margin: 2rem 0 .5rem; }
-  p { margin: .5rem 0; }
-  .lede { color: var(--muted); }
+  h1 {
+    font-size: var(--t-h1); line-height: 1.2; letter-spacing: -.01em;
+    margin: 0 0 var(--s2);
+  }
+  h2 {
+    font-size: var(--t-h2); line-height: 1.3; letter-spacing: -.005em;
+    margin: var(--s6) 0 var(--s3);
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--line);
+  }
+  p { margin: var(--s2) 0; }
+  .lede { color: var(--muted); max-width: 44rem; }
+  a { color: var(--accent); text-underline-offset: 2px; }
+  code { font-family: var(--mono); font-size: .9em; overflow-wrap: anywhere; }
+
+  /* Long tokens -- host names in the notice, URLs in the log -- must wrap
+     rather than push the document sideways at 360px. */
+  p, li, .notice, #tally, .hint { overflow-wrap: break-word; }
+
+  /* ---- Focus --------------------------------------------------------- */
+  /* One ring for every focusable control: a solid 3px outline in a colour
+     over 7:1 against every surface it can land on, held clear of the control
+     so it reads on a filled button as well as on a checkbox. */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: var(--r1);
+  }
+
+  /* ---- Notices ------------------------------------------------------- */
   .notice {
-    border: 1px solid var(--line); border-left: 4px solid var(--accent);
-    background: var(--panel); padding: .75rem 1rem; margin: 1rem 0; border-radius: 4px;
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    background: var(--surface);
+    padding: var(--s3) var(--s4);
+    margin: var(--s4) 0;
+    border-radius: var(--r1);
   }
-  #status { font-weight: 600; margin: 1rem 0 .25rem; }
-  #controls[hidden] { display: none; }
-  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin: .75rem 0; }
-  input[type=search] {
-    flex: 1 1 14rem; min-width: 10rem; padding: .4rem .6rem;
-    border: 1px solid var(--line); border-radius: 4px;
-    background: var(--bg); color: var(--fg); font: inherit;
-  }
-  button {
-    padding: .45rem .8rem; border: 1px solid var(--line); border-radius: 4px;
-    background: var(--panel); color: var(--fg); font: inherit; cursor: pointer;
-  }
-  button:hover:not(:disabled) { border-color: var(--accent); }
-  button:disabled { opacity: .5; cursor: not-allowed; }
-  button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-  #scales {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    gap: .1rem .75rem; border: 1px solid var(--line); border-radius: 4px;
-    padding: .75rem; max-height: 26rem; overflow-y: auto;
-  }
-  #scales label { display: flex; gap: .4rem; align-items: baseline; padding: .12rem 0; }
-  #scales .n { color: var(--muted); font-size: .85em; margin-left: auto; padding-left: .5rem; }
-  #tally { margin: .6rem 0; font-variant-numeric: tabular-nums; }
-  .downloads { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; }
-  fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 1rem 0 0; }
-  legend { color: var(--muted); font-size: .85rem; padding: 0 .35rem; }
-  #numbering label { display: block; padding: .1rem 0; }
-  #naming { padding-bottom: .75rem; }
-  #naming label { display: block; padding: .35rem 0 .1rem; font-size: .9rem; }
-  #naming label.check { display: flex; gap: .4rem; align-items: baseline;
-    padding-top: .6rem; font-size: 1rem; }
-  #naming input[type=text] {
-    display: block; width: 100%; max-width: 24rem; padding: .35rem .5rem;
-    border: 1px solid var(--line); border-radius: 4px;
-    background: var(--bg); color: var(--fg); font: inherit;
-  }
-  .hint { color: var(--muted); font-size: .85rem; margin: .4rem 0 .1rem; }
   .notice p:first-child { margin-top: 0; }
   .notice p:last-child { margin-bottom: 0; }
-  #log {
-    white-space: pre-wrap; word-break: break-word; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 4px; padding: .6rem .75rem;
-    max-height: 16rem; overflow-y: auto; font-size: .8rem; line-height: 1.4;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted);
+
+  /* ---- Status -------------------------------------------------------- */
+  #status {
+    font-weight: 600;
+    margin: var(--s5) 0 var(--s1);
   }
-  footer { margin-top: 2.5rem; color: var(--muted); font-size: .85rem; }
-  a { color: var(--accent); }
+  #controls[hidden] { display: none; }
+
+  /* ---- Controls ------------------------------------------------------ */
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: var(--s2);
+    align-items: center; margin: var(--s3) 0;
+  }
+  input[type=search], input[type=text] {
+    padding: .45rem .6rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r1);
+    background: var(--bg); color: var(--fg); font: inherit;
+  }
+  input[type=search] { flex: 1 1 14rem; min-width: 8rem; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+
+  button {
+    padding: .5rem .9rem;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r1);
+    background: var(--surface-2); color: var(--fg);
+    font: inherit; font-weight: 500; cursor: pointer;
+  }
+  button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-weak); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  /* Disabled state is a stated colour pair, never a blanket opacity: a
+     half-transparent label lands under 4.5:1 on every surface here. */
+  button:disabled {
+    background: var(--surface-2); color: var(--disabled-fg);
+    border-color: var(--line); border-style: dashed; cursor: not-allowed;
+  }
+  button.primary {
+    background: var(--accent); color: var(--accent-fg);
+    border-color: var(--accent); border-style: solid;
+  }
+  button.primary:hover:not(:disabled) { filter: brightness(1.12); background: var(--accent); }
+  button.primary:disabled {
+    background: var(--surface-2); color: var(--disabled-fg);
+    border-color: var(--line); border-style: dashed;
+  }
+
+  /* ---- Scale list ---------------------------------------------------- */
+  #scales {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+    gap: 0 var(--s4);
+    border: 1px solid var(--line);
+    border-radius: var(--r1);
+    background: var(--surface);
+    padding: var(--s3);
+    max-height: 26rem; overflow-y: auto;
+  }
+  #scales label {
+    display: flex; gap: var(--s2); align-items: flex-start;
+    padding: .2rem var(--s1); border-radius: var(--r1);
+  }
+  #scales label:hover { background: var(--accent-weak); }
+  #scales label input { margin-top: .3em; flex: none; }
+  #scales .n {
+    color: var(--muted); font-size: var(--t-micro);
+    font-variant-numeric: tabular-nums;
+    margin-left: auto; padding-left: var(--s2); padding-top: .15em;
+  }
+  #tally { margin: var(--s3) 0; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  /* ---- Grouped settings ---------------------------------------------- */
+  fieldset {
+    border: 1px solid var(--line);
+    border-radius: var(--r1);
+    margin: var(--s4) 0 0;
+    padding: var(--s3) var(--s4) var(--s4);
+  }
+  legend {
+    color: var(--fg); font-size: var(--t-micro);
+    font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+    padding: 0 var(--s2); margin-left: calc(var(--s2) * -1);
+  }
+  /* Every choice in a settings group sits on its own line, so the groups
+     read alike whether they hold two radios or one checkbox. */
+  fieldset > label { display: block; padding: var(--s1) 0; }
+  #naming label { display: block; padding: var(--s3) 0 var(--s1); font-size: var(--t-small); }
+  #naming label.check {
+    display: flex; gap: var(--s2); align-items: flex-start;
+    padding-top: var(--s4); font-size: var(--t-body);
+  }
+  #naming label.check input { margin-top: .3em; }
+  #naming input[type=text] { display: block; width: 100%; max-width: 24rem; }
+  .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
+
+  .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+
+  /* ---- Log ----------------------------------------------------------- */
+  #log {
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r1);
+    padding: var(--s3);
+    max-height: 16rem; overflow-y: auto;
+    font-family: var(--mono); font-size: var(--t-small); line-height: 1.5;
+    color: var(--muted);
+  }
+
+  footer {
+    margin-top: var(--s7); padding-top: var(--s4);
+    border-top: 1px solid var(--line);
+    color: var(--muted); font-size: var(--t-small);
+  }
+
+  /* ---- Narrow viewports ---------------------------------------------- */
+  @media (max-width: 30rem) {
+    body { padding: var(--s5) var(--s4) var(--s6); }
+    h1 { font-size: 1.5rem; }
+    fieldset { padding: var(--s2) var(--s3) var(--s3); }
+    .downloads button { flex: 1 1 100%; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled) { transform: none; }
+  }
 </style>
 </head>
 <body>
 
 <h1>HiTOP-SR Module Builder</h1>
-<p class="lede">Tick the scales you want and download a ready-to-field questionnaire
-containing only those items, in Word, Qualtrics, or REDCap format.</p>
+<p class="lede">Choose the HiTOP-SR scales you need and download a questionnaire
+carrying only those items — a Word form to print, a Qualtrics import file, or a
+REDCap data dictionary.</p>
 
 <div class="notice">
-  <strong>This page builds blank questionnaires. It does not score anything.</strong>
-  It never asks for, receives, or transmits anyone's responses. To work, the page
-  downloads R itself from <code>webr.r-wasm.org</code> and the
+  <strong>This page builds blank questionnaires. It scores nothing.</strong>
+  It never asks for, receives, or transmits anyone's responses. To work it
+  fetches R itself from <code>webr.r-wasm.org</code>, the
   <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
-  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>; both then
-  run inside your own browser, and every file is generated there. Your scale
-  selections and the files you build never leave this page.
+  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, and the
+  further R packages that one needs from <code>repo.r-wasm.org</code>. Beyond
+  this page's own files, those three hosts are the only places it connects to.
+  R then runs inside your own browser and every file is built there: the scales
+  you tick and the files you build never leave this page.
 </div>
 
 <noscript>
   <div class="notice">
     <strong>This page needs JavaScript.</strong> It runs R inside your browser,
-    which is not possible with scripting disabled. The complete, unmodified
-    instruments are available as ready-made downloads on the
+    which scripting disabled makes impossible. The complete instruments are
+    ready to download on the
     <a href="https://jmgirard.github.io/hitop/articles/download-hitopsr.html">HiTOP-SR
     download page</a>.
   </div>
@@ -129,33 +290,32 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
       Number the items 1 to n</label>
     <label><input type="radio" name="numbering" value="original">
       Keep the HiTOP-SR's own item numbers</label>
-    <p class="hint">With the instrument's own numbers, the printed number matches
-    the item number in this page's Qualtrics and REDCap exports, so paper
-    responses can be typed in without translating them.</p>
+    <p class="hint">The instrument's own numbers are what this page's Qualtrics
+    and REDCap exports use for their field names, so a paper response can be
+    typed into a project built here without translating its number.</p>
   </fieldset>
   <fieldset>
     <legend>Word item order</legend>
     <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
     <div class="notice" id="shuffleNote" hidden>
       <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-      collected from it arrive in the order the form prints, which is not the
-      instrument's own item order; put the collected columns back into the
-      original HiTOP-SR order before scoring, or the scale scores come out wrong
-      with no error to warn you.</p>
+      come back in the order the form printed, which is not the instrument's
+      own; put those columns into the original HiTOP-SR order before scoring, or
+      the scale scores come out wrong and nothing warns you.</p>
       <!-- What the shuffled file does about recovering the original order
            depends on the numbering choice and on whether every scale is
            ticked, so this sentence is written by refreshShuffleNote(). -->
       <p id="shuffleCrosswalk"></p>
-      <p>The Qualtrics and REDCap files are never shuffled — there an item
+      <p>The Qualtrics and REDCap files are never shuffled: there an item
       number names a collected data column.</p>
     </div>
   </fieldset>
   <fieldset id="naming">
     <legend>Qualtrics and REDCap naming</legend>
     <p class="hint">These name what the import creates in the target system.
-    They do not appear on the Word form, and they change nothing about the
-    items themselves. Each box starts at the package's own default; empty a
-    box and that default is used.</p>
+    None of them reaches the Word form, and none changes the items, their
+    wording, or their response options. Each box starts at the package's own
+    default; empty one and that default is used again.</p>
     <label for="blockName">Qualtrics block name</label>
     <input type="text" id="blockName" autocomplete="off">
     <label for="idPrefix">Qualtrics question ID prefix</label>
@@ -191,8 +351,8 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
 <script nomodule>
   document.getElementById('status').hidden = false;
   document.getElementById('status').textContent =
-    'This browser is too old to run R in the page. The ready-made instruments ' +
-    'are available at jmgirard.github.io/hitop.';
+    'This browser is too old to run R in the page. The complete instruments ' +
+    'are ready to download at jmgirard.github.io/hitop.';
 </script>
 
 <script type="module">
@@ -345,19 +505,19 @@ function refreshShuffleNote() {
 
 function crosswalkSentence() {
   if (numberingMode() === 'original') {
-    return 'This form prints the instrument\u2019s own item numbers, in a ' +
-      'shuffled order, so it carries no crosswalk \u2014 the printed number ' +
-      'already is the original one. Enter each response under its printed ' +
-      'item number.';
+    return 'The numbers printed here are the instrument\u2019s own, shuffled ' +
+      'into a new order, so there is nothing to cross-walk and the form ' +
+      'carries no crosswalk. Enter each response under the number printed ' +
+      'beside it.';
   }
   if (wholeInstrument()) {
-    return 'This form carries no crosswalk: a shuffled copy of the whole ' +
-      'instrument would print 405 pairs on a participant-facing page. ' +
-      'Nothing on the paper records the printed order, so keep your own ' +
-      'record of it, or build the form from a selection of scales, which ' +
-      'does carry one.';
+    return 'This form carries no crosswalk \u2014 a shuffled whole ' +
+      'instrument would print 405 pairs on a page a participant reads. ' +
+      'Nothing on the paper records the order it came out in, so keep your ' +
+      'own record of it, or build the form from a selection of scales, ' +
+      'which does carry one.';
   }
-  return 'This form carries a crosswalk listing each printed number and the ' +
+  return 'This form carries a crosswalk: each printed number beside the ' +
     'original HiTOP-SR number it came from.';
 }
 
@@ -383,7 +543,7 @@ async function readNamingDefaults() {
     namingDefaults[spec.id] = value;
     el(spec.id).value = value;
   }
-  log(`  naming defaults from the package: ` +
+  log(`  naming defaults read from the package: ` +
       NAMING.map((s) => `${s.arg} = ${namingDefaults[s.id]}`).join(', ') + '.');
 }
 
@@ -394,7 +554,7 @@ async function readNamingDefaults() {
 function namingValue(id) {
   const typed = el(id).value.trim();
   if (typed) return typed;
-  log(`  ${id} was empty, using the package default ` +
+  log(`  ${id} was empty; using the package default ` +
       `"${namingDefaults[id]}".`);
   return namingDefaults[id];
 }
@@ -406,7 +566,7 @@ async function download(format) {
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
   buttons.forEach((b) => (b.disabled = true));
-  status(`Generating the ${spec.ext.toUpperCase()} file…`);
+  status(`Building the ${spec.ext.toUpperCase()} file…`);
 
   const path = `/tmp/module.${spec.ext}`;
   try {
@@ -486,7 +646,7 @@ async function download(format) {
     status('Ready.');
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
-    status(`Could not generate the ${spec.ext.toUpperCase()} file — see the log.`);
+    status(`Could not build the ${spec.ext.toUpperCase()} file — the log below says why.`);
   } finally {
     buttons.forEach((b) => (b.disabled = false));
     refreshTally();
@@ -504,8 +664,8 @@ async function main() {
   try {
     ({ WebR } = await import(WEBR_URL));
   } catch (err) {
-    status('Could not load R. This page needs to reach webr.r-wasm.org — a ' +
-           'network block or browser extension may be preventing it.');
+    status('Could not load R. This page has to reach webr.r-wasm.org — a ' +
+           'network block or a browser extension may be stopping it.');
     log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
     return;
   }
@@ -524,8 +684,8 @@ async function main() {
         // The channel to R is gone; anything still awaiting it will never
         // settle, so say so where the user is actually looking rather than
         // leaving a stale "downloading…" on screen.
-        log(`  R output stopped: ${err && err.message ? err.message : err}`);
-        status('Lost the connection to R — reload the page to start again.');
+        log(`  R stopped sending output: ${err && err.message ? err.message : err}`);
+        status('Lost the connection to R — reload the page to start over.');
         for (const b of document.querySelectorAll('.downloads button')) b.disabled = true;
         return;
       }
@@ -533,7 +693,7 @@ async function main() {
     }
   })();
 
-  status('Downloading the hitop package (about 20 seconds the first time)…');
+  status('Downloading the hitop package — about twenty seconds the first time…');
   log('> installPackages("hitop")');
   await webR.installPackages(['hitop'], { repos: REPOS });
   log('  installPackages("hitop") completed.');
@@ -595,7 +755,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  status('Something went wrong starting R — see the log below.');
+  status('Could not start R — the log below says why.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>
