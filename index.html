@@ -56,6 +56,15 @@
   fieldset { border: 1px solid var(--line); border-radius: 4px; margin: 1rem 0 0; }
   legend { color: var(--muted); font-size: .85rem; padding: 0 .35rem; }
   #numbering label { display: block; padding: .1rem 0; }
+  #naming { padding-bottom: .75rem; }
+  #naming label { display: block; padding: .35rem 0 .1rem; font-size: .9rem; }
+  #naming label.check { display: flex; gap: .4rem; align-items: baseline;
+    padding-top: .6rem; font-size: 1rem; }
+  #naming input[type=text] {
+    display: block; width: 100%; max-width: 24rem; padding: .35rem .5rem;
+    border: 1px solid var(--line); border-radius: 4px;
+    background: var(--bg); color: var(--fg); font: inherit;
+  }
   .hint { color: var(--muted); font-size: .85rem; margin: .4rem 0 .1rem; }
   .notice p:first-child { margin-top: 0; }
   .notice p:last-child { margin-bottom: 0; }
@@ -141,6 +150,21 @@ containing only those items, in Word, Qualtrics, or REDCap format.</p>
       number names a collected data column.</p>
     </div>
   </fieldset>
+  <fieldset id="naming">
+    <legend>Qualtrics and REDCap naming</legend>
+    <p class="hint">These name what the import creates in the target system.
+    They do not appear on the Word form, and they change nothing about the
+    items themselves. Each box starts at the package's own default; empty a
+    box and that default is used.</p>
+    <label for="blockName">Qualtrics block name</label>
+    <input type="text" id="blockName" autocomplete="off">
+    <label for="idPrefix">Qualtrics question ID prefix</label>
+    <input type="text" id="idPrefix" autocomplete="off">
+    <label for="formName">REDCap form name</label>
+    <input type="text" id="formName" autocomplete="off">
+    <label class="check"><input type="checkbox" id="required" checked>
+      Mark every REDCap item as required</label>
+  </fieldset>
   <div class="downloads">
     <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
     <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
@@ -205,6 +229,18 @@ const FORMATS = {
 
 let webR;
 let scales = [];
+
+// The naming boxes' defaults are read out of the installed package's own
+// formals at load time (see readNamingDefaults), never copied into this page:
+// a default renamed in the package must not leave this page prefilling a stale
+// one. Each entry names the input, the R argument it fills, and the exported
+// function whose formal supplies the default.
+const NAMING = [
+  { id: 'blockName', arg: 'block_name', fn: 'generate_qualtrics_hitopsr' },
+  { id: 'idPrefix', arg: 'id_prefix', fn: 'generate_qualtrics_hitopsr' },
+  { id: 'formName', arg: 'form_name', fn: 'generate_redcap_hitopsr' },
+];
+const namingDefaults = {};
 
 // Whether this instrument's scales tile its items exactly -- every item covered
 // once, numbered 1 to N with no gaps. Asked of R once at load rather than
@@ -339,6 +375,30 @@ function refreshSelectAllLabel() {
   el('selectAll').disabled = shown === 0;
 }
 
+async function readNamingDefaults() {
+  for (const spec of NAMING) {
+    const value = await webR.evalRString(
+      `as.character(formals(hitop::${spec.fn})$${spec.arg})`
+    );
+    namingDefaults[spec.id] = value;
+    el(spec.id).value = value;
+  }
+  log(`  naming defaults from the package: ` +
+      NAMING.map((s) => `${s.arg} = ${namingDefaults[s.id]}`).join(', ') + '.');
+}
+
+// An emptied box falls back to the package's own default rather than sending a
+// blank through: a blank block name produces a Qualtrics file with no block,
+// and a blank REDCap form name a dictionary REDCap refuses on import -- a
+// failure the visitor would only meet at import time, with nothing said here.
+function namingValue(id) {
+  const typed = el(id).value.trim();
+  if (typed) return typed;
+  log(`  ${id} was empty, using the package default ` +
+      `"${namingDefaults[id]}".`);
+  return namingDefaults[id];
+}
+
 async function download(format) {
   const spec = FORMATS[format];
   const chosen = selected();
@@ -369,10 +429,32 @@ async function download(format) {
       log('  keeping the module: the ticked scales do not cover this ' +
           'instrument\u2019s items as 1..N with no gaps.');
     }
+    // Each naming value goes only into the format that has the argument: the
+    // Word call takes none of them, and neither online format takes the
+    // other's. Every free-text value is bound as an R object rather than
+    // pasted into the code string, so a quote or a backslash in a block name
+    // is data, not syntax.
+    let naming = '';
+    let namingLog = '';
+    if (format === 'qualtrics') {
+      const block = namingValue('blockName');
+      const prefix = namingValue('idPrefix');
+      await webR.objs.globalEnv.bind('block_name', block);
+      await webR.objs.globalEnv.bind('id_prefix', prefix);
+      naming = ', block_name = block_name, id_prefix = id_prefix';
+      namingLog = `, block_name = "${block}", id_prefix = "${prefix}"`;
+    } else if (format === 'redcap') {
+      const form = namingValue('formName');
+      const required = el('required').checked ? 'TRUE' : 'FALSE';
+      await webR.objs.globalEnv.bind('form_name', form);
+      naming = `, form_name = form_name, required = ${required}`;
+      namingLog = `, form_name = "${form}", required = ${required}`;
+    }
+
     const extra = format === 'docx'
       ? `, papersize = paper_size, renumber = ${renumber ? 'TRUE' : 'FALSE'}` +
         `, randomize = ${shuffle ? 'TRUE' : 'FALSE'}`
-      : '';
+      : naming;
     const moduleArg = whole ? '' : ', module = .m';
     const modulePrelude = whole
       ? ''
@@ -380,7 +462,7 @@ async function download(format) {
     log(`> ${spec.fn}(file = out_path` +
         `${whole ? '' : `, module = <${chosen.length} scales>`}` +
         `${format === 'docx' && !renumber ? ', renumber = FALSE' : ''}` +
-        `${shuffle ? ', randomize = TRUE' : ''})`);
+        `${shuffle ? ', randomize = TRUE' : ''}${namingLog})`);
     await webR.evalRVoid(`
       unlink(out_path)
       ${modulePrelude}
@@ -492,6 +574,8 @@ async function main() {
     })
   `);
   log(`  every scale ticked covers items 1..N with no gaps: ${tilesExactly}.`);
+
+  await readNamingDefaults();
 
   renderScales();
   el('filter').addEventListener('input', applyFilter);
