@@ -70,6 +70,40 @@ crosswalk either way. The page's on-screen notice says which of these applies,
 and [Shuffling the Word form](#shuffling-the-word-form) below tabulates all four
 — verified 2026-08-23.
 
+## Naming the Qualtrics and REDCap exports
+
+Under **Download**, a *Qualtrics and REDCap naming* group sets what the import
+creates in the target system. None of it reaches the Word form, and none of it
+changes the items, their wording, or their response options.
+
+- **Qualtrics block name** becomes the `[[Block:…]]` line at the top of the
+  Qualtrics `.txt`, naming the block the questions land in.
+- **Qualtrics question ID prefix** starts each question's `[[ID:…]]`, so a
+  prefix of `W2SCR` gives IDs like `W2SCR_066`. The number after the underscore
+  is the item's own HiTOP-SR number, whatever the Word numbering choice.
+- **REDCap form name** fills the `Form Name` column on every row of the
+  dictionary's `instrument.csv` — the instrument name REDCap shows.
+- **Mark every REDCap item as required**, ticked by default, sets that file's
+  `Required Field?` column to `y` on every item row; unticked it reads `n`.
+
+Each box starts at the value the `hitop` package itself uses by default, read
+out of the package when the page loads rather than kept in this repository.
+Empty a box and that default is used again, with a line in the log saying so.
+
+The page does not check that a name is one its target system will take.
+Qualtrics and REDCap each have their own rules about what a block, field, or
+form may be called, and a name either one refuses is refused when you import
+the file, not when you build it here.
+
+Verified 2026-08-24 on a two-scale module. A block name of `Wave 2 Screening`,
+an ID prefix of `W2SCR` and a form name of `wave2_screening` produced
+`[[Block:Wave 2 Screening]]`, question IDs `W2SCR_066` through `W2SCR_389`, and
+a `Form Name` of `wave2_screening` on all 9 rows of the dictionary;
+`Required Field?` read `n` on all 8 item rows with the box unticked and `y` on
+all 8 with it ticked. With every control left at its default, the same module's
+Qualtrics `.txt` and REDCap `instrument.csv` came out byte-identical to the
+files the deployed page built.
+
 ## Ticking every scale
 
 Ticking all 76 scales builds the whole instrument rather than a module that
