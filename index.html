@@ -243,17 +243,11 @@
 carrying only those items — a Word form to print, a Qualtrics import file, or a
 REDCap data dictionary.</p>
 
-<div class="notice">
-  <strong>This page builds blank questionnaires. It scores nothing.</strong>
-  It never asks for, receives, or transmits anyone's responses. To work it
-  fetches R itself from <code>webr.r-wasm.org</code>, the
-  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
-  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, and the
-  further R packages that one needs from <code>repo.r-wasm.org</code>. Beyond
-  this page's own files, those three hosts are the only places it connects to.
-  R then runs inside your own browser and every file is built there: the scales
-  you tick and the files you build never leave this page.
-</div>
+<p class="lede">Everything runs in your own browser. To do that the page fetches
+R from <code>webr.r-wasm.org</code>, the
+<a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
+<span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, and the
+further R packages it needs from <code>repo.r-wasm.org</code>.</p>
 
 <noscript>
   <div class="notice">
