@@ -41,21 +41,36 @@ the browser caches them afterwards.
 
 ## What the page shows
 
-The page works in three steps, one on screen at a time. A *Steps* bar above them
-says which step you are on, and its three buttons — *Choose scales*, *Set
-options*, *Download* — jump straight to any of them; at the foot of each step
-sit buttons to the steps either side of it: Continue on the first, Back on the
-last, both in the middle. Nothing gates moving on: the download step is
-reachable with no scale selected, and its buttons say there that they are off
-until one is.
+The page works in three steps, one on screen at a time. It asks which format you
+want before it asks anything about that format, so you only ever see the
+settings that reach the file you are building. A *Steps* bar above the steps
+says which one you are on, and its three buttons — *Choose scales*,
+*Choose a format*, *Options and download* — jump straight to any of them.
+Nothing gates moving on: the last step is reachable with no scale selected, and
+its download button says there that it is off until one is.
 
 1. **Choose scales.** A *Filter the scale list by name* box narrows the
    *HiTOP-SR scales* group; each row carries a scale's name and its item count,
    and a tally below the group says how many scales and how many items are
-   currently selected.
-2. **Set options.** Four settings groups — *Word paper size*, *Word item
-   numbering*, *Word item order*, and *Qualtrics and REDCap naming*.
-3. **Download.** One button per format: Word, Qualtrics, REDCap.
+   currently selected. A *Continue to the format* button ends the step.
+2. **Choose a format.** Three buttons — *Word (.docx)*, *Qualtrics (.txt)* and
+   *REDCap (.zip)* — each with a line saying what that file is for. Pressing one
+   both records the choice and opens the third step set up for it. A *Back to
+   scales* button ends the step.
+3. **Options and download.** The step is headed for the format you chose —
+   *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
+   options and download* — and carries that format's settings, one download
+   button named for the file it builds, and a *Choose a different format* button
+   at its foot leading back to the second step. Your scale selection is kept, so
+   building a second format needs no re-ticking.
+
+   - **Word** has three settings groups: *Paper size*, *Item numbering* and
+     *Item order*.
+   - **Qualtrics** has one: *Block and question naming*.
+   - **REDCap** has one: *Form name and required items*.
+
+   No format's screen shows another format's settings, and nothing set under one
+   format reaches another format's file.
 
 Steps two and three each open with the same tally the first step ends on,
 followed by a *Change the selection* button back to the scale list, so neither
@@ -65,14 +80,18 @@ Below the three steps, a *Log* records what the page asked R to do and what R
 replied; it is where a failed download says what went wrong. It stays visible on
 every step, as does the status line above them.
 
-*Word paper size* chooses between **US Letter**, the default, and **A4**. Like
-the other two Word groups it reaches the Word form only — the Qualtrics and
-REDCap exports carry no page size at all.
+Re-cutting the page into these steps changed no file it builds: on 2026-08-24,
+sixteen combinations of format, scale selection and settings each came out
+matching the file the previously deployed page built from the same inputs.
+
+*Paper size* chooses between **US Letter**, the default, and **A4**. Like the
+other two groups on the Word screen it reaches the Word form only — the
+Qualtrics and REDCap exports carry no page size at all.
 
 ## Numbering the Word form
 
-Under **Set options**, a *Word item numbering* group chooses which numbers the
-Word form prints beside its items:
+On the Word screen, an *Item numbering* group chooses which numbers the Word
+form prints beside its items:
 
 - **Number the items 1 to n** — the default — numbers the printed items from
   `1` down the page, so a module form does not show the full instrument's
@@ -92,7 +111,7 @@ translating them. The same two-scale module printed items 238, 275, 344, 358,
 392 and 398 on the Word form and named its REDCap fields `hsr_238` through
 `hsr_398` (verified 2026-08-23).
 
-Combined with the *Word item order* box, the numbering choice decides whether a
+Combined with the *Item order* box, the numbering choice decides whether a
 shuffled form can be traced back to the instrument's numbers. Numbered `1 to n`,
 a shuffled module form prints a crosswalk; with the instrument's own numbers
 there is nothing to cross-walk, so it prints none and each response is entered
@@ -103,18 +122,20 @@ and [Shuffling the Word form](#shuffling-the-word-form) below tabulates all four
 
 ## Naming the Qualtrics and REDCap exports
 
-Under **Set options**, a *Qualtrics and REDCap naming* group sets what the import
-creates in the target system. None of it reaches the Word form, and none of it
-changes the items, their wording, or their response options.
+These settings name what the import creates in the target system. None of them
+reaches the Word form, and none of them changes the items, their wording, or
+their response options. They sit on the screen of the format they reach: the
+Qualtrics screen carries a *Block and question naming* group, and the REDCap
+screen a *Form name and required items* group.
 
-- **Qualtrics block name** becomes the `[[Block:…]]` line at the top of the
+- **Block name** (Qualtrics) becomes the `[[Block:…]]` line at the top of the
   Qualtrics `.txt`, naming the block the questions land in.
-- **Qualtrics question ID prefix** starts each question's `[[ID:…]]`, so a
+- **Question ID prefix** (Qualtrics) starts each question's `[[ID:…]]`, so a
   prefix of `W2SCR` gives IDs like `W2SCR_066`. The number after the underscore
   is the item's own HiTOP-SR number, whatever the Word numbering choice.
-- **REDCap form name** fills the `Form Name` column on every row of the
+- **Form name** (REDCap) fills the `Form Name` column on every row of the
   dictionary's `instrument.csv` — the instrument name REDCap shows.
-- **Mark every REDCap item as required**, ticked by default, sets that file's
+- **Mark every item as required** (REDCap), ticked by default, sets that file's
   `Required Field?` column to `y` on every item row; unticked it reads `n`.
 
 Each box starts at the value the `hitop` package itself uses by default, read
@@ -147,7 +168,7 @@ Qualtrics `.txt` byte-identical and the REDCap `instrument.csv` identical.
 
 ## Shuffling the Word form
 
-Under **Set options**, a *Word item order* box shuffles the printed order of the
+On the Word screen, an *Item order* box shuffles the printed order of the
 items on the Word form. It is unticked by default, and it applies to the Word
 file only: in the Qualtrics and REDCap exports an item number names a collected
 data column, so those two downloads are the same whether the box is ticked or

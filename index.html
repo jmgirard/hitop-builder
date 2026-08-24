@@ -200,16 +200,43 @@
   /* Every choice in a settings group sits on its own line, so the groups
      read alike whether they hold two radios or one checkbox. */
   fieldset > label { display: block; padding: var(--s1) 0; }
-  #naming label { display: block; padding: var(--s3) 0 var(--s1); font-size: var(--t-small); }
-  #naming label.check {
+  #naming label, #redcapNaming label {
+    display: block; padding: var(--s3) 0 var(--s1); font-size: var(--t-small);
+  }
+  #naming label.check, #redcapNaming label.check {
     display: flex; gap: var(--s2); align-items: flex-start;
     padding-top: var(--s4); font-size: var(--t-body);
   }
-  #naming label.check input { margin-top: .3em; }
-  #naming input[type=text] { display: block; width: 100%; max-width: 24rem; }
+  #naming label.check input, #redcapNaming label.check input { margin-top: .3em; }
+  #naming input[type=text], #redcapNaming input[type=text] {
+    display: block; width: 100%; max-width: 24rem;
+  }
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+
+  /* ---- Format choice ------------------------------------------------- */
+  /* One card per format, each a button that both records the choice and
+     moves to that format's own screen -- the choice IS the move, so there is
+     no separate Continue to forget. */
+  .formats {
+    display: grid; gap: var(--s3); margin: var(--s4) 0 0;
+    grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
+  }
+  .formats button {
+    display: flex; flex-direction: column; gap: var(--s1);
+    align-items: flex-start; text-align: left;
+    padding: var(--s4); height: 100%;
+    background: var(--surface); border-color: var(--line);
+  }
+  .formats .fmtname { font-weight: 600; }
+  .formats .fmtwhat { color: var(--muted); font-size: var(--t-small); font-weight: 400; }
+  /* The format last chosen is marked, so arriving on the choice screen a
+     second time says which screen the visitor just came from. */
+  .formats button[aria-current=true] {
+    background: var(--accent-weak); border-color: var(--accent); border-style: solid;
+  }
+  .fmtpanel[hidden] { display: none; }
 
   /* ---- Steps --------------------------------------------------------- */
   /* One step is on screen at a time. The bar above them says which, and its
@@ -326,8 +353,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
   <nav id="stepbar" aria-label="Steps">
     <ol>
       <li><button type="button" data-goto="0"><span class="num" aria-hidden="true">1</span> <span>Choose scales</span></button></li>
-      <li><button type="button" data-goto="1"><span class="num" aria-hidden="true">2</span> <span>Set options</span></button></li>
-      <li><button type="button" data-goto="2"><span class="num" aria-hidden="true">3</span> <span>Download</span></button></li>
+      <li><button type="button" data-goto="1"><span class="num" aria-hidden="true">2</span> <span>Choose a format</span></button></li>
+      <li><button type="button" data-goto="2"><span class="num" aria-hidden="true">3</span> <span>Options and download</span></button></li>
     </ol>
   </nav>
 
@@ -342,79 +369,115 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
     <p id="tally"></p>
     <div class="stepnav">
-      <button type="button" class="primary" data-goto="1">Continue to options</button>
+      <button type="button" class="primary" data-goto="1">Continue to the format</button>
     </div>
   </section>
 
   <section class="step" id="step2" hidden>
-    <h2 tabindex="-1">Set options</h2>
+    <h2 tabindex="-1">Choose a format</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <fieldset>
-      <legend>Word paper size</legend>
-      <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
-      <label><input type="radio" name="papersize" value="a4"> A4</label>
-    </fieldset>
-    <fieldset id="numbering">
-      <legend>Word item numbering</legend>
-      <label><input type="radio" name="numbering" value="renumber" checked>
-        Number the items 1 to n</label>
-      <label><input type="radio" name="numbering" value="original">
-        Keep the HiTOP-SR's own item numbers</label>
-      <p class="hint">The instrument's own numbers are what this page's Qualtrics
-      and REDCap exports use for their field names, so a paper response can be
-      typed into a project built here without translating its number.</p>
-    </fieldset>
-    <fieldset>
-      <legend>Word item order</legend>
-      <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
-      <div class="notice" id="shuffleNote" hidden>
-        <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-        come back in the order the form printed, which is not the instrument's
-        own; put those columns into the original HiTOP-SR order before scoring, or
-        the scale scores come out wrong and nothing warns you.</p>
-        <!-- What the shuffled file does about recovering the original order
-             depends on the numbering choice and on whether every scale is
-             ticked, so this sentence is written by refreshShuffleNote(). -->
-        <p id="shuffleCrosswalk"></p>
-        <p>The Qualtrics and REDCap files are never shuffled: there an item
-        number names a collected data column.</p>
-      </div>
-    </fieldset>
-    <fieldset id="naming">
-      <legend>Qualtrics and REDCap naming</legend>
-      <p class="hint">These name what the import creates in the target system.
-      None of them reaches the Word form, and none changes the items, their
-      wording, or their response options. Each box starts at the package's own
-      default; empty one and that default is used again.</p>
-      <label for="blockName">Qualtrics block name</label>
-      <input type="text" id="blockName" autocomplete="off">
-      <label for="idPrefix">Qualtrics question ID prefix</label>
-      <input type="text" id="idPrefix" autocomplete="off">
-      <label for="formName">REDCap form name</label>
-      <input type="text" id="formName" autocomplete="off">
-      <label class="check"><input type="checkbox" id="required" checked>
-        Mark every REDCap item as required</label>
-    </fieldset>
+    <p class="hint">Each format is set up and downloaded on its own screen, so
+    you only ever see the settings that reach the file you are building. Come
+    back here to build another format from the same scales.</p>
+    <div class="formats">
+      <button type="button" data-choose="docx">
+        <span class="fmtname">Word (.docx)</span>
+        <span class="fmtwhat">A questionnaire to print and fill in on paper.</span>
+      </button>
+      <button type="button" data-choose="qualtrics">
+        <span class="fmtname">Qualtrics (.txt)</span>
+        <span class="fmtwhat">An advanced-format file to import as a Qualtrics survey.</span>
+      </button>
+      <button type="button" data-choose="redcap">
+        <span class="fmtname">REDCap (.zip)</span>
+        <span class="fmtwhat">A data dictionary to import into a REDCap project.</span>
+      </button>
+    </div>
     <div class="stepnav">
       <button type="button" data-goto="0">Back to scales</button>
-      <button type="button" class="primary" data-goto="2">Continue to download</button>
     </div>
   </section>
 
+  <!-- One screen per format. The panels are all in the markup and only the
+       chosen one is shown, so nothing a hidden panel holds is ever read by
+       another format's call: each generator is passed only the arguments its
+       own panel sets (see download()). -->
   <section class="step" id="step3" hidden>
-    <h2 tabindex="-1">Download</h2>
+    <h2 tabindex="-1" id="step3h">Word: options and download</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Each button builds its file in this browser and saves it.
-    They turn on once at least one scale is ticked.</p>
+    <div id="formatOptions">
+      <div class="fmtpanel" data-panel="docx">
+        <fieldset>
+          <legend>Paper size</legend>
+          <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
+          <label><input type="radio" name="papersize" value="a4"> A4</label>
+        </fieldset>
+        <fieldset id="numbering">
+          <legend>Item numbering</legend>
+          <label><input type="radio" name="numbering" value="renumber" checked>
+            Number the items 1 to n</label>
+          <label><input type="radio" name="numbering" value="original">
+            Keep the HiTOP-SR's own item numbers</label>
+          <p class="hint">The instrument's own numbers are what this page's Qualtrics
+          and REDCap exports use for their field names, so a paper response can be
+          typed into a project built here without translating its number.</p>
+        </fieldset>
+        <fieldset>
+          <legend>Item order</legend>
+          <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
+          <div class="notice" id="shuffleNote" hidden>
+            <p><strong>A shuffled form is not scored as it stands.</strong> Responses
+            come back in the order the form printed, which is not the instrument's
+            own; put those columns into the original HiTOP-SR order before scoring, or
+            the scale scores come out wrong and nothing warns you.</p>
+            <!-- What the shuffled file does about recovering the original order
+                 depends on the numbering choice and on whether every scale is
+                 ticked, so this sentence is written by refreshShuffleNote(). -->
+            <p id="shuffleCrosswalk"></p>
+            <p>Shuffling reaches this form only. The Qualtrics and REDCap files
+            are never shuffled: there an item number names a collected data
+            column.</p>
+          </div>
+        </fieldset>
+      </div>
+
+      <div class="fmtpanel" data-panel="qualtrics" hidden>
+        <fieldset id="naming">
+          <legend>Block and question naming</legend>
+          <p class="hint">These name what the import creates in Qualtrics. Neither
+          changes the items, their wording, or their response options. Each box
+          starts at the package's own default; empty one and that default is used
+          again.</p>
+          <label for="blockName">Block name</label>
+          <input type="text" id="blockName" autocomplete="off">
+          <label for="idPrefix">Question ID prefix</label>
+          <input type="text" id="idPrefix" autocomplete="off">
+        </fieldset>
+      </div>
+
+      <div class="fmtpanel" data-panel="redcap" hidden>
+        <fieldset id="redcapNaming">
+          <legend>Form name and required items</legend>
+          <p class="hint">These name what the import creates in REDCap and how it
+          asks for answers. Neither changes the items, their wording, or their
+          response options. The box starts at the package's own default; empty it
+          and that default is used again.</p>
+          <label for="formName">Form name</label>
+          <input type="text" id="formName" autocomplete="off">
+          <label class="check"><input type="checkbox" id="required" checked>
+            Mark every item as required</label>
+        </fieldset>
+      </div>
+    </div>
+    <p class="hint" id="downloadHint">The button builds the file in this browser
+    and saves it. It turns on once at least one scale is ticked.</p>
     <div class="downloads">
-      <button type="button" class="primary" data-format="docx" disabled>Word (.docx)</button>
-      <button type="button" class="primary" data-format="qualtrics" disabled>Qualtrics (.txt)</button>
-      <button type="button" class="primary" data-format="redcap" disabled>REDCap (.zip)</button>
+      <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
     </div>
     <div class="stepnav">
-      <button type="button" data-goto="1">Back to options</button>
+      <button type="button" data-goto="1">Choose a different format</button>
     </div>
   </section>
 </div>
@@ -465,14 +528,26 @@ const FORMATS = {
   docx: {
     fn: 'generate_docx_hitopsr', ext: 'docx',
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    heading: 'Word: options and download',
+    button: 'Download the Word form (.docx)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', mime: 'text/plain',
+    heading: 'Qualtrics: options and download',
+    button: 'Download the Qualtrics file (.txt)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', mime: 'application/zip',
+    heading: 'REDCap: options and download',
+    button: 'Download the REDCap dictionary (.zip)',
   },
 };
+
+// Which format the last screen is set up for. The page starts on Word so that
+// screen is coherent however it is reached -- including a jump straight to it
+// from the step bar -- while the ordinary route through step two is what
+// actually sets this.
+let currentFormat = 'docx';
 
 let webR;
 let scales = [];
@@ -518,8 +593,31 @@ function selected() {
 // ---- Steps -------------------------------------------------------------
 // The three sections are shown one at a time. Nothing here gates moving on:
 // a visitor with no scale ticked can still reach the download step and read
-// why its buttons are off, which is what the tally and the disabled state say.
+// why its button is off, which is what the tally and the disabled state say.
 const STEP_IDS = ['step1', 'step2', 'step3'];
+
+// Choosing a format sets up the last step for it: which options panel is shown,
+// what its heading says, and what the one download button is called. Only the
+// shown panel's controls reach the generator call this format makes.
+function setFormat(format) {
+  currentFormat = format;
+  for (const panel of document.querySelectorAll('.fmtpanel')) {
+    panel.hidden = panel.dataset.panel !== format;
+  }
+  el('step3h').textContent = FORMATS[format].heading;
+  el('downloadBtn').textContent = FORMATS[format].button;
+}
+
+// The mark on a format card says which screen the visitor just came from, so
+// only an actual choice writes it -- the page's own starting format is not a
+// choice anyone made, and marking it would announce one option as current on
+// the screen whose whole purpose is to make that choice.
+function markFormatChoice(format) {
+  for (const b of document.querySelectorAll('[data-choose]')) {
+    if (b.dataset.choose === format) b.setAttribute('aria-current', 'true');
+    else b.removeAttribute('aria-current');
+  }
+}
 
 function showStep(index, { focus = true } = {}) {
   STEP_IDS.forEach((id, k) => { el(id).hidden = k !== index; });
@@ -679,7 +777,8 @@ function namingValue(id) {
   return namingDefaults[id];
 }
 
-async function download(format) {
+async function download() {
+  const format = currentFormat;
   const spec = FORMATS[format];
   const chosen = selected();
   if (!chosen.length) return;
@@ -866,8 +965,16 @@ async function main() {
     r.addEventListener('change', refreshShuffleNote);
   }
   refreshShuffleNote();
-  for (const b of document.querySelectorAll('.downloads button')) {
-    b.addEventListener('click', () => download(b.dataset.format));
+  setFormat(currentFormat);
+  el('downloadBtn').addEventListener('click', () => download());
+  // Choosing a format both records the choice and moves to its screen, so the
+  // choice is never made and then left behind on a screen it does not affect.
+  for (const b of document.querySelectorAll('[data-choose]')) {
+    b.addEventListener('click', () => {
+      setFormat(b.dataset.choose);
+      markFormatChoice(b.dataset.choose);
+      showStep(2);
+    });
   }
   // Every control that moves between steps -- the bar's three buttons, the
   // Back and Continue pair at the foot of each step, and the recap's change
