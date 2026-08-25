@@ -2,7 +2,9 @@
 
 A single-page web app for building **HiTOP-SR modules** — questionnaires
 containing only the scales you choose — and downloading them ready to field in
-Word, Qualtrics, or REDCap.
+Word, Qualtrics, or REDCap. Each download is two files: the questionnaire, and a
+small `.json` file recording what it collects, used to score the responses
+later.
 
 **Live app: <https://jmgirard.github.io/hitop-builder/>**
 
@@ -28,7 +30,8 @@ WebAssembly binary of the package from its source repository and redirects the
 download itself to `r2.ropensci.org`. It then calls the
 package's own `available_scales()` to list the scales and its
 `generate_docx_hitopsr()`, `generate_qualtrics_hitopsr()`, and
-`generate_redcap_hitopsr()` to write each file.
+`generate_redcap_hitopsr()` to write each file, passing each one the
+`descriptor` argument that writes the scoring file beside it.
 
 The page always installs whatever version r-universe currently serves, and
 displays that version once it loads; it was **`hitop` 0.2.0** when this README
@@ -59,9 +62,10 @@ its download button says there that it is off until one is.
    scales* button ends the step.
 3. **Options and download.** The step is headed for the format you chose —
    *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
-   options and download* — and carries that format's settings, one download
-   button named for the file it builds, and a *Choose a different format* button
-   at its foot leading back to the second step. Your scale selection is kept, so
+   options and download* — and carries that format's settings, a
+   *This page saves two files* notice, one download button named for the
+   questionnaire it builds, and a *Choose a different format* button at its
+   foot leading back to the second step. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
@@ -87,6 +91,38 @@ matching the file the previously deployed page built from the same inputs.
 *Paper size* chooses between **US Letter**, the default, and **A4**. Like the
 other two groups on the Word screen it reaches the Word form only — the
 Qualtrics and REDCap exports carry no page size at all.
+
+## The scoring file
+
+Every download is two files. Beside the questionnaire, the page saves a small
+`.json` file taking the same name — `hitopsr-module.json` beside
+`hitopsr-module.docx`, `hitopsr.json` beside `hitopsr.zip`. It is written by the
+`hitop` package's own
+[`descriptor`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
+argument, and holds no responses: it records which scales the form collects and,
+for a shuffled Word form, the order the items were printed in. From a two-scale
+module built with the shuffle box ticked:
+
+```json
+{
+  "format": "1.0",
+  "package": "hitop",
+  "packageVersion": "0.2.0",
+  "buildDate": "2026-08-24",
+  "instrument": "hitopsr",
+  "scales": ["Agoraphobia", "Appetite Loss"],
+  "items": [66, 109, 118, 144, 202, 260, 291, 389],
+  "nItems": 8,
+  "itemOrder": [389, 202, 291, 144, 109, 118, 66, 260]
+}
+```
+
+Keep it with the responses you collect. In R,
+[`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
+reads it back into the module object the scoring functions take, and returns any
+recorded printed order on the module's `item_order` attribute. The page's third
+step says the same in a *This page saves two files* notice above its download
+button.
 
 ## Numbering the Word form
 
@@ -161,8 +197,8 @@ files the deployed page built.
 Ticking all 76 scales builds the whole instrument rather than a module that
 happens to contain every scale. The Word form is then headed
 `HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads are
-named `hitopsr.docx`, `hitopsr.txt` and `hitopsr.zip` rather than
-`hitopsr-module.*`. The Qualtrics and REDCap files themselves are unchanged by
+named `hitopsr.docx`, `hitopsr.txt`, `hitopsr.zip` and `hitopsr.json` rather
+than `hitopsr-module.*`. The Qualtrics and REDCap files themselves are unchanged by
 this — verified 2026-08-23 against the files the page produced beforehand, the
 Qualtrics `.txt` byte-identical and the REDCap `instrument.csv` identical.
 
@@ -198,7 +234,8 @@ number already is the original one, so responses can be entered under it. With
 every scale ticked the page builds the whole instrument, and the package prints
 no crosswalk for a shuffled full instrument — that would be 405 pairs on a
 participant-facing page — so nothing on that form records the order it was
-printed in. The package's
+printed in. The `.json` file saved with it records that order in an `itemOrder`
+field. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
