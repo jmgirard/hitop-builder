@@ -477,13 +477,11 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
          in. It sits above the button rather than in the small print under it,
          so it is read before the files arrive rather than after. -->
     <div class="notice" id="descriptorNote">
-      <p><strong>Two files are saved, and both matter.</strong> Beside the
-      questionnaire, this page saves a small <code>.json</code> file naming the
-      scales you chose — and, on a shuffled Word form, the order the items were
-      printed in.</p>
+      <p><strong>This page saves two files.</strong> Beside the questionnaire it
+      writes a small <code>.json</code> file listing the scales you chose and,
+      on a shuffled Word form, the order the items were printed in.</p>
       <p>Keep it with the responses you collect. The <code>hitop</code> package
-      reads it back with <code>read_module()</code>, so scoring needs neither a
-      retyped scale list nor a printed order reconstructed by hand.</p>
+      reads it back with <code>read_module()</code> when you score the data.</p>
     </div>
     <p class="hint" id="downloadHint">The button builds both files in this
     browser and saves them. It turns on once at least one scale is ticked.</p>
@@ -743,14 +741,13 @@ function crosswalkSentence() {
       'beside it.';
   }
   if (wholeInstrument()) {
-    return 'This form carries no crosswalk \u2014 a shuffled whole ' +
-      'instrument would print 405 pairs on a page a participant reads. ' +
-      'Nothing on the paper records the order it came out in; the .json ' +
-      'file saved with the form does, and is the only copy of it.';
+    return 'This form carries no crosswalk: a shuffled whole instrument ' +
+      'would print 405 pairs on a page a participant reads. The printed ' +
+      'order is recorded only in the .json file saved with the form.';
   }
   return 'This form carries a crosswalk: each printed number beside the ' +
     'original HiTOP-SR number it came from. The .json file saved with the ' +
-    'form records the same order.';
+    'form records that order too.';
 }
 
 function clearAll() {

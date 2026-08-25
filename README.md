@@ -2,8 +2,9 @@
 
 A single-page web app for building **HiTOP-SR modules** — questionnaires
 containing only the scales you choose — and downloading them ready to field in
-Word, Qualtrics, or REDCap. Each download is a pair: the questionnaire, and a
-small `.json` file recording what it collects, for scoring the responses later.
+Word, Qualtrics, or REDCap. Each download is two files: the questionnaire, and a
+small `.json` file recording what it collects, used to score the responses
+later.
 
 **Live app: <https://jmgirard.github.io/hitop-builder/>**
 
@@ -62,8 +63,8 @@ its download button says there that it is off until one is.
 3. **Options and download.** The step is headed for the format you chose —
    *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
    options and download* — and carries that format's settings, a
-   *Two files are saved, and both matter* notice, one download button named for
-   the questionnaire it builds, and a *Choose a different format* button at its
+   *This page saves two files* notice, one download button named for the
+   questionnaire it builds, and a *Choose a different format* button at its
    foot leading back to the second step. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
@@ -119,10 +120,9 @@ module built with the shuffle box ticked:
 Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take, and returns any
-recorded printed order on the module's `item_order` attribute — so scoring a
-module needs neither a retyped scale list nor a shuffled order reconstructed by
-hand. The page's third step says the same in a *Two files are saved, and both
-matter* notice above its download button.
+recorded printed order on the module's `item_order` attribute. The page's third
+step says the same in a *This page saves two files* notice above its download
+button.
 
 ## Numbering the Word form
 
@@ -234,8 +234,8 @@ number already is the original one, so responses can be entered under it. With
 every scale ticked the page builds the whole instrument, and the package prints
 no crosswalk for a shuffled full instrument — that would be 405 pairs on a
 participant-facing page — so nothing on that form records the order it was
-printed in. The `.json` file saved with it does, in an `itemOrder` field, and is
-the only copy of that order there is. The package's
+printed in. The `.json` file saved with it records that order in an `itemOrder`
+field. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
