@@ -183,6 +183,31 @@
     font-variant-numeric: tabular-nums;
     margin-left: auto; padding-left: var(--s2); padding-top: .15em;
   }
+  /* The scale definitions come from the installed package, one per row, and
+     each sits in the row it describes so `aria-describedby` can point a
+     screen reader straight at it. Visually it is a popup rather than a second
+     line: at 76 rows the list already scrolls, and the definitions run to
+     ~120 characters, which would roughly triple its height.
+     `position: fixed` is what keeps the popup out of `#scales`'s own
+     `overflow-y: auto` clip -- an absolutely positioned one would be cut off
+     on the last visible row. It is placed by script, so it carries no
+     top/left here. */
+  #scales .desc {
+    position: fixed; top: 0; left: 0; z-index: 20;
+    visibility: hidden;
+    max-width: min(24rem, calc(100vw - 2rem));
+    padding: var(--s2) var(--s3);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r1);
+    background: var(--surface-2); color: var(--fg);
+    font-size: var(--t-micro); font-weight: 400;
+    box-shadow: 0 2px 8px rgb(0 0 0 / .18);
+    /* The popup sits under the row it describes and so overlaps the next one.
+       It must never swallow that row's hover or its click, and it is inside
+       the label, so a click on it would tick the wrong box. */
+    pointer-events: none;
+  }
+  #scales .desc.on { visibility: visible; }
   #tally { margin: var(--s3) 0; font-variant-numeric: tabular-nums; color: var(--muted); }
 
   /* ---- Grouped settings ---------------------------------------------- */
@@ -673,9 +698,23 @@ function refreshTally() {
   refreshRecap();
 }
 
+// Whether the installed package gave us definitions to show. All-or-nothing
+// on purpose: a page that showed a popup on some rows and not others would
+// read as "this scale has no definition" rather than "this build has none".
+// An older hitop returns three columns and no `Brief` at all, which is the
+// case this exists for -- the package merges before the page does, so there is
+// an interval where the deployed page is newer than the installed package.
+function definitionsAvailable() {
+  return (
+    scales.length > 0 &&
+    scales.every((s) => typeof s.Brief === 'string' && s.Brief.trim() !== '')
+  );
+}
+
 function renderScales() {
   const box = el('scales');
   box.textContent = '';
+  const withDefs = definitionsAvailable();
   for (const s of scales) {
     const label = document.createElement('label');
     const input = document.createElement('input');
@@ -683,11 +722,26 @@ function renderScales() {
     input.value = s.camelCase;
     input.addEventListener('change', refreshTally);
     const name = document.createElement('span');
+    name.className = 'nm';
     name.textContent = s.Scale;
     const n = document.createElement('span');
     n.className = 'n';
     n.textContent = `${s.nItems}`;
     label.append(input, name, n);
+    if (withDefs) {
+      // The description element is in the DOM whether or not it is on screen:
+      // that is what `aria-describedby` resolves against, so a screen-reader
+      // user hears the definition with the checkbox without any pointer or
+      // Escape handling being involved.
+      const desc = document.createElement('span');
+      desc.className = 'desc';
+      desc.id = `desc-${s.camelCase}`;
+      desc.setAttribute('role', 'tooltip');
+      desc.textContent = s.Brief;
+      input.setAttribute('aria-describedby', desc.id);
+      label.append(desc);
+      wireDescription(label, input, desc);
+    }
     box.append(label);
   }
   // The browser can restore a filter value on a back-navigation or bfcache
@@ -698,10 +752,78 @@ function renderScales() {
   refreshTally();
 }
 
+// One popup at a time, and a short delay before it appears: without the delay,
+// running the pointer down a 76-row list flashes a popup per row.
+const HOVER_DELAY_MS = 300;
+let shownDesc = null;
+let hoverTimer = null;
+// Escape hides the popup and must keep it hidden while the pointer has not
+// left the row and focus has not moved -- otherwise Escape does nothing a
+// visitor can see, because the state that showed it is still true.
+let dismissedDesc = null;
+
+function hideDescription() {
+  if (shownDesc) shownDesc.classList.remove('on');
+  shownDesc = null;
+  clearTimeout(hoverTimer);
+  hoverTimer = null;
+}
+
+function showDescription(label, desc) {
+  if (desc === dismissedDesc) return;
+  hideDescription();
+  // Placed against the viewport, because the popup is `position: fixed` to
+  // escape the scrolling list's clip. Below the row where there is room,
+  // above it otherwise, and never off either side.
+  desc.classList.add('on');
+  const row = label.getBoundingClientRect();
+  const box = desc.getBoundingClientRect();
+  const margin = 8;
+  let top = row.bottom + 4;
+  if (top + box.height > window.innerHeight - margin) {
+    top = Math.max(margin, row.top - box.height - 4);
+  }
+  let left = row.left;
+  left = Math.min(left, window.innerWidth - box.width - margin);
+  desc.style.top = `${Math.round(top)}px`;
+  desc.style.left = `${Math.round(Math.max(margin, left))}px`;
+  shownDesc = desc;
+}
+
+function wireDescription(label, input, desc) {
+  label.addEventListener('pointerenter', () => {
+    clearTimeout(hoverTimer);
+    hoverTimer = setTimeout(() => showDescription(label, desc), HOVER_DELAY_MS);
+  });
+  label.addEventListener('pointerleave', () => {
+    clearTimeout(hoverTimer);
+    hoverTimer = null;
+    if (dismissedDesc === desc) dismissedDesc = null;
+    if (shownDesc === desc) hideDescription();
+  });
+  // Keyboard reaches the checkbox, never the row, so focus is what the popup
+  // hangs off for a Tab visitor.
+  input.addEventListener('focus', () => showDescription(label, desc));
+  input.addEventListener('blur', () => {
+    if (dismissedDesc === desc) dismissedDesc = null;
+    if (shownDesc === desc) hideDescription();
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && shownDesc) {
+    dismissedDesc = shownDesc;
+    hideDescription();
+  }
+});
+// A fixed popup does not travel with the list it came from, so it goes away
+// rather than pointing at the wrong row.
+window.addEventListener('scroll', hideDescription, true);
+
 function applyFilter() {
   const q = el('filter').value.trim().toLowerCase();
   for (const label of document.querySelectorAll('#scales label')) {
-    const text = label.querySelector('span').textContent.toLowerCase();
+    const text = label.querySelector('.nm').textContent.toLowerCase();
     label.style.display = !q || text.includes(q) ? '' : 'none';
   }
   refreshSelectAllLabel();

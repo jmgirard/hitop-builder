@@ -55,7 +55,11 @@ its download button says there that it is off until one is.
 1. **Choose scales.** A *Filter the scale list by name* box narrows the
    *HiTOP-SR scales* group; each row carries a scale's name and its item count,
    and a tally below the group says how many scales and how many items are
-   currently selected. A *Continue to the format* button ends the step.
+   currently selected. Pointing at a row, or reaching its checkbox with the Tab
+   key, shows that scale's brief clinician-facing definition in a popup, which
+   Escape dismisses; the definitions come from the installed package, like every
+   other scale fact on the page, so a version that does not supply them simply
+   shows no popup. A *Continue to the format* button ends the step.
 2. **Choose a format.** Three buttons — *Word (.docx)*, *Qualtrics (.txt)* and
    *REDCap (.zip)* — each with a line saying what that file is for. Pressing one
    both records the choice and opens the third step set up for it. A *Back to
