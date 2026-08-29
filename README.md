@@ -72,17 +72,18 @@ its download button says there that it is off until one is.
    button named for the questionnaire it builds, and a *Choose a different
    format* button at its foot leading back to the second step. Pressing the
    download button builds both files, saves the questionnaire, and reveals a
-   second button — *Save the scoring file*, named for the file it will hand you
-   — which saves that `.json` file when you click it. A line under the two buttons says what just
-   happened: which scoring file is now on offer, whether a replacement took an
-   untaken one away, and when a click saved one. That button is off while a
-   build is running, so it can never hand over the previous build's file
-   under the name the new one is about to take. That second button is a click of your own
-   rather than a second automatic save, because a browser may quietly drop a
-   save nobody asked for, and a questionnaire that arrives without its scoring
-   file is not noticed until scoring day. It stays on offer, takeable more than
-   once, until the next completed build replaces it; when a build does replace
-   one you had not taken, the log says so. Your scale selection is kept, so
+   second button — *Save the scoring file*, named for the file it will hand
+   you — which saves that `.json` file when you click it. A line under the
+   two buttons says what just happened: which scoring file is now on offer,
+   whether a replacement took an untaken one away, and when a click saved
+   one. That button is off while a build is running, so it can never hand
+   over the previous build's file under the name the new one is about to
+   take. That second button is a click of your own rather than a second
+   automatic save, because a browser may quietly drop a save nobody asked
+   for, and a questionnaire that arrives without its scoring file is not
+   noticed until scoring day. It stays on offer, takeable more than once,
+   until the next completed build replaces it; when a build does replace one
+   you had not taken, the log says so. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
@@ -147,9 +148,11 @@ notice above its download button.
 Both files of a build share one name, and that name says which build made them:
 the instrument, the format, `-module` unless you ticked every scale, and
 `-shuffled` on a Word form whose printed order you shuffled. The questionnaire
-takes its format's extension and the scoring file takes `.json`. Two builds made
-in one session therefore never arrive under the same name, so neither can
-overwrite the other's scoring file in your downloads folder.
+takes its format's extension and the scoring file takes `.json`. Two builds
+differing in any of those three therefore arrive under different names, so
+neither can overwrite the other's scoring file in your downloads folder. Two
+builds differing only in which scales you ticked do share a name — the paragraph
+under the table says what to do about that.
 
 | What you built | Questionnaire | Scoring file |
 |---|---|---|
