@@ -2,9 +2,10 @@
 
 A single-page web app for building **HiTOP-SR modules** — questionnaires
 containing only the scales you choose — and downloading them ready to field in
-Word, Qualtrics, or REDCap. Each download is two files: the questionnaire, and a
-small `.json` file recording what it collects, used to score the responses
-later.
+Word, Qualtrics, or REDCap. Each download is two files and two clicks: the
+questionnaire, which the page saves as soon as it is built, and a small `.json`
+file recording what it collects, which the page offers on a button of its own
+for you to take. That file is what scores the responses later.
 
 **Live app: <https://jmgirard.github.io/hitop-builder/>**
 
@@ -55,7 +56,11 @@ its download button says there that it is off until one is.
 1. **Choose scales.** A *Filter the scale list by name* box narrows the
    *HiTOP-SR scales* group; each row carries a scale's name and its item count,
    and a tally below the group says how many scales and how many items are
-   currently selected. A *Continue to the format* button ends the step.
+   currently selected. Pointing at a row, or reaching its checkbox with the Tab
+   key, shows that scale's brief clinician-facing definition in a popup, which
+   Escape dismisses; the definitions come from the installed package, like every
+   other scale fact on the page, so a version that does not supply them simply
+   shows no popup. A *Continue to the format* button ends the step.
 2. **Choose a format.** Three buttons — *Word (.docx)*, *Qualtrics (.txt)* and
    *REDCap (.zip)* — each with a line saying what that file is for. Pressing one
    both records the choice and opens the third step set up for it. A *Back to
@@ -63,9 +68,22 @@ its download button says there that it is off until one is.
 3. **Options and download.** The step is headed for the format you chose —
    *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
    options and download* — and carries that format's settings, a
-   *This page saves two files* notice, one download button named for the
-   questionnaire it builds, and a *Choose a different format* button at its
-   foot leading back to the second step. Your scale selection is kept, so
+   *A download here is two files, and takes two clicks* notice, one download
+   button named for the questionnaire it builds, and a *Choose a different
+   format* button at its foot leading back to the second step. Pressing the
+   download button builds both files, saves the questionnaire, and reveals a
+   second button — *Save the scoring file*, named for the file it will hand
+   you — which saves that `.json` file when you click it. A line under the
+   two buttons says what just happened: which scoring file is now on offer,
+   whether a replacement took an untaken one away, and when a click saved
+   one. That button is off while a build is running, so it can never hand
+   over the previous build's file under the name the new one is about to
+   take. That second button is a click of your own rather than a second
+   automatic save, because a browser may quietly drop a save nobody asked
+   for, and a questionnaire that arrives without its scoring file is not
+   noticed until scoring day. It stays on offer, takeable more than once,
+   until the next completed build replaces it; when a build does replace one
+   you had not taken, the log says so. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
@@ -94,9 +112,10 @@ Qualtrics and REDCap exports carry no page size at all.
 
 ## The scoring file
 
-Every download is two files. Beside the questionnaire, the page saves a small
-`.json` file taking the same name — `hitopsr-module.json` beside
-`hitopsr-module.docx`, `hitopsr.json` beside `hitopsr.zip`. It is written by the
+Every download is two files. The page saves the questionnaire itself, then
+offers a small `.json` file taking the same name — `hitopsr-word-module.json`
+beside `hitopsr-word-module.docx`, `hitopsr-redcap.json` beside
+`hitopsr-redcap.zip` — on a button you click to take it. It is written by the
 `hitop` package's own
 [`descriptor`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 argument, and holds no responses: it records which scales the form collects and,
@@ -121,8 +140,39 @@ Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take, and returns any
 recorded printed order on the module's `item_order` attribute. The page's third
-step says the same in a *This page saves two files* notice above its download
-button.
+step says the same in an *A download here is two files, and takes two clicks*
+notice above its download button.
+
+## What the downloads are named
+
+Both files of a build share one name, and that name says which build made them:
+the instrument, the format, `-module` unless you ticked every scale, and
+`-shuffled` on a Word form whose printed order you shuffled. The questionnaire
+takes its format's extension and the scoring file takes `.json`. Two builds
+differing in any of those three therefore arrive under different names, so
+neither can overwrite the other's scoring file in your downloads folder. Two
+builds differing only in which scales you ticked do share a name — the paragraph
+under the table says what to do about that.
+
+| What you built | Questionnaire | Scoring file |
+|---|---|---|
+| Word, every scale | `hitopsr-word.docx` | `hitopsr-word.json` |
+| Word, every scale, shuffled | `hitopsr-word-shuffled.docx` | `hitopsr-word-shuffled.json` |
+| Word, some scales | `hitopsr-word-module.docx` | `hitopsr-word-module.json` |
+| Word, some scales, shuffled | `hitopsr-word-module-shuffled.docx` | `hitopsr-word-module-shuffled.json` |
+| Qualtrics, every scale | `hitopsr-qualtrics.txt` | `hitopsr-qualtrics.json` |
+| Qualtrics, some scales | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` |
+| REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap.json` |
+| REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module.json` |
+
+Verified 2026-08-29 by building all eight and reading back the names the page
+asked the browser to save.
+
+Nothing else about a build reaches its name. Which scales you ticked, the paper
+size, the item numbering, and the Qualtrics and REDCap naming values are
+recorded in the scoring file travelling beside the questionnaire, so two
+different scale selections in one format do share a filename — take the `.json`
+file, and rename the pair yourself if you are keeping both.
 
 ## Numbering the Word form
 
@@ -196,11 +246,12 @@ files the deployed page built.
 
 Ticking all 76 scales builds the whole instrument rather than a module that
 happens to contain every scale. The Word form is then headed
-`HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads are
-named `hitopsr.docx`, `hitopsr.txt`, `hitopsr.zip` and `hitopsr.json` rather
-than `hitopsr-module.*`. The Qualtrics and REDCap files themselves are unchanged by
-this — verified 2026-08-23 against the files the page produced beforehand, the
-Qualtrics `.txt` byte-identical and the REDCap `instrument.csv` identical.
+`HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads drop
+the `-module` part of their names — `hitopsr-word.docx` rather than
+`hitopsr-word-module.docx`, and so on for the other two formats. The Qualtrics
+and REDCap files themselves are unchanged by this — verified 2026-08-23 against
+the files the page produced beforehand, the Qualtrics `.txt` byte-identical and
+the REDCap `instrument.csv` identical.
 
 ## Shuffling the Word form
 
@@ -234,8 +285,9 @@ number already is the original one, so responses can be entered under it. With
 every scale ticked the page builds the whole instrument, and the package prints
 no crosswalk for a shuffled full instrument — that would be 405 pairs on a
 participant-facing page — so nothing on that form records the order it was
-printed in. The `.json` file saved with it records that order in an `itemOrder`
-field. The package's
+printed in. The `.json` scoring file the second button offers records that order
+in an `itemOrder` field, so a shuffled whole-instrument form whose scoring file
+is not taken cannot be put back into instrument order at all. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
