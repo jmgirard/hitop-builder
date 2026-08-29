@@ -608,6 +608,43 @@ const WEBR_BASE = 'https://webr.r-wasm.org/v0.6.0/';
 const REPOS = ['https://jmgirard.r-universe.dev', 'https://repo.r-wasm.org'];
 const INSTRUMENT = 'hitopsr';
 
+// The oldest `hitop` this page is willing to build against. r-universe serves
+// only its current build and webR.installPackages takes no version, so the
+// page cannot ask for a particular one; refusing an older one is what it can
+// do instead. Every surface the page calls -- available_scales(),
+// hitop_module(), scale_definitions(), and the three generate_*_hitopsr()
+// functions with their `descriptor` argument -- is present at this version.
+// Raise it when a `hitop` release changes one of those; the release walk in
+// the package repo's cairn/PROFILE.md carries that step.
+const MIN_HITOP = '0.2.0';
+
+// How long installPackages gets before the page stops waiting on it. A first
+// load is about twenty seconds, so this is six times a normal one: a slow
+// connection still finishes, and an install that is never going to finish
+// stops holding the page open indefinitely. The install itself cannot be
+// cancelled, so it may still settle afterwards -- see bootAbandoned.
+const INSTALL_TIMEOUT_MS = 120000;
+
+// Set once the page has given up on booting -- the install timed out, or the
+// installed package is older than MIN_HITOP. Because neither failure can
+// cancel what is still in flight, a late-settling install would otherwise be
+// free to run the rest of boot and put a build button back within reach. Every
+// site that turns a control on reads this, so nothing after this point can.
+let bootAbandoned = false;
+
+// Stops the page where it stands and says why. The controls are hidden rather
+// than merely disabled: nothing behind them can produce a file, and a visitor
+// reading a greyed-out form has to work out for themselves that it will never
+// come back.
+function abandonBoot(message) {
+  bootAbandoned = true;
+  status(message);
+  el('controls').hidden = true;
+  for (const b of document.querySelectorAll('.downloads button, .handover button')) {
+    b.disabled = true;
+  }
+}
+
 const el = (id) => document.getElementById(id);
 const logPane = el('log');
 
@@ -777,7 +814,7 @@ function selectionSentence() {
 function refreshTally() {
   el('tally').textContent = selectionSentence();
   for (const b of document.querySelectorAll('.downloads button')) {
-    b.disabled = selected().length === 0;
+    b.disabled = bootAbandoned || selected().length === 0;
   }
   // The shuffle notice and the later steps' recap line both read the selection,
   // and every path that changes the selection already comes through here.
@@ -1053,7 +1090,7 @@ function offerDescriptor(bytes, name) {
   const button = el('saveDescriptor');
   el('handover').hidden = false;
   button.hidden = false;
-  button.disabled = false;
+  button.disabled = bootAbandoned;
   button.textContent = `Save the scoring file (${name})`;
   // Said rather than only shown: the button appears with no announcement of
   // its own, and under the old design the file saved itself, so a visitor who
@@ -1073,6 +1110,23 @@ function takeDescriptor() {
   // whose output the two-space prefix marks elsewhere in this log.
   log(`saved ${heldDescriptor.name} (${heldDescriptor.bytes.length} bytes).`);
   announce(`Saved ${heldDescriptor.name}.`);
+}
+
+// Compares two version strings the way R does, component by component as
+// numbers: 0.10.0 is newer than 0.9.0, where comparing the strings would
+// call it older. Both values are bound into R as data rather than pasted
+// into the code, the same way this page passes every other string to R.
+//
+// It takes both versions as arguments rather than reading the installed one
+// itself, so the comparison can be exercised on pairs the installed package
+// will never take -- which is the only way to see the refusal path work
+// without an old package to install.
+async function installedIsOlderThan(installed, minimum) {
+  await webR.objs.globalEnv.bind('.installed_version', installed);
+  await webR.objs.globalEnv.bind('.minimum_version', minimum);
+  return webR.evalRBoolean(
+    'numeric_version(.installed_version) < numeric_version(.minimum_version)'
+  );
 }
 
 async function download() {
@@ -1188,8 +1242,8 @@ async function download() {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     status(`Could not build the ${spec.ext.toUpperCase()} file — the log below says why.`);
   } finally {
-    buttons.forEach((b) => (b.disabled = false));
-    if (heldDescriptor) handover.disabled = false;
+    buttons.forEach((b) => (b.disabled = bootAbandoned));
+    if (heldDescriptor) handover.disabled = bootAbandoned;
     refreshTally();
   }
 }
@@ -1226,8 +1280,10 @@ async function main() {
         // settle, so say so where the user is actually looking rather than
         // leaving a stale "downloading…" on screen.
         log(`  R stopped sending output: ${err && err.message ? err.message : err}`);
-        status('Lost the connection to R — reload the page to start over.');
-        for (const b of document.querySelectorAll('.downloads button')) b.disabled = true;
+        // Latched rather than merely disabled: refreshTally() runs on every
+        // selection change, and without the latch the next checkbox click
+        // would hand the build button back over an R that is gone.
+        abandonBoot('Lost the connection to R — reload the page to start over.');
         return;
       }
       if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
@@ -1236,16 +1292,90 @@ async function main() {
 
   status('Downloading the hitop package — about twenty seconds the first time…');
   log('> installPackages("hitop")');
-  await webR.installPackages(['hitop'], { repos: REPOS });
+  // Raced rather than simply awaited: an install that never settles would
+  // otherwise leave "Downloading…" on screen forever with nothing said. The
+  // race only decides which of the two happened first -- it cannot stop the
+  // install, so the timeout branch latches the controls off (abandonBoot)
+  // rather than assuming nothing will arrive later.
+  let installTimer;
+  const installOutcome = await Promise.race([
+    webR.installPackages(['hitop'], { repos: REPOS }).then(
+      () => 'installed',
+      (err) => {
+        // Handled here rather than left to reject: once the timeout has won
+        // the race nobody is holding this promise, and an unhandled rejection
+        // is all the visitor would get. Losing the race means the value is
+        // simply dropped.
+        log(`  installPackages("hitop") failed: ` +
+            `${err && err.message ? err.message : err}`);
+        return 'failed';
+      }
+    ),
+    new Promise((resolve) => {
+      installTimer = setTimeout(() => resolve('timed out'), INSTALL_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(installTimer);
+  if (installOutcome === 'failed') {
+    // Said as the package download failing, not as R failing to start: R is
+    // running, and pointing the visitor at the wrong half wastes their time.
+    abandonBoot(
+      `The hitop package could not be downloaded, so this page cannot build ` +
+      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
+  if (installOutcome === 'timed out') {
+    log(`  installPackages("hitop") did not finish within ` +
+        `${INSTALL_TIMEOUT_MS / 1000} seconds; giving up on it.`);
+    abandonBoot(
+      `The hitop package did not finish downloading within ` +
+      `${INSTALL_TIMEOUT_MS / 1000} seconds, so this page cannot build ` +
+      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
   log('  installPackages("hitop") completed.');
+
+  // Read before library(): a package this page does not match should not be
+  // attached, and packageVersion() does not need it to be.
+  let version;
+  let installedTooOld;
+  try {
+    version = await webR.evalRString('as.character(utils::packageVersion("hitop"))');
+    el('pkgver').textContent = `(version ${version})`;
+    log(`  hitop ${version}.`);
+    installedTooOld = await installedIsOlderThan(version, MIN_HITOP);
+  } catch (err) {
+    // The guard refuses through its own path rather than throwing: a version
+    // this page cannot read or compare is one it cannot vouch for either, and
+    // the top-level catch would blame R for starting badly.
+    log(`  could not check the installed hitop version: ` +
+        `${err && err.message ? err.message : err}`);
+    abandonBoot(
+      `This page could not check which version of hitop it installed, so it ` +
+      `will not build a form against it. Reload to try again; the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
+  if (installedTooOld) {
+    log(`  hitop ${version} is older than the ${MIN_HITOP} this page needs; ` +
+        `giving up.`);
+    abandonBoot(
+      `This page needs hitop ${MIN_HITOP} or newer, and the version it just ` +
+      `installed is ${version}. It will not build a form against a package ` +
+      `it does not match. A working page and the complete instruments are at ` +
+      `jmgirard.github.io/hitop.`
+    );
+    return;
+  }
 
   log('> library(hitop)');
   await webR.evalRVoid('library(hitop)', { captureStreams: false });
   log('  library(hitop) completed.');
-
-  const version = await webR.evalRString('as.character(utils::packageVersion("hitop"))');
-  el('pkgver').textContent = `(version ${version})`;
-  log(`  hitop ${version}.`);
 
   // The scale list is read from the package's own keying tables, never from a
   // copy kept in this page.

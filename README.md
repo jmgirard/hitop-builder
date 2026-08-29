@@ -34,11 +34,23 @@ package's own `available_scales()` to list the scales and its
 `generate_redcap_hitopsr()` to write each file, passing each one the
 `descriptor` argument that writes the scoring file beside it.
 
-The page always installs whatever version r-universe currently serves, and
-displays that version once it loads; it was **`hitop` 0.2.0** when this README
-was last checked (2026-08-24). Every scale name and item number the page shows
-is read from the installed package's keying tables at runtime — this repository
-contains no copy of the instrument's content.
+The page always installs whatever version r-universe currently serves — that
+service builds only its current version, and the install call takes no version
+number, so the page cannot ask for a particular one. What it can do is refuse
+an unusable one. The page declares the oldest `hitop` it will build against as
+`MIN_HITOP` in `index.html`, which is the one place that minimum is set;
+today it is **0.2.0**. On load the page reads the installed version, displays
+it, and compares the two the way R does — component by component as numbers,
+so `0.10.0` counts as newer than `0.9.0`. Anything older stops the page with a
+message naming both versions, and no download button is offered. Every scale
+name and item number the page shows is read from the installed package's keying
+tables at runtime — this repository contains no copy of the instrument's
+content.
+
+The page also stops waiting on an install that never finishes: `installPackages`
+is raced against a timeout stated as `INSTALL_TIMEOUT_MS` in `index.html`, two
+minutes against a first load of roughly twenty seconds. On timeout the page says
+so and stays switched off, including if the install settles afterwards.
 
 The first load downloads R and the package, which takes roughly twenty seconds;
 the browser caches them afterwards.
@@ -135,6 +147,9 @@ module built with the shuffle box ticked:
   "itemOrder": [389, 202, 291, 144, 109, 118, 66, 260]
 }
 ```
+
+Its `packageVersion` is the version that wrote this particular file, not the
+minimum the page requires; the minimum is `MIN_HITOP` in `index.html`, above.
 
 Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
