@@ -238,8 +238,16 @@
   }
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
-  .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
-  .handover { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+  /* One row holding both download buttons, so the scoring file is offered
+     beside the questionnaire button rather than under it. The two containers
+     stay separate inside the row: refreshTally() disables `.downloads button`
+     and must not reach the handover button. */
+  .downloadrow {
+    display: flex; flex-wrap: wrap; gap: var(--s2);
+    align-items: flex-start; margin-top: var(--s4);
+  }
+  .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .handover { display: flex; flex-wrap: wrap; gap: var(--s2); }
 
   /* ---- Format choice ------------------------------------------------- */
   /* One card per format, each a button that both records the choice and
@@ -334,6 +342,7 @@
     h1 { font-size: 1.5rem; }
     fieldset { padding: var(--s2) var(--s3) var(--s3); }
     .downloads button, .handover button, .stepnav button { flex: 1 1 100%; }
+    .downloadrow > div { flex: 1 1 100%; }
     #stepbar li { flex: 1 1 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -510,7 +519,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <div class="notice" id="descriptorNote">
       <p><strong>A download here is two files, and takes two clicks.</strong>
       The button below builds the questionnaire and saves it. A second button
-      then appears under it, offering a small <code>.json</code> file listing
+      then appears, offering a small <code>.json</code> file listing
       the scales you chose and, on a shuffled Word form, the order the items
       were printed in.</p>
       <p>Take both. Keep the <code>.json</code> file with the responses you
@@ -522,14 +531,17 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     when you click it. The first turns on once at least one scale is ticked, and
     the second once a build has finished. The scoring file stays on offer until
     you build again, so you can take it more than once.</p>
-    <div class="downloads">
-      <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
-    </div>
-    <!-- Outside .downloads on purpose: that container's buttons are disabled
-         whenever no scale is ticked, and a descriptor already built must stay
-         takeable however the selection is edited afterwards. -->
-    <div class="handover">
-      <button type="button" id="saveDescriptor" hidden>Save the scoring file</button>
+    <div class="downloadrow">
+      <div class="downloads">
+        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
+      </div>
+      <!-- Outside .downloads on purpose: that container's buttons are disabled
+           whenever no scale is ticked, and a descriptor already built must stay
+           takeable however the selection is edited afterwards. Sharing a row
+           with it is a layout fact only. -->
+      <div class="handover">
+        <button type="button" id="saveDescriptor" hidden>Save the scoring file</button>
+      </div>
     </div>
     <div class="stepnav">
       <button type="button" data-goto="1">Choose a different format</button>
