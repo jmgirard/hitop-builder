@@ -525,7 +525,10 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       The button below builds the questionnaire and saves it. A second button
       then appears, offering a small <code>.json</code> file listing
       the scales you chose and, on a shuffled Word form, the order the items
-      were printed in.</p>
+      were printed in. Both files are named for the build that made them &mdash;
+      the format, whether you took every scale or a selection, and whether a Word
+      form was shuffled &mdash; so a second build never lands on top of the
+      first.</p>
       <p>Take both. Keep the <code>.json</code> file with the responses you
       collect: the <code>hitop</code> package reads it back with
       <code>read_module()</code> when you score the data.</p>
