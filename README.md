@@ -2,9 +2,10 @@
 
 A single-page web app for building **HiTOP-SR modules** — questionnaires
 containing only the scales you choose — and downloading them ready to field in
-Word, Qualtrics, or REDCap. Each download is two files: the questionnaire, and a
-small `.json` file recording what it collects, used to score the responses
-later.
+Word, Qualtrics, or REDCap. Each download is two files and two clicks: the
+questionnaire, which the page saves as soon as it is built, and a small `.json`
+file recording what it collects, which the page offers on a button of its own
+for you to take. That file is what scores the responses later.
 
 **Live app: <https://jmgirard.github.io/hitop-builder/>**
 
@@ -67,9 +68,17 @@ its download button says there that it is off until one is.
 3. **Options and download.** The step is headed for the format you chose —
    *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
    options and download* — and carries that format's settings, a
-   *This page saves two files* notice, one download button named for the
-   questionnaire it builds, and a *Choose a different format* button at its
-   foot leading back to the second step. Your scale selection is kept, so
+   *A download here is two files, and takes two clicks* notice, one download
+   button named for the questionnaire it builds, and a *Choose a different
+   format* button at its foot leading back to the second step. Pressing the
+   download button builds both files, saves the questionnaire, and reveals a
+   second button — *Save the scoring file (name.json)* — which hands you the
+   `.json` file when you click it. That second button is a click of your own
+   rather than a second automatic save, because a browser may quietly drop a
+   save nobody asked for, and a questionnaire that arrives without its scoring
+   file is not noticed until scoring day. It stays on offer, takeable more than
+   once, until the next completed build replaces it; when a build does replace
+   one you had not taken, the log says so. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
@@ -98,9 +107,10 @@ Qualtrics and REDCap exports carry no page size at all.
 
 ## The scoring file
 
-Every download is two files. Beside the questionnaire, the page saves a small
-`.json` file taking the same name — `hitopsr-module.json` beside
-`hitopsr-module.docx`, `hitopsr.json` beside `hitopsr.zip`. It is written by the
+Every download is two files. The page saves the questionnaire itself, then
+offers a small `.json` file taking the same name — `hitopsr-module.json` beside
+`hitopsr-module.docx`, `hitopsr.json` beside `hitopsr.zip` — on a button you
+click to take it. It is written by the
 `hitop` package's own
 [`descriptor`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 argument, and holds no responses: it records which scales the form collects and,
@@ -125,8 +135,8 @@ Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take, and returns any
 recorded printed order on the module's `item_order` attribute. The page's third
-step says the same in a *This page saves two files* notice above its download
-button.
+step says the same in an *A download here is two files, and takes two clicks*
+notice above its download button.
 
 ## Numbering the Word form
 
@@ -238,8 +248,9 @@ number already is the original one, so responses can be entered under it. With
 every scale ticked the page builds the whole instrument, and the package prints
 no crosswalk for a shuffled full instrument — that would be 405 pairs on a
 participant-facing page — so nothing on that form records the order it was
-printed in. The `.json` file saved with it records that order in an `itemOrder`
-field. The package's
+printed in. The `.json` scoring file the second button offers records that order
+in an `itemOrder` field, so a shuffled whole-instrument form whose scoring file
+is not taken cannot be put back into instrument order at all. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
