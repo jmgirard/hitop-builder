@@ -238,7 +238,20 @@
   }
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
-  .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s4); }
+  /* One row holding both download buttons, so the scoring file is offered
+     beside the questionnaire button rather than under it. The two containers
+     stay separate inside the row: refreshTally() disables `.downloads button`
+     and must not reach the handover button. */
+  .downloadrow {
+    display: flex; flex-wrap: wrap; gap: var(--s2);
+    align-items: flex-start; margin-top: var(--s4);
+  }
+  .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  .handover { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  /* Out of the row until a build fills it: an empty flex child still takes a
+     gap beside the download button, and a full-width row of its own under the
+     narrow breakpoint. */
+  .handover[hidden] { display: none; }
 
   /* ---- Format choice ------------------------------------------------- */
   /* One card per format, each a button that both records the choice and
@@ -332,7 +345,8 @@
     body { padding: var(--s5) var(--s4) var(--s6); }
     h1 { font-size: 1.5rem; }
     fieldset { padding: var(--s2) var(--s3) var(--s3); }
-    .downloads button, .stepnav button { flex: 1 1 100%; }
+    .downloads button, .handover button, .stepnav button { flex: 1 1 100%; }
+    .downloadrow > div { flex: 1 1 100%; }
     #stepbar li { flex: 1 1 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -500,19 +514,48 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
          a pair: the second file is the only record of which scales a form
          collects, and on a shuffled Word form of the order it printed them
          in. It sits above the button rather than in the small print under it,
-         so it is read before the files arrive rather than after. -->
+         so it is read before the files arrive rather than after.
+
+         It says two buttons rather than two files because the second file is
+         now the visitor's own click: a browser will silently drop a second
+         save the visitor did not ask for, and a questionnaire that arrives
+         with nothing to score it by is the failure this arrangement avoids. -->
     <div class="notice" id="descriptorNote">
-      <p><strong>This page saves two files.</strong> Beside the questionnaire it
-      writes a small <code>.json</code> file listing the scales you chose and,
-      on a shuffled Word form, the order the items were printed in.</p>
-      <p>Keep it with the responses you collect. The <code>hitop</code> package
-      reads it back with <code>read_module()</code> when you score the data.</p>
+      <p><strong>A download here is two files, and takes two clicks.</strong>
+      The button below builds the questionnaire and saves it. A second button
+      then appears, offering a small <code>.json</code> file listing
+      the scales you chose and, on a shuffled Word form, the order the items
+      were printed in.</p>
+      <p>Take both. Keep the <code>.json</code> file with the responses you
+      collect: the <code>hitop</code> package reads it back with
+      <code>read_module()</code> when you score the data.</p>
     </div>
-    <p class="hint" id="downloadHint">The button builds both files in this
-    browser and saves them. It turns on once at least one scale is ticked.</p>
-    <div class="downloads">
-      <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
+    <p class="hint" id="downloadHint">The first button builds both files in this
+    browser and saves the questionnaire; the second hands you the scoring file
+    when you click it. The first turns on once at least one scale is ticked, and
+    the second once a build has finished. The scoring file stays on offer until
+    you build again, so you can take it more than once; while a build is
+    running it switches off, so it can never hand you the last build's file
+    under the name the new one is about to take.</p>
+    <div class="downloadrow">
+      <div class="downloads">
+        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
+      </div>
+      <!-- Outside .downloads on purpose: that container's buttons are disabled
+           whenever no scale is ticked, and a descriptor already built must stay
+           takeable however the selection is edited afterwards. Sharing a row
+           with it is a layout fact only. -->
+      <div class="handover" id="handover" hidden>
+        <button type="button" id="saveDescriptor" hidden>Save the scoring file</button>
+      </div>
     </div>
+    <!-- The log is deliberately not announced (see its aria-live="off"), and
+         the status line above speaks for the build, so this is where the
+         handover says what just happened: that a scoring file is now on
+         offer, that a replacement took an untaken one away, and that a click
+         saved one. Empty until the first build, so nothing renders before
+         there is anything to say. -->
+    <p class="hint" id="handoverLive" role="status" aria-live="polite"></p>
     <div class="stepnav">
       <button type="button" data-goto="1">Choose a different format</button>
     </div>
@@ -557,6 +600,10 @@ function log(text) {
   logPane.scrollTop = logPane.scrollHeight;
 }
 function status(text) { el('status').textContent = text; }
+// The handover's own polite region, beside the download buttons: the status
+// line speaks for the build and the log is not announced at all, so anything
+// the handover has to say goes here.
+function announce(text) { el('handoverLive').textContent = text; }
 
 // Each format names the package function that writes it, the extension the
 // browser should save it under, and the MIME type. Nothing here describes the
@@ -865,11 +912,12 @@ function crosswalkSentence() {
   if (wholeInstrument()) {
     return 'This form carries no crosswalk: a shuffled whole instrument ' +
       'would print 405 pairs on a page a participant reads. The printed ' +
-      'order is recorded only in the .json file saved with the form.';
+      'order is recorded only in the .json scoring file, which the second ' +
+      'button hands you after the build \u2014 take it, or the order is lost.';
   }
   return 'This form carries a crosswalk: each printed number beside the ' +
-    'original HiTOP-SR number it came from. The .json file saved with the ' +
-    'form records that order too.';
+    'original HiTOP-SR number it came from. The .json scoring file offered ' +
+    'by the second button after the build records that order too.';
 }
 
 function clearAll() {
@@ -910,18 +958,81 @@ function namingValue(id) {
   return namingDefaults[id];
 }
 
-// Hands one built file to the browser. Both files a build produces go through
-// here, one after the other, so neither is saved by a path the other is not.
-function saveFile(bytes, mime, name) {
+// Hands one built file to the browser. `origin` says what asked for this save
+// and rides on the anchor as a data attribute, so what reads the click -- a
+// browser, or a driven run checking this page's behaviour -- can tell the two
+// apart without inspecting the filename. Exactly two values are ever passed:
+// 'build', a save the completed build started on its own, and 'visitor', a
+// save running inside the visitor's own click on the descriptor button.
+//
+// Only one 'build' save happens per build. A browser may drop the second of
+// two saves it was not asked for, and the descriptor is the file a visitor
+// would not notice missing until scoring time, so it is never handed over
+// this way -- it waits behind a button of its own (see offerDescriptor).
+function saveFile(bytes, mime, name, origin) {
   const blob = new Blob([bytes], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = name;
+  a.dataset.origin = origin;
   document.body.append(a);
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+// The descriptor a completed build produced, waiting for the visitor to take
+// it: { bytes, name, taken }. Null until the first build finishes; replaced
+// whole by each later one, so what the button hands over always belongs to
+// the form last built. Two builds in a row commonly produce the same
+// filename, which is why `taken` is tracked rather than inferred from it.
+let heldDescriptor = null;
+
+// Puts a freshly built descriptor on offer, naming the file on the button so
+// what arrives is known before it is clicked. Every replacement is logged,
+// but only a replacement of a descriptor the visitor never took reports a
+// loss -- once they have the file, a later build takes nothing away from
+// them, and saying otherwise would send them looking for a file they already
+// have.
+function offerDescriptor(bytes, name) {
+  let announcement = `The scoring file ${name} is ready on a button of its own.`;
+  if (heldDescriptor && !heldDescriptor.taken) {
+    log(`  the scoring file from the previous build (${heldDescriptor.name}) ` +
+        `was replaced before you took it; the button now offers ${name}, ` +
+        `built just now.`);
+    announcement = `The scoring file from the previous build was replaced ` +
+      `before you took it. The button now offers ${name}.`;
+  } else if (heldDescriptor) {
+    log(`  the button now offers the scoring file just built (${name}); the ` +
+        `one you already saved is unaffected.`);
+    announcement = `The button now offers the scoring file ${name}. The one ` +
+      `you already saved is unaffected.`;
+  }
+  heldDescriptor = { bytes, name, taken: false };
+  const button = el('saveDescriptor');
+  el('handover').hidden = false;
+  button.hidden = false;
+  button.disabled = false;
+  button.textContent = `Save the scoring file (${name})`;
+  // Said rather than only shown: the button appears with no announcement of
+  // its own, and under the old design the file saved itself, so a visitor who
+  // does not see it arrive would otherwise never learn it is there.
+  announce(announcement);
+}
+
+// Stays on offer after it is taken, until the next build replaces it: saving
+// twice costs nothing, and a first save that went somewhere unintended would
+// otherwise need a whole rebuild to recover from.
+function takeDescriptor() {
+  if (!heldDescriptor) return;
+  saveFile(heldDescriptor.bytes, 'application/json', heldDescriptor.name,
+           'visitor');
+  heldDescriptor.taken = true;
+  // No indent: this line follows a click of the visitor's own, not the R call
+  // whose output the two-space prefix marks elsewhere in this log.
+  log(`saved ${heldDescriptor.name} (${heldDescriptor.bytes.length} bytes).`);
+  announce(`Saved ${heldDescriptor.name}.`);
 }
 
 async function download() {
@@ -932,6 +1043,16 @@ async function download() {
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
   buttons.forEach((b) => (b.disabled = true));
+  // The handover button sits outside `.downloads` so an edited selection can
+  // never disable it -- but a build in flight is the one moment it must be
+  // off. Until this build replaces the held pair, the button still offers the
+  // previous build's descriptor under the same stem this build's
+  // questionnaire is about to take, so a click now would hand over two files
+  // that look like a pair and describe different forms. offerDescriptor turns
+  // it back on with the new file; a build that fails restores the old offer
+  // in the `finally` below, which is still the last one actually built.
+  const handover = el('saveDescriptor');
+  handover.disabled = true;
   status(`Building the ${spec.ext.toUpperCase()} file…`);
 
   const path = `/tmp/module.${spec.ext}`;
@@ -1007,22 +1128,28 @@ async function download() {
     // A file built from every scale is the instrument, not a module, and is
     // named for what it contains. The descriptor takes the same stem, so the
     // two arrive in a downloads folder as one pair. Both are read before
-    // either is saved, so a missing descriptor fails the whole build rather
-    // than handing over a form with nothing to score it by.
+    // either is handed over, so a missing descriptor fails the whole build
+    // rather than handing over a form with nothing to score it by.
+    //
+    // Only the questionnaire is saved here. The descriptor goes on offer
+    // instead, because a second save this build started on its own is the one
+    // a browser may drop -- see saveFile.
     const stem = `${INSTRUMENT}${whole ? '' : '-module'}`;
     const bytes = await webR.FS.readFile(path);
     const descBytes = await webR.FS.readFile(descPath);
-    saveFile(bytes, spec.mime, `${stem}.${spec.ext}`);
-    saveFile(descBytes, 'application/json', `${stem}.json`);
-
-    log(`  wrote ${bytes.length} bytes to ${stem}.${spec.ext} and ` +
-        `${descBytes.length} bytes to ${stem}.json`);
+    saveFile(bytes, spec.mime, `${stem}.${spec.ext}`, 'build');
+    log(`  wrote ${bytes.length} bytes to ${stem}.${spec.ext} and built ` +
+        `${descBytes.length} bytes of ${stem}.json, waiting on its button.`);
+    // Offered after that line, so the log reads in the order the visitor
+    // meets it: what this build produced, then what changed on the button.
+    offerDescriptor(descBytes, `${stem}.json`);
     status('Ready.');
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     status(`Could not build the ${spec.ext.toUpperCase()} file — the log below says why.`);
   } finally {
     buttons.forEach((b) => (b.disabled = false));
+    if (heldDescriptor) handover.disabled = false;
     refreshTally();
   }
 }
@@ -1122,6 +1249,7 @@ async function main() {
   refreshShuffleNote();
   setFormat(currentFormat);
   el('downloadBtn').addEventListener('click', () => download());
+  el('saveDescriptor').addEventListener('click', takeDescriptor);
   // Choosing a format both records the choice and moves to its screen, so the
   // choice is never made and then left behind on a screen it does not affect.
   for (const b of document.querySelectorAll('[data-choose]')) {
