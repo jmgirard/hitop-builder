@@ -606,26 +606,49 @@ function status(text) { el('status').textContent = text; }
 function announce(text) { el('handoverLive').textContent = text; }
 
 // Each format names the package function that writes it, the extension the
-// browser should save it under, and the MIME type. Nothing here describes the
+// browser should save it under, the MIME type, and the word it contributes to
+// a download's filename (see downloadStem). Nothing here describes the
 // instrument's content -- item numbers and scale names come from the package.
+//
+// `name` is the system the file is for rather than the key or the extension:
+// on the questionnaire the extension already says `.docx`, and a stem of
+// `hitopsr-docx` would say it twice.
 const FORMATS = {
   docx: {
-    fn: 'generate_docx_hitopsr', ext: 'docx',
+    fn: 'generate_docx_hitopsr', ext: 'docx', name: 'word',
     mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     heading: 'Word: options and download',
     button: 'Download the Word form (.docx)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', mime: 'text/plain',
+    name: 'qualtrics',
     heading: 'Qualtrics: options and download',
     button: 'Download the Qualtrics file (.txt)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', mime: 'application/zip',
+    name: 'redcap',
     heading: 'REDCap: options and download',
     button: 'Download the REDCap dictionary (.zip)',
   },
 };
+
+// The stem both files of one build share. Three things about the build are
+// recoverable from it -- which format wrote it, whether it covers the whole
+// instrument or a selection of scales, and whether a Word form's printed order
+// was shuffled -- so two builds made in one session never arrive under one
+// name, and no build's descriptor can shadow another's. Everything else that
+// varies between builds (which scales, paper size, item numbering, the
+// Qualtrics and REDCap names) stays readable in the descriptor travelling
+// beside the file, so two different scale selections in one format do still
+// share a filename.
+//
+// `shuffle` is false on both online formats, which offer no shuffle control.
+function downloadStem(format, whole, shuffle) {
+  return `${INSTRUMENT}-${FORMATS[format].name}` +
+    `${whole ? '' : '-module'}${shuffle ? '-shuffled' : ''}`;
+}
 
 // Which format the last screen is set up for. The page starts on Word so that
 // screen is coherent however it is reached -- including a jump straight to it
@@ -1125,16 +1148,16 @@ async function download() {
       hitop::${spec.fn}(file = out_path, descriptor = desc_path${moduleArg}${extra})
     `, { captureStreams: false });
 
-    // A file built from every scale is the instrument, not a module, and is
-    // named for what it contains. The descriptor takes the same stem, so the
-    // two arrive in a downloads folder as one pair. Both are read before
-    // either is handed over, so a missing descriptor fails the whole build
-    // rather than handing over a form with nothing to score it by.
+    // The questionnaire and its descriptor take one stem, so the two arrive in
+    // a downloads folder as one pair, and that stem says which build made them
+    // (see downloadStem). Both files are read before either is handed over, so
+    // a missing descriptor fails the whole build rather than handing over a
+    // form with nothing to score it by.
     //
     // Only the questionnaire is saved here. The descriptor goes on offer
     // instead, because a second save this build started on its own is the one
     // a browser may drop -- see saveFile.
-    const stem = `${INSTRUMENT}${whole ? '' : '-module'}`;
+    const stem = downloadStem(format, whole, shuffle);
     const bytes = await webR.FS.readFile(path);
     const descBytes = await webR.FS.readFile(descPath);
     saveFile(bytes, spec.mime, `${stem}.${spec.ext}`, 'build');
