@@ -73,7 +73,11 @@ its download button says there that it is off until one is.
    format* button at its foot leading back to the second step. Pressing the
    download button builds both files, saves the questionnaire, and reveals a
    second button — *Save the scoring file (name.json)* — which hands you the
-   `.json` file when you click it. That second button is a click of your own
+   `.json` file when you click it. A line under the two buttons says what just
+   happened: which scoring file is now on offer, whether a replacement took an
+   untaken one away, and when a click saved one. That button is off while a
+   build is running, so it can never hand over the previous build's file
+   under the name the new one is about to take. That second button is a click of your own
    rather than a second automatic save, because a browser may quietly drop a
    save nobody asked for, and a questionnaire that arrives without its scoring
    file is not noticed until scoring day. It stays on offer, takeable more than

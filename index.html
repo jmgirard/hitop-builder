@@ -248,6 +248,10 @@
   }
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
   .handover { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  /* Out of the row until a build fills it: an empty flex child still takes a
+     gap beside the download button, and a full-width row of its own under the
+     narrow breakpoint. */
+  .handover[hidden] { display: none; }
 
   /* ---- Format choice ------------------------------------------------- */
   /* One card per format, each a button that both records the choice and
@@ -530,7 +534,9 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     browser and saves the questionnaire; the second hands you the scoring file
     when you click it. The first turns on once at least one scale is ticked, and
     the second once a build has finished. The scoring file stays on offer until
-    you build again, so you can take it more than once.</p>
+    you build again, so you can take it more than once; while a build is
+    running it switches off, so it can never hand you the last build's file
+    under the name the new one is about to take.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
@@ -539,10 +545,17 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
            whenever no scale is ticked, and a descriptor already built must stay
            takeable however the selection is edited afterwards. Sharing a row
            with it is a layout fact only. -->
-      <div class="handover">
+      <div class="handover" id="handover" hidden>
         <button type="button" id="saveDescriptor" hidden>Save the scoring file</button>
       </div>
     </div>
+    <!-- The log is deliberately not announced (see its aria-live="off"), and
+         the status line above speaks for the build, so this is where the
+         handover says what just happened: that a scoring file is now on
+         offer, that a replacement took an untaken one away, and that a click
+         saved one. Empty until the first build, so nothing renders before
+         there is anything to say. -->
+    <p class="hint" id="handoverLive" role="status" aria-live="polite"></p>
     <div class="stepnav">
       <button type="button" data-goto="1">Choose a different format</button>
     </div>
@@ -587,6 +600,10 @@ function log(text) {
   logPane.scrollTop = logPane.scrollHeight;
 }
 function status(text) { el('status').textContent = text; }
+// The handover's own polite region, beside the download buttons: the status
+// line speaks for the build and the log is not announced at all, so anything
+// the handover has to say goes here.
+function announce(text) { el('handoverLive').textContent = text; }
 
 // Each format names the package function that writes it, the extension the
 // browser should save it under, and the MIME type. Nothing here describes the
@@ -979,19 +996,29 @@ let heldDescriptor = null;
 // them, and saying otherwise would send them looking for a file they already
 // have.
 function offerDescriptor(bytes, name) {
+  let announcement = `The scoring file ${name} is ready on a button of its own.`;
   if (heldDescriptor && !heldDescriptor.taken) {
     log(`  the scoring file from the previous build (${heldDescriptor.name}) ` +
         `was replaced before you took it; the button now offers ${name}, ` +
         `built just now.`);
+    announcement = `The scoring file from the previous build was replaced ` +
+      `before you took it. The button now offers ${name}.`;
   } else if (heldDescriptor) {
     log(`  the button now offers the scoring file just built (${name}); the ` +
         `one you already saved is unaffected.`);
+    announcement = `The button now offers the scoring file ${name}. The one ` +
+      `you already saved is unaffected.`;
   }
   heldDescriptor = { bytes, name, taken: false };
   const button = el('saveDescriptor');
+  el('handover').hidden = false;
   button.hidden = false;
   button.disabled = false;
   button.textContent = `Save the scoring file (${name})`;
+  // Said rather than only shown: the button appears with no announcement of
+  // its own, and under the old design the file saved itself, so a visitor who
+  // does not see it arrive would otherwise never learn it is there.
+  announce(announcement);
 }
 
 // Stays on offer after it is taken, until the next build replaces it: saving
@@ -1002,7 +1029,10 @@ function takeDescriptor() {
   saveFile(heldDescriptor.bytes, 'application/json', heldDescriptor.name,
            'visitor');
   heldDescriptor.taken = true;
-  log(`  saved ${heldDescriptor.name} (${heldDescriptor.bytes.length} bytes).`);
+  // No indent: this line follows a click of the visitor's own, not the R call
+  // whose output the two-space prefix marks elsewhere in this log.
+  log(`saved ${heldDescriptor.name} (${heldDescriptor.bytes.length} bytes).`);
+  announce(`Saved ${heldDescriptor.name}.`);
 }
 
 async function download() {
@@ -1013,6 +1043,16 @@ async function download() {
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
   buttons.forEach((b) => (b.disabled = true));
+  // The handover button sits outside `.downloads` so an edited selection can
+  // never disable it -- but a build in flight is the one moment it must be
+  // off. Until this build replaces the held pair, the button still offers the
+  // previous build's descriptor under the same stem this build's
+  // questionnaire is about to take, so a click now would hand over two files
+  // that look like a pair and describe different forms. offerDescriptor turns
+  // it back on with the new file; a build that fails restores the old offer
+  // in the `finally` below, which is still the last one actually built.
+  const handover = el('saveDescriptor');
+  handover.disabled = true;
   status(`Building the ${spec.ext.toUpperCase()} file…`);
 
   const path = `/tmp/module.${spec.ext}`;
@@ -1109,6 +1149,7 @@ async function download() {
     status(`Could not build the ${spec.ext.toUpperCase()} file — the log below says why.`);
   } finally {
     buttons.forEach((b) => (b.disabled = false));
+    if (heldDescriptor) handover.disabled = false;
     refreshTally();
   }
 }
