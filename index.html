@@ -316,9 +316,10 @@
     h1 { font-size: 1.5rem; }
     fieldset { padding: var(--s2) var(--s3) var(--s3); }
     .downloads button, .stepnav button { flex: 1 1 100%; }
-    #stepbar li { flex: 1 1 100%; }
-    /* Stacked steps run downwards, so the chevron turns to match. */
-    #stepbar li + li::before { transform: rotate(90deg); }
+    /* Stacked steps run downwards, so the chevron turns to match and moves
+       above its button, keeping every button flush with the same left edge. */
+    #stepbar li { flex: 1 1 100%; flex-direction: column; align-items: stretch; }
+    #stepbar li + li::before { align-self: center; transform: rotate(90deg); }
   }
   @media (prefers-reduced-motion: reduce) {
     button:active:not(:disabled) { transform: none; }
