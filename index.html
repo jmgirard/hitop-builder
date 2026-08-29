@@ -1280,8 +1280,10 @@ async function main() {
         // settle, so say so where the user is actually looking rather than
         // leaving a stale "downloading…" on screen.
         log(`  R stopped sending output: ${err && err.message ? err.message : err}`);
-        status('Lost the connection to R — reload the page to start over.');
-        for (const b of document.querySelectorAll('.downloads button')) b.disabled = true;
+        // Latched rather than merely disabled: refreshTally() runs on every
+        // selection change, and without the latch the next checkbox click
+        // would hand the build button back over an R that is gone.
+        abandonBoot('Lost the connection to R — reload the page to start over.');
         return;
       }
       if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
@@ -1296,14 +1298,35 @@ async function main() {
   // install, so the timeout branch latches the controls off (abandonBoot)
   // rather than assuming nothing will arrive later.
   let installTimer;
-  const installTimedOut = await Promise.race([
-    webR.installPackages(['hitop'], { repos: REPOS }).then(() => false),
+  const installOutcome = await Promise.race([
+    webR.installPackages(['hitop'], { repos: REPOS }).then(
+      () => 'installed',
+      (err) => {
+        // Handled here rather than left to reject: once the timeout has won
+        // the race nobody is holding this promise, and an unhandled rejection
+        // is all the visitor would get. Losing the race means the value is
+        // simply dropped.
+        log(`  installPackages("hitop") failed: ` +
+            `${err && err.message ? err.message : err}`);
+        return 'failed';
+      }
+    ),
     new Promise((resolve) => {
-      installTimer = setTimeout(() => resolve(true), INSTALL_TIMEOUT_MS);
+      installTimer = setTimeout(() => resolve('timed out'), INSTALL_TIMEOUT_MS);
     }),
   ]);
   clearTimeout(installTimer);
-  if (installTimedOut) {
+  if (installOutcome === 'failed') {
+    // Said as the package download failing, not as R failing to start: R is
+    // running, and pointing the visitor at the wrong half wastes their time.
+    abandonBoot(
+      `The hitop package could not be downloaded, so this page cannot build ` +
+      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
+  if (installOutcome === 'timed out') {
     log(`  installPackages("hitop") did not finish within ` +
         `${INSTALL_TIMEOUT_MS / 1000} seconds; giving up on it.`);
     abandonBoot(
@@ -1318,10 +1341,27 @@ async function main() {
 
   // Read before library(): a package this page does not match should not be
   // attached, and packageVersion() does not need it to be.
-  const version = await webR.evalRString('as.character(utils::packageVersion("hitop"))');
-  el('pkgver').textContent = `(version ${version})`;
-  log(`  hitop ${version}.`);
-  if (await installedIsOlderThan(version, MIN_HITOP)) {
+  let version;
+  let installedTooOld;
+  try {
+    version = await webR.evalRString('as.character(utils::packageVersion("hitop"))');
+    el('pkgver').textContent = `(version ${version})`;
+    log(`  hitop ${version}.`);
+    installedTooOld = await installedIsOlderThan(version, MIN_HITOP);
+  } catch (err) {
+    // The guard refuses through its own path rather than throwing: a version
+    // this page cannot read or compare is one it cannot vouch for either, and
+    // the top-level catch would blame R for starting badly.
+    log(`  could not check the installed hitop version: ` +
+        `${err && err.message ? err.message : err}`);
+    abandonBoot(
+      `This page could not check which version of hitop it installed, so it ` +
+      `will not build a form against it. Reload to try again; the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
+  if (installedTooOld) {
     log(`  hitop ${version} is older than the ${MIN_HITOP} this page needs; ` +
         `giving up.`);
     abandonBoot(
