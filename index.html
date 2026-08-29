@@ -246,7 +246,15 @@
     list-style: none; display: flex; flex-wrap: wrap; gap: var(--s2);
     margin: var(--s5) 0 0; padding: 0;
   }
-  #stepbar li { flex: 1 1 10rem; }
+  /* Each step sits in a flex row so a chevron can lead the second and third
+     one, showing the steps run in order. The chevron is a clip-path triangle
+     rather than a character, so no screen reader reads it out as text. */
+  #stepbar li { flex: 1 1 10rem; display: flex; align-items: center; gap: var(--s2); }
+  #stepbar li + li::before {
+    content: ''; flex: 0 0 auto; width: .38rem; height: .6rem;
+    background: var(--muted); opacity: .8;
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+  }
   #stepbar button {
     width: 100%; display: flex; gap: var(--s2); align-items: baseline;
     text-align: left; background: var(--surface); border-color: var(--line);
@@ -309,6 +317,8 @@
     fieldset { padding: var(--s2) var(--s3) var(--s3); }
     .downloads button, .stepnav button { flex: 1 1 100%; }
     #stepbar li { flex: 1 1 100%; }
+    /* Stacked steps run downwards, so the chevron turns to match. */
+    #stepbar li + li::before { transform: rotate(90deg); }
   }
   @media (prefers-reduced-motion: reduce) {
     button:active:not(:disabled) { transform: none; }
