@@ -47,10 +47,13 @@ name and item number the page shows is read from the installed package's keying
 tables at runtime — this repository contains no copy of the instrument's
 content.
 
-The page also stops waiting on an install that never finishes: `installPackages`
-is raced against a timeout stated as `INSTALL_TIMEOUT_MS` in `index.html`, two
-minutes against a first load of roughly twenty seconds. On timeout the page says
-so and stays switched off, including if the install settles afterwards.
+The page also stops waiting on either half of the load that never finishes.
+Downloading R itself — the webR module import and the `init()` that fetches the
+WebAssembly build behind it — is raced against `RUNTIME_TIMEOUT_MS`, and
+`installPackages` against `INSTALL_TIMEOUT_MS`. Both are stated in `index.html`,
+both set to `120000` milliseconds — two minutes — against a first load of
+roughly twenty seconds each. On either timeout the page says which half stalled
+and stays switched off, including if the stalled step settles afterwards.
 
 The first load downloads R and the package, which takes roughly twenty seconds;
 the browser caches them afterwards.
@@ -336,13 +339,24 @@ Every tracked file:
 | Path | Purpose |
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
-| `.github/workflows/pages.yml` | Publishes the repository to GitHub Pages on every push to `main` |
+| `.github/workflows/pages.yml` | Publishes `index.html`, and nothing else in the repository, to GitHub Pages on every push to `main` |
+| `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
+| `tests/smoke.spec.js` | The smoke test: boot the page, check the scale list, download a Word form |
+| `tests/runtime-timeout.spec.js` | Two probes that stall R's download and check the page gives up and says which half stalled |
+| `tests/plants.mjs` | The plant matrix: six planted defects, run to prove the smoke test goes red on each |
+| `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
+| `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
+| `package.json`, `package-lock.json` | The pinned `@playwright/test` they run under |
 | `README.md` | This file |
 | `LICENSE.md` | GPL-3 |
-| `.gitignore` | Keeps `.DS_Store` out |
+| `.gitignore` | Keeps `.DS_Store`, `node_modules/` and Playwright's run output out |
 
-There is no build step, no R file, and no backend of any kind in this
-repository.
+There is still no R file and no backend of any kind, and nothing is compiled,
+bundled or generated. The deployed site is `index.html`, `LICENSE.md` and
+`README.md`: the Pages workflow copies those three into the artifact it
+uploads and nothing else, so `package.json`, `playwright.config.js` and
+everything under `tests/` are never served at all. They exist only for the
+smoke test, and run only in CI or from a checkout.
 
 ## Instrument content
 

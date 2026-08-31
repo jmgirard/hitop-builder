@@ -637,6 +637,15 @@ const INSTRUMENT = 'hitopsr';
 // the package repo's cairn/PROFILE.md carries that step.
 const MIN_HITOP = '0.2.0';
 
+// How long the R runtime itself gets to arrive -- the webr.mjs import and the
+// init() that downloads and starts the WebAssembly build behind it -- before
+// the page stops waiting on it. The same two minutes the package install gets
+// below, and for the same reason: a first load is about twenty seconds, so a
+// slow connection still finishes while a download that is never going to
+// arrive stops holding the page open indefinitely. Neither step can be
+// cancelled, so either may still settle afterwards -- see bootAbandoned.
+const RUNTIME_TIMEOUT_MS = 120000;
+
 // How long installPackages gets before the page stops waiting on it. A first
 // load is about twenty seconds, so this is six times a normal one: a slow
 // connection still finishes, and an install that is never going to finish
@@ -644,11 +653,18 @@ const MIN_HITOP = '0.2.0';
 // cancelled, so it may still settle afterwards -- see bootAbandoned.
 const INSTALL_TIMEOUT_MS = 120000;
 
-// Set once the page has given up on booting -- the install timed out, or the
-// installed package is older than MIN_HITOP. Because neither failure can
-// cancel what is still in flight, a late-settling install would otherwise be
-// free to run the rest of boot and put a build button back within reach. Every
-// site that turns a control on reads this, so nothing after this point can.
+// Set once the page has given up on booting. Every call site is listed here
+// rather than counted, so a branch added later has to be added here too: the
+// webr.mjs import could not be loaded; init() failed; R's download timed out;
+// the connection to R was lost; the package download failed; the package
+// install timed out; the installed version could not be read; the installed
+// package is older than MIN_HITOP -- eight sites. main()'s own catch-all at
+// the foot of this file is not one of them: it reports and stops without
+// latching, so a throw reaching it after the controls are shown leaves them
+// on. None of the eight can cancel what is still in flight, so a
+// late-settling import, init or install would otherwise be free to run the
+// rest of boot and put a build button back within reach.
+// Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
 // Stops the page where it stands and says why. The controls are hidden rather
@@ -1276,18 +1292,69 @@ async function main() {
   el('logSection').hidden = false;
   status('Starting R in your browser…');
 
-  let WebR;
-  try {
-    ({ WebR } = await import(WEBR_URL));
-  } catch (err) {
-    status('Could not load R. This page has to reach webr.r-wasm.org — a ' +
-           'network block or a browser extension may be stopping it.');
-    log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
+  // Raced rather than simply awaited, on the same reasoning as the install
+  // race further down: a runtime download that never settles would otherwise
+  // leave "Starting R in your browser…" on screen forever with nothing said.
+  // The import and init() are raced together under one timeout because a
+  // visitor cannot act on which of the two stalled -- both are the same
+  // download of R itself. Neither can be cancelled, so the timeout branch
+  // latches the controls off (abandonBoot) rather than assuming nothing will
+  // arrive later.
+  let runtimeTimer;
+  const runtimeOutcome = await Promise.race([
+    (async () => {
+      let WebR;
+      try {
+        ({ WebR } = await import(WEBR_URL));
+      } catch (err) {
+        log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
+        return 'no import';
+      }
+      const started = new WebR({ baseUrl: WEBR_BASE });
+      await started.init();
+      // Published only once init() has resolved: every later step reads this
+      // binding, and a half-started instance is not one they can use.
+      webR = started;
+      return 'started';
+    })().catch((err) => {
+      // Handled here rather than left to reject: once the timeout has won the
+      // race nobody is holding this promise, and an unhandled rejection is all
+      // the visitor would get. Losing the race means the value is dropped.
+      log(`FATAL: ${err && err.stack ? err.stack : err}`);
+      return 'failed';
+    }),
+    new Promise((resolve) => {
+      runtimeTimer = setTimeout(() => resolve('timed out'), RUNTIME_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(runtimeTimer);
+  // Both failure branches latch through abandonBoot, as the install race's do
+  // below. Nothing is left in flight on either path today, so no control could
+  // come back on; the latch is here so that stays true of a branch added later
+  // rather than resting on a reading of what this one leaves pending.
+  if (runtimeOutcome === 'no import') {
+    abandonBoot('Could not load R. This page has to reach webr.r-wasm.org — a ' +
+                'network block or a browser extension may be stopping it.');
     return;
   }
-
-  webR = new WebR({ baseUrl: WEBR_BASE });
-  await webR.init();
+  if (runtimeOutcome === 'failed') {
+    abandonBoot('Could not start R — the log below says why.');
+    return;
+  }
+  if (runtimeOutcome === 'timed out') {
+    log(`  R did not finish downloading within ` +
+        `${RUNTIME_TIMEOUT_MS / 1000} seconds; giving up on it.`);
+    // Said as R itself failing to arrive, not as the package install: the
+    // install has not been asked for yet, and pointing the visitor at the
+    // wrong half wastes their time.
+    abandonBoot(
+      `R in your browser did not finish downloading within ` +
+      `${RUNTIME_TIMEOUT_MS / 1000} seconds, so this page cannot build ` +
+      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
   log('R started.');
 
   // Stream R's own stdout/stderr into the log pane.
@@ -1457,6 +1524,11 @@ async function main() {
     b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
   }
 
+  // The latch is read here too. abandonBoot can fire from the stdout reader
+  // while main() is still working -- losing the connection to R does exactly
+  // that -- and this line would otherwise put back the controls that call
+  // hid.
+  if (bootAbandoned) return;
   el('controls').hidden = false;
   // No focus move on the first paint: the page has just finished loading and
   // the visitor has not asked to go anywhere yet.

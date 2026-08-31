@@ -1,5 +1,8 @@
-# Publish the static app to GitHub Pages. There is no build step: the files in
-# the repository root are the site.
+# Publish the static app to GitHub Pages. There is no build step: one file is
+# the site. It is staged into a directory of its own rather than uploaded from
+# the checkout, because the checkout now also holds the smoke test, its
+# lockfile and its config -- none of which a visitor's browser has any use for,
+# and all of which `path: .` would serve at the public URL.
 name: Deploy to Pages
 
 on:
@@ -25,8 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: Stage the site
+        # Named one by one rather than uploading the checkout: the test
+        # harness, its lockfile and node_modules have no business at the
+        # public URL. index.html is the site; LICENSE.md and README.md have
+        # been reachable there since the repository's first deploy.
+        run: |
+          mkdir _site
+          cp index.html LICENSE.md README.md _site/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
