@@ -164,13 +164,22 @@ notice above its download button.
 ## What the downloads are named
 
 Both files of a build share one name, and that name says which build made them:
-the instrument, the format, `-module` unless you ticked every scale, and
-`-shuffled` on a Word form whose printed order you shuffled. The questionnaire
-takes its format's extension and the scoring file takes `.json`. Two builds
-differing in any of those three therefore arrive under different names, so
-neither can overwrite the other's scoring file in your downloads folder. Two
-builds differing only in which scales you ticked do share a name — the paragraph
-under the table says what to do about that.
+the instrument, the format, `-module` unless the build is the whole instrument,
+and `-shuffled` on a Word form whose printed order you shuffled. The
+questionnaire takes its format's extension and the scoring file takes `.json`.
+Two builds differing in any of those three therefore arrive under different
+names, so neither can overwrite the other's scoring file in your downloads
+folder. Two builds differing only in which scales you ticked do share a name —
+the paragraph under the table says what to do about that.
+
+Ticking every scale is not on its own what drops `-module`. The page also has to
+have confirmed with the package that the instrument's scales between them cover
+its items with nothing left out, which it asks once while starting up and
+reports in the log as *every scale ticked covers items 1..N with no gaps*. The
+answer is yes for the HiTOP-SR, the only instrument this page builds, so ticking
+all 76 does drop `-module`; were it no, ticking every box would still build a
+module and the name would still carry `-module`. [Ticking every
+scale](#ticking-every-scale) below says what else rides on that answer.
 
 | What you built | Questionnaire | Scoring file |
 |---|---|---|
@@ -263,7 +272,14 @@ files the deployed page built.
 ## Ticking every scale
 
 Ticking all 76 scales builds the whole instrument rather than a module that
-happens to contain every scale. The Word form is then headed
+happens to contain every scale — but only because the page has asked the package
+whether this instrument's scales, taken together, cover its items with nothing
+left out. It asks once while starting up, and the log line *every scale ticked
+covers items 1..N with no gaps* carries the answer; on the HiTOP-SR it is true.
+On an instrument where it were false, "every scale" would not be the same thing
+as the whole instrument, and ticking every box would keep building a module.
+
+With the answer true and every box ticked, the Word form is headed
 `HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads drop
 the `-module` part of their names — `hitopsr-word.docx` rather than
 `hitopsr-word-module.docx`, and so on for the other two formats. The Qualtrics
