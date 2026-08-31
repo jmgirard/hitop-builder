@@ -637,6 +637,15 @@ const INSTRUMENT = 'hitopsr';
 // the package repo's cairn/PROFILE.md carries that step.
 const MIN_HITOP = '0.2.0';
 
+// How long the R runtime itself gets to arrive -- the webr.mjs import and the
+// init() that downloads and starts the WebAssembly build behind it -- before
+// the page stops waiting on it. The same two minutes the package install gets
+// below, and for the same reason: a first load is about twenty seconds, so a
+// slow connection still finishes while a download that is never going to
+// arrive stops holding the page open indefinitely. Neither step can be
+// cancelled, so either may still settle afterwards -- see bootAbandoned.
+const RUNTIME_TIMEOUT_MS = 120000;
+
 // How long installPackages gets before the page stops waiting on it. A first
 // load is about twenty seconds, so this is six times a normal one: a slow
 // connection still finishes, and an install that is never going to finish
@@ -1276,18 +1285,65 @@ async function main() {
   el('logSection').hidden = false;
   status('Starting R in your browser…');
 
-  let WebR;
-  try {
-    ({ WebR } = await import(WEBR_URL));
-  } catch (err) {
+  // Raced rather than simply awaited, on the same reasoning as the install
+  // race further down: a runtime download that never settles would otherwise
+  // leave "Starting R in your browser…" on screen forever with nothing said.
+  // The import and init() are raced together under one timeout because a
+  // visitor cannot act on which of the two stalled -- both are the same
+  // download of R itself. Neither can be cancelled, so the timeout branch
+  // latches the controls off (abandonBoot) rather than assuming nothing will
+  // arrive later.
+  let runtimeTimer;
+  const runtimeOutcome = await Promise.race([
+    (async () => {
+      let WebR;
+      try {
+        ({ WebR } = await import(WEBR_URL));
+      } catch (err) {
+        log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
+        return 'no import';
+      }
+      const started = new WebR({ baseUrl: WEBR_BASE });
+      await started.init();
+      // Published only once init() has resolved: every later step reads this
+      // binding, and a half-started instance is not one they can use.
+      webR = started;
+      return 'started';
+    })().catch((err) => {
+      // Handled here rather than left to reject: once the timeout has won the
+      // race nobody is holding this promise, and an unhandled rejection is all
+      // the visitor would get. Losing the race means the value is dropped.
+      log(`FATAL: ${err && err.stack ? err.stack : err}`);
+      return 'failed';
+    }),
+    new Promise((resolve) => {
+      runtimeTimer = setTimeout(() => resolve('timed out'), RUNTIME_TIMEOUT_MS);
+    }),
+  ]);
+  clearTimeout(runtimeTimer);
+  if (runtimeOutcome === 'no import') {
     status('Could not load R. This page has to reach webr.r-wasm.org — a ' +
            'network block or a browser extension may be stopping it.');
-    log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
     return;
   }
-
-  webR = new WebR({ baseUrl: WEBR_BASE });
-  await webR.init();
+  if (runtimeOutcome === 'failed') {
+    status('Could not start R — the log below says why.');
+    return;
+  }
+  if (runtimeOutcome === 'timed out') {
+    log(`  R did not finish downloading within ` +
+        `${RUNTIME_TIMEOUT_MS / 1000} seconds; giving up on it.`);
+    // Said as R itself failing to arrive, not as the package install: the
+    // install has not been asked for yet, and pointing the visitor at the
+    // wrong half wastes their time.
+    abandonBoot(
+      `R in your browser did not finish downloading within ` +
+      `${RUNTIME_TIMEOUT_MS / 1000} seconds, so this page cannot build ` +
+      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `instruments are ready to download at jmgirard.github.io/hitop.`
+    );
+    return;
+  }
   log('R started.');
 
   // Stream R's own stdout/stderr into the log pane.
