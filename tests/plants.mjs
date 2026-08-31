@@ -115,7 +115,17 @@ function runSmoke(dir) {
       ['playwright', 'test', 'tests/smoke.spec.js', '--reporter=json', '--retries=0'],
       {
         cwd: REPO,
-        env: { ...process.env, SMOKE_SERVE_DIR: dir, SMOKE_TARGET: '', CI: '' },
+        // SMOKE_REQUIRE_TARGET is cleared along with SMOKE_TARGET: left set by
+        // the caller's shell it would make every run here throw the spec's
+        // deployed-page guard before a page was ever loaded, and the matrix
+        // would report a red that says nothing about any plant.
+        env: {
+          ...process.env,
+          SMOKE_SERVE_DIR: dir,
+          SMOKE_TARGET: '',
+          SMOKE_REQUIRE_TARGET: '',
+          CI: '',
+        },
         maxBuffer: 64 * 1024 * 1024,
       },
       (err, stdout) => {
@@ -204,6 +214,14 @@ const passedWhenPlanted = rows
   .filter((r) => r.id !== '-' && !r.error && r.passed)
   .map((r) => r.id);
 
+// A planted run that went red without failing one of the enumerated assertions
+// demonstrated nothing about its plant: a run that timed out or was
+// interrupted lands here, red but silent, and its assertion may still be
+// covered by another plant -- so the coverage check below would not notice.
+const redButSilent = rows
+  .filter((r) => r.id !== '-' && !r.error && !r.passed && r.failed.length === 0)
+  .map((r) => r.id);
+
 const errored = rows.filter((r) => r.error).map((r) => (r.id === '-' ? 'unplanted' : r.id));
 
 let ok = true;
@@ -216,6 +234,13 @@ if (errored.length) {
 }
 if (!unplanted.passed) {
   console.log('FAIL: the unplanted copy did not pass.');
+  ok = false;
+}
+if (redButSilent.length) {
+  console.log(
+    `FAIL: plants that went red without failing an enumerated assertion, so ` +
+      `they say nothing about the defect they plant: ${redButSilent.join(', ')}`
+  );
   ok = false;
 }
 if (passedWhenPlanted.length) {

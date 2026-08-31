@@ -654,12 +654,16 @@ const RUNTIME_TIMEOUT_MS = 120000;
 const INSTALL_TIMEOUT_MS = 120000;
 
 // Set once the page has given up on booting. Every call site is listed here
-// rather than counted, so a branch added later has to be added here too: R's
-// own download failed or timed out; the connection to R was lost; the package
-// install failed or timed out; the installed version could not be read; the
-// installed package is older than MIN_HITOP. None of those can cancel what is
-// still in flight, so a late-settling import, init or install would otherwise
-// be free to run the rest of boot and put a build button back within reach.
+// rather than counted, so a branch added later has to be added here too: the
+// webr.mjs import could not be loaded; init() failed; R's download timed out;
+// the connection to R was lost; the package download failed; the package
+// install timed out; the installed version could not be read; the installed
+// package is older than MIN_HITOP -- eight sites. main()'s own catch-all at
+// the foot of this file is not one of them: it reports and stops without
+// latching, so a throw reaching it after the controls are shown leaves them
+// on. None of the eight can cancel what is still in flight, so a
+// late-settling import, init or install would otherwise be free to run the
+// rest of boot and put a build button back within reach.
 // Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
@@ -1520,6 +1524,11 @@ async function main() {
     b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
   }
 
+  // The latch is read here too. abandonBoot can fire from the stdout reader
+  // while main() is still working -- losing the connection to R does exactly
+  // that -- and this line would otherwise put back the controls that call
+  // hid.
+  if (bootAbandoned) return;
   el('controls').hidden = false;
   // No focus move on the first paint: the page has just finished loading and
   // the visitor has not asked to go anywhere yet.
