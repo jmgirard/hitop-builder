@@ -89,8 +89,8 @@ its download button says there that it is off until one is.
    two buttons says what just happened: which scoring file is now on offer,
    whether a replacement took an untaken one away, and when a click saved
    one. That button is off while a build is running: when the new build
-   matches the one on offer in format, in whether you took every scale or a
-   selection, and in whether a Word form was shuffled, its scoring file is
+   matches the one on offer in format, in whether it is the whole instrument
+   or a selection, and in whether a Word form was shuffled, its scoring file is
    headed for the name the file on offer already carries, and the button
    being off is what stops you taking the old one under that name. That
    second button is a click of your own rather than a second automatic
@@ -200,8 +200,10 @@ recorded in the scoring file travelling beside the questionnaire — and, on a
 shuffled Word form, the order the items were printed in — so two different
 scale selections in one format do share a filename: take the `.json` file, and
 rename the pair yourself if you are keeping both. The paper size, the item
-numbering and the Qualtrics and REDCap naming values are in neither the name
-nor the scoring file; the questionnaire itself is the only record of them.
+numbering, the Qualtrics and REDCap naming values and REDCap's required flag
+are in neither the name nor the scoring file; the questionnaire itself is the
+only file that keeps them, though the build log names all but the paper size
+while the page stays open.
 
 ## Numbering the Word form
 
