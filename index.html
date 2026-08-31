@@ -545,14 +545,33 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       <p>Take both. Keep the <code>.json</code> file with the responses you
       collect: the <code>hitop</code> package reads it back with
       <code>read_module()</code> when you score the data.</p>
+      <!-- One-time notice for the 2026-08-29 rename, added 2026-08-30. It is a
+           paragraph of its own, and nothing else refers to it, so a later
+           milestone deletes this comment and the paragraph below and leaves
+           the rest of this notice as it stands. -->
+      <p id="renameNote"><strong>These names changed on 2026-08-29.</strong>
+      Until then a download was called <code>hitopsr</code>, or
+      <code>hitopsr-module</code> when you had ticked only some scales,
+      whichever format built it. Those two names are now eight, one for each
+      format, scope and shuffle setting the page builds:
+      <code>hitopsr-word</code>,
+      <code>hitopsr-word-shuffled</code>, <code>hitopsr-word-module</code>,
+      <code>hitopsr-word-module-shuffled</code>,
+      <code>hitopsr-qualtrics</code>, <code>hitopsr-qualtrics-module</code>,
+      <code>hitopsr-redcap</code> and <code>hitopsr-redcap-module</code>. Files
+      you took before that date keep the names they were saved under; the
+      rename changed nothing inside them.</p>
     </div>
     <p class="hint" id="downloadHint">The first button builds both files in this
     browser and saves the questionnaire; the second hands you the scoring file
     when you click it. The first turns on once at least one scale is ticked, and
     the second once a build has finished. The scoring file stays on offer until
     you build again, so you can take it more than once; while a build is
-    running it switches off, so it can never hand you the last build's file
-    under the name the new one is about to take.</p>
+    running it switches off. That matters when the build under way is the same
+    format as the one on offer, covers the whole instrument or a selection just
+    as it did, and is shuffled or not just as it was: its scoring file is then
+    headed for exactly the name the file on offer already carries, and the
+    button being off is what stops you taking the old one under that name.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>
@@ -692,11 +711,13 @@ const FORMATS = {
 // instrument or a selection of scales, and whether a Word form's printed order
 // was shuffled -- so two builds differing in any of those three never arrive
 // under one name, and neither one's descriptor can shadow the other's.
-// Everything else that varies between builds (which scales, paper size, item
-// numbering, the Qualtrics and REDCap names) stays readable in the descriptor
-// travelling beside the file, so two builds differing only in which scales
-// were ticked do share a filename -- and there the later descriptor does
-// shadow the earlier one.
+// The other things that vary between builds do not reach the name. Which
+// scales were ticked stays readable in the descriptor travelling beside the
+// file, so two builds differing only in that do share a filename -- and there
+// the later descriptor does shadow the earlier one. The paper size, the item
+// numbering, the Qualtrics and REDCap names and REDCap's required flag reach
+// neither the name nor the descriptor: only the questionnaire itself keeps
+// them.
 //
 // `shuffle` is false on both online formats, which offer no shuffle control.
 function downloadStem(format, whole, shuffle) {

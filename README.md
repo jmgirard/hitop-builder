@@ -88,14 +88,17 @@ its download button says there that it is off until one is.
    you — which saves that `.json` file when you click it. A line under the
    two buttons says what just happened: which scoring file is now on offer,
    whether a replacement took an untaken one away, and when a click saved
-   one. That button is off while a build is running, so it can never hand
-   over the previous build's file under the name the new one is about to
-   take. That second button is a click of your own rather than a second
-   automatic save, because a browser may quietly drop a save nobody asked
-   for, and a questionnaire that arrives without its scoring file is not
-   noticed until scoring day. It stays on offer, takeable more than once,
-   until the next completed build replaces it; when a build does replace one
-   you had not taken, the log says so. Your scale selection is kept, so
+   one. That button is off while a build is running: when the new build
+   matches the one on offer in format, in whether it is the whole instrument
+   or a selection, and in whether a Word form was shuffled, its scoring file is
+   headed for the name the file on offer already carries, and the button
+   being off is what stops you taking the old one under that name. That
+   second button is a click of your own rather than a second automatic
+   save, because a browser may quietly drop a save nobody asked for, and a
+   questionnaire that arrives without its scoring file is not noticed until
+   scoring day. It stays on offer, takeable more than once, until the next
+   completed build replaces it; when a build does replace one you had not
+   taken, the log says so. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
@@ -161,13 +164,22 @@ notice above its download button.
 ## What the downloads are named
 
 Both files of a build share one name, and that name says which build made them:
-the instrument, the format, `-module` unless you ticked every scale, and
-`-shuffled` on a Word form whose printed order you shuffled. The questionnaire
-takes its format's extension and the scoring file takes `.json`. Two builds
-differing in any of those three therefore arrive under different names, so
-neither can overwrite the other's scoring file in your downloads folder. Two
-builds differing only in which scales you ticked do share a name — the paragraph
-under the table says what to do about that.
+the instrument, the format, `-module` unless the build is the whole instrument,
+and `-shuffled` on a Word form whose printed order you shuffled. The
+questionnaire takes its format's extension and the scoring file takes `.json`.
+Two builds differing in any of those three therefore arrive under different
+names, so neither can overwrite the other's scoring file in your downloads
+folder. Two builds differing only in which scales you ticked do share a name —
+the paragraph under the table says what to do about that.
+
+Ticking every scale is not on its own what drops `-module`. The page also has to
+have confirmed with the package that the instrument's scales between them cover
+its items with nothing left out, which it asks once while starting up and
+reports in the log as *every scale ticked covers items 1..N with no gaps*. The
+answer is yes for the HiTOP-SR, the only instrument this page builds, so ticking
+all 76 does drop `-module`; were it no, ticking every box would still build a
+module and the name would still carry `-module`. [Ticking every
+scale](#ticking-every-scale) below says what else rides on that answer.
 
 | What you built | Questionnaire | Scoring file |
 |---|---|---|
@@ -183,11 +195,15 @@ under the table says what to do about that.
 Verified 2026-08-29 by building all eight and reading back the names the page
 asked the browser to save.
 
-Nothing else about a build reaches its name. Which scales you ticked, the paper
-size, the item numbering, and the Qualtrics and REDCap naming values are
-recorded in the scoring file travelling beside the questionnaire, so two
-different scale selections in one format do share a filename — take the `.json`
-file, and rename the pair yourself if you are keeping both.
+Nothing else about a build reaches its name. Which scales you ticked is
+recorded in the scoring file travelling beside the questionnaire — and, on a
+shuffled Word form, the order the items were printed in — so two different
+scale selections in one format do share a filename: take the `.json` file, and
+rename the pair yourself if you are keeping both. The paper size, the item
+numbering, the Qualtrics and REDCap naming values and REDCap's required flag
+are in neither the name nor the scoring file; the questionnaire itself is the
+only file that keeps them, though the build log names all but the paper size
+while the page stays open.
 
 ## Numbering the Word form
 
@@ -260,7 +276,14 @@ files the deployed page built.
 ## Ticking every scale
 
 Ticking all 76 scales builds the whole instrument rather than a module that
-happens to contain every scale. The Word form is then headed
+happens to contain every scale — but only because the page has asked the package
+whether this instrument's scales, taken together, cover its items with nothing
+left out. It asks once while starting up, and the log line *every scale ticked
+covers items 1..N with no gaps* carries the answer; on the HiTOP-SR it is true.
+On an instrument where it were false, "every scale" would not be the same thing
+as the whole instrument, and ticking every box would keep building a module.
+
+With the answer true and every box ticked, the Word form is headed
 `HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads drop
 the `-module` part of their names — `hitopsr-word.docx` rather than
 `hitopsr-word-module.docx`, and so on for the other two formats. The Qualtrics
