@@ -30,8 +30,17 @@ const PLANTS = [
   {
     id: 'b',
     what: 'the download button renamed',
-    from: 'id="downloadBtn"',
-    to: 'id="downloadBtnRenamed"',
+    // Renamed at every site, not only in the markup. Renaming the id alone
+    // would make main() throw on el('downloadBtn') before the page ever
+    // reached "Ready.", so the run would go red on a page that never started
+    // -- which is a different defect from the one this plant is about. Renamed
+    // consistently, the page works exactly as before and the only thing that
+    // breaks is the smoke test's own selector, which is the claim.
+    edits: [
+      { from: 'id="downloadBtn"', to: 'id="downloadBtnRenamed"' },
+      { from: "el('downloadBtn').textContent", to: "el('downloadBtnRenamed').textContent" },
+      { from: "el('downloadBtn').addEventListener", to: "el('downloadBtnRenamed').addEventListener" },
+    ],
   },
   {
     id: 'c',
@@ -79,13 +88,20 @@ function replaceOnce(html, from, to) {
   return html.replace(from, to);
 }
 
+// A plant is one edit (`from`/`to`) or a list of them (`edits`); each is
+// applied with replaceOnce, so a plant whose target text has moved or changed
+// stops the matrix loudly rather than planting nothing.
+function plantEdits(plant) {
+  return plant.edits ?? [{ from: plant.from, to: plant.to }];
+}
+
 async function plantedCopy(plant) {
   const dir = await mkdtemp(path.join(tmpdir(), 'hitop-plant-'));
-  const html = await readFile(path.join(REPO, 'index.html'), 'utf8');
-  await writeFile(
-    path.join(dir, 'index.html'),
-    plant ? replaceOnce(html, plant.from, plant.to) : html
-  );
+  let html = await readFile(path.join(REPO, 'index.html'), 'utf8');
+  if (plant) {
+    for (const edit of plantEdits(plant)) html = replaceOnce(html, edit.from, edit.to);
+  }
+  await writeFile(path.join(dir, 'index.html'), html);
   return dir;
 }
 
@@ -103,11 +119,16 @@ function runSmoke(dir) {
         maxBuffer: 64 * 1024 * 1024,
       },
       (err, stdout) => {
+        // A run that produced no usable report says nothing about the plant:
+        // a launch error, a browser that would not start, a crashed reporter
+        // all land here, and crediting any of them as "the smoke test went
+        // red" would let a plant that never ran pass for one that did. It is
+        // reported as an error and the matrix fails on it.
         let report;
         try {
           report = JSON.parse(stdout);
         } catch {
-          resolve({ passed: false, failed: [], note: 'the run produced no JSON report' });
+          resolve({ error: 'the run produced no JSON report', failed: [] });
           return;
         }
         const results = (report.suites ?? [])
@@ -122,10 +143,14 @@ function runSmoke(dir) {
             messages.flatMap((m) => [...m.matchAll(/\b(A\d+):/g)].map((x) => x[1]))
           ),
         ].sort();
-        const passed = results.length > 0 && results.every((r) => r.status === 'passed');
+        if (results.length === 0) {
+          resolve({ error: 'the report contained no test results', failed: [] });
+          return;
+        }
+        const passed = results.every((r) => r.status === 'passed');
         const note =
           messages.length && failed.length === 0
-            ? messages[0].split('\n')[0].replace(/\[[0-9;]*m/g, '')
+            ? messages[0].split('\n')[0].replace(/\x1b\[[0-9;]*m/g, '')
             : '';
         resolve({ passed, failed, note });
       }
@@ -152,9 +177,9 @@ for (const run of runs) {
   await rm(dir, { recursive: true, force: true });
   rows.push({ ...run, ...result });
   console.log(
-    `  -> ${result.passed ? 'PASSED' : 'FAILED'}` +
+    `  -> ${result.error ? 'ERROR' : result.passed ? 'PASSED' : 'FAILED'}` +
       (result.failed.length ? ` on ${result.failed.join(', ')}` : '') +
-      (result.note ? ` (${result.note})` : '')
+      (result.error ? ` (${result.error})` : result.note ? ` (${result.note})` : '')
   );
   console.log('');
 }
@@ -163,18 +188,32 @@ console.log('| run | defect planted | outcome | assertion failed |');
 console.log('|---|---|---|---|');
 for (const r of rows) {
   const name = r.id === '-' ? 'unplanted' : `(${r.id})`;
+  const outcome = r.error ? 'errored' : r.passed ? 'passed' : 'failed';
   const which =
-    r.failed.join(', ') || (r.passed ? '--' : r.note || 'no enumerated assertion');
-  console.log(`| ${name} | ${r.what} | ${r.passed ? 'passed' : 'failed'} | ${which} |`);
+    r.failed.join(', ') ||
+    r.error ||
+    (r.passed ? '--' : r.note || 'no enumerated assertion');
+  console.log(`| ${name} | ${r.what} | ${outcome} | ${which} |`);
 }
 console.log('');
 
 const unplanted = rows.find((r) => r.id === '-');
 const covered = new Set(rows.filter((r) => r.id !== '-').flatMap((r) => r.failed));
 const uncovered = assertions.filter((a) => !covered.has(a));
-const passedWhenPlanted = rows.filter((r) => r.id !== '-' && r.passed).map((r) => r.id);
+const passedWhenPlanted = rows
+  .filter((r) => r.id !== '-' && !r.error && r.passed)
+  .map((r) => r.id);
+
+const errored = rows.filter((r) => r.error).map((r) => (r.id === '-' ? 'unplanted' : r.id));
 
 let ok = true;
+if (errored.length) {
+  console.log(
+    `FAIL: runs that produced no usable report, so they say nothing either ` +
+      `way: ${errored.join(', ')}`
+  );
+  ok = false;
+}
 if (!unplanted.passed) {
   console.log('FAIL: the unplanted copy did not pass.');
   ok = false;

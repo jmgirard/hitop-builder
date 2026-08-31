@@ -653,11 +653,14 @@ const RUNTIME_TIMEOUT_MS = 120000;
 // cancelled, so it may still settle afterwards -- see bootAbandoned.
 const INSTALL_TIMEOUT_MS = 120000;
 
-// Set once the page has given up on booting -- the install timed out, or the
-// installed package is older than MIN_HITOP. Because neither failure can
-// cancel what is still in flight, a late-settling install would otherwise be
-// free to run the rest of boot and put a build button back within reach. Every
-// site that turns a control on reads this, so nothing after this point can.
+// Set once the page has given up on booting. Every call site is listed here
+// rather than counted, so a branch added later has to be added here too: R's
+// own download failed or timed out; the connection to R was lost; the package
+// install failed or timed out; the installed version could not be read; the
+// installed package is older than MIN_HITOP. None of those can cancel what is
+// still in flight, so a late-settling import, init or install would otherwise
+// be free to run the rest of boot and put a build button back within reach.
+// Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
 // Stops the page where it stands and says why. The controls are hidden rather
@@ -1321,13 +1324,17 @@ async function main() {
     }),
   ]);
   clearTimeout(runtimeTimer);
+  // Both failure branches latch through abandonBoot, as the install race's do
+  // below. Nothing is left in flight on either path today, so no control could
+  // come back on; the latch is here so that stays true of a branch added later
+  // rather than resting on a reading of what this one leaves pending.
   if (runtimeOutcome === 'no import') {
-    status('Could not load R. This page has to reach webr.r-wasm.org — a ' +
-           'network block or a browser extension may be stopping it.');
+    abandonBoot('Could not load R. This page has to reach webr.r-wasm.org — a ' +
+                'network block or a browser extension may be stopping it.');
     return;
   }
   if (runtimeOutcome === 'failed') {
-    status('Could not start R — the log below says why.');
+    abandonBoot('Could not start R — the log below says why.');
     return;
   }
   if (runtimeOutcome === 'timed out') {

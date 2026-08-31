@@ -339,7 +339,7 @@ Every tracked file:
 | Path | Purpose |
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
-| `.github/workflows/pages.yml` | Publishes the repository to GitHub Pages on every push to `main` |
+| `.github/workflows/pages.yml` | Publishes `index.html`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
 | `tests/smoke.spec.js` | The smoke test: boot the page, check the scale list, download a Word form |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and check the page gives up and says which half stalled |
@@ -351,10 +351,11 @@ Every tracked file:
 | `LICENSE.md` | GPL-3 |
 | `.gitignore` | Keeps `.DS_Store`, `node_modules/` and Playwright's run output out |
 
-There is still no build step, no R file, and no backend of any kind. The
-deployed site is `index.html` alone: nothing a visitor's browser loads reads
-`package.json` or anything under `tests/`, which exist only for the smoke test
-and run only in CI or from a checkout.
+There is still no R file and no backend of any kind, and nothing is compiled,
+bundled or generated. The deployed site is `index.html` alone: the Pages
+workflow copies that one file into the artifact it uploads, so `package.json`,
+`playwright.config.js` and everything under `tests/` are never served at all.
+They exist only for the smoke test, and run only in CI or from a checkout.
 
 ## Instrument content
 
