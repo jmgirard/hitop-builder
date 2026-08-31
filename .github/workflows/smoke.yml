@@ -1,0 +1,56 @@
+# Drives the page through a real headless boot and Word download.
+#
+# Two targets on different triggers. A pull request and a push to main test the
+# checkout's own index.html -- the change under review, which a test of the
+# deployed page could not see. The weekly schedule and a manual run test the
+# deployed page instead: nothing in this repository moves between them, and
+# what they watch for is the page breaking under something that did -- a new
+# hitop on r-universe, or a new webR.
+#
+# The run goes red on an outage of webr.r-wasm.org or jmgirard.r-universe.dev
+# just as it does on a real break, after the one retry playwright.config.js
+# allows. Telling the two apart would take a reachability probe, which is a
+# second thing that can be wrong and can mask a real break that looks like an
+# outage.
+name: Smoke test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # Mondays, 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Keyed on the event as well as the ref, so a push to main cannot cancel the
+# scheduled run of the deployed page that shares its ref.
+concurrency:
+  group: smoke-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      # SMOKE_TARGET names the deployed page on the schedule and on a manual
+      # run, and is empty otherwise. With it empty the spec serves this
+      # checkout on localhost instead, which is the whole point of the
+      # pull_request and push runs.
+      - name: Run the smoke test
+        env:
+          SMOKE_TARGET: >-
+            ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+                && 'https://jmgirard.github.io/hitop-builder/' || '' }}
+        run: npx playwright test tests/smoke.spec.js
