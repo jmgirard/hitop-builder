@@ -551,8 +551,11 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     when you click it. The first turns on once at least one scale is ticked, and
     the second once a build has finished. The scoring file stays on offer until
     you build again, so you can take it more than once; while a build is
-    running it switches off, so it can never hand you the last build's file
-    under the name the new one is about to take.</p>
+    running it switches off. That matters when the build under way is the same
+    format as the one on offer, covers every scale or a selection just as it
+    did, and is shuffled or not just as it was: its scoring file is then headed
+    for exactly the name the file on offer already carries, and the button
+    being off is what stops you taking the old one under that name.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.docx)</button>

@@ -88,14 +88,17 @@ its download button says there that it is off until one is.
    you — which saves that `.json` file when you click it. A line under the
    two buttons says what just happened: which scoring file is now on offer,
    whether a replacement took an untaken one away, and when a click saved
-   one. That button is off while a build is running, so it can never hand
-   over the previous build's file under the name the new one is about to
-   take. That second button is a click of your own rather than a second
-   automatic save, because a browser may quietly drop a save nobody asked
-   for, and a questionnaire that arrives without its scoring file is not
-   noticed until scoring day. It stays on offer, takeable more than once,
-   until the next completed build replaces it; when a build does replace one
-   you had not taken, the log says so. Your scale selection is kept, so
+   one. That button is off while a build is running: when the new build
+   matches the one on offer in format, in whether you took every scale or a
+   selection, and in whether a Word form was shuffled, its scoring file is
+   headed for the name the file on offer already carries, and the button
+   being off is what stops you taking the old one under that name. That
+   second button is a click of your own rather than a second automatic
+   save, because a browser may quietly drop a save nobody asked for, and a
+   questionnaire that arrives without its scoring file is not noticed until
+   scoring day. It stays on offer, takeable more than once, until the next
+   completed build replaces it; when a build does replace one you had not
+   taken, the log says so. Your scale selection is kept, so
    building a second format needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
