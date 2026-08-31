@@ -2,7 +2,7 @@
   "name": "hitop-builder-smoke",
   "private": true,
   "version": "0.0.0",
-  "description": "Headless smoke test for the HiTOP-SR Module Builder page. Nothing here is served: the deployed site is index.html alone.",
+  "description": "Headless smoke test for the HiTOP-SR Module Builder page. Nothing here is served: the Pages workflow publishes index.html, LICENSE.md and README.md and nothing else.",
   "type": "module",
   "scripts": {
     "smoke": "playwright test tests/smoke.spec.js",

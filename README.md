@@ -352,10 +352,11 @@ Every tracked file:
 | `.gitignore` | Keeps `.DS_Store`, `node_modules/` and Playwright's run output out |
 
 There is still no R file and no backend of any kind, and nothing is compiled,
-bundled or generated. The deployed site is `index.html` alone: the Pages
-workflow copies that one file into the artifact it uploads, so `package.json`,
-`playwright.config.js` and everything under `tests/` are never served at all.
-They exist only for the smoke test, and run only in CI or from a checkout.
+bundled or generated. The deployed site is `index.html`, `LICENSE.md` and
+`README.md`: the Pages workflow copies those three into the artifact it
+uploads and nothing else, so `package.json`, `playwright.config.js` and
+everything under `tests/` are never served at all. They exist only for the
+smoke test, and run only in CI or from a checkout.
 
 ## Instrument content
 
