@@ -710,11 +710,12 @@ const FORMATS = {
 // instrument or a selection of scales, and whether a Word form's printed order
 // was shuffled -- so two builds differing in any of those three never arrive
 // under one name, and neither one's descriptor can shadow the other's.
-// Everything else that varies between builds (which scales, paper size, item
-// numbering, the Qualtrics and REDCap names) stays readable in the descriptor
-// travelling beside the file, so two builds differing only in which scales
-// were ticked do share a filename -- and there the later descriptor does
-// shadow the earlier one.
+// The other things that vary between builds do not reach the name. Which
+// scales were ticked stays readable in the descriptor travelling beside the
+// file, so two builds differing only in that do share a filename -- and there
+// the later descriptor does shadow the earlier one. The paper size, the item
+// numbering and the Qualtrics and REDCap names reach neither the name nor the
+// descriptor: only the questionnaire itself records them.
 //
 // `shuffle` is false on both online formats, which offer no shuffle control.
 function downloadStem(format, whole, shuffle) {

@@ -195,11 +195,13 @@ scale](#ticking-every-scale) below says what else rides on that answer.
 Verified 2026-08-29 by building all eight and reading back the names the page
 asked the browser to save.
 
-Nothing else about a build reaches its name. Which scales you ticked, the paper
-size, the item numbering, and the Qualtrics and REDCap naming values are
-recorded in the scoring file travelling beside the questionnaire, so two
-different scale selections in one format do share a filename — take the `.json`
-file, and rename the pair yourself if you are keeping both.
+Nothing else about a build reaches its name. Which scales you ticked is
+recorded in the scoring file travelling beside the questionnaire — and, on a
+shuffled Word form, the order the items were printed in — so two different
+scale selections in one format do share a filename: take the `.json` file, and
+rename the pair yourself if you are keeping both. The paper size, the item
+numbering and the Qualtrics and REDCap naming values are in neither the name
+nor the scoring file; the questionnaire itself is the only record of them.
 
 ## Numbering the Word form
 
