@@ -781,14 +781,16 @@ function numberingMode() {
 // that happens to contain every scale. That is an intent only this page can
 // see -- the package is handed an item set -- so the page drops `module` from
 // its calls here rather than the package collapsing such a module. It is
-// gated on tilesExactly: where the scales' items do not even run from 1
-// without a gap, "every scale" is plainly a smaller item set than "no
-// module", and the page keeps passing the module. That gate is one-sided --
-// a gap-free run from 1 that stops short of the instrument's last item passes
-// it, since nothing here reads that last item -- so it rules out one way of
-// being wrong, not every way. Scales sharing items never puts the page in the
-// module-keeping position: the union of every scale is still the whole item
-// set.
+// gated on tilesExactly: where the scales' items do not run from 1 without a
+// gap, the page keeps passing the module. That gate is not the coverage test
+// it looks like. A gap-free run from 1 that stops short of the instrument's
+// last item passes it, since nothing here reads that last item, so a form
+// that is not the whole instrument can still lose the module; and an
+// instrument whose own numbering is not itself 1..N would fail it even with
+// every item covered, keeping a module the visitor did not want. It rules out
+// one way of being wrong, not every way. Scales sharing items never puts the
+// page in the module-keeping position: the union is the same item set however
+// the scales share items.
 function wholeInstrument() {
   return tilesExactly && selected().length === scales.length;
 }
