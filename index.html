@@ -762,10 +762,15 @@ const NAMING = [
 ];
 const namingDefaults = {};
 
-// Whether this instrument's scales tile its items exactly -- every item covered
-// once, numbered 1 to N with no gaps. Asked of R once at load rather than
-// assumed (see the call in main()); FALSE until then, so nothing can treat a
-// selection as the whole instrument before the answer is in.
+// Whether this instrument's scales, taken together, hold a run of item numbers
+// starting at 1 with no gaps in it: the union of their item numbers is 1..k,
+// where k is how many distinct items that union holds. That is the whole of
+// what the probe asks. It reads no separate count of the instrument's items,
+// so it cannot see a tail of higher-numbered items that no scale claims; and
+// whether scales share items is not asked and does not matter -- the union is
+// the same item set either way. Asked of R once at load rather than assumed
+// (see the call in main()); FALSE until then, so nothing can treat a selection
+// as the whole instrument before the answer is in.
 let tilesExactly = false;
 
 function numberingMode() {
@@ -776,9 +781,16 @@ function numberingMode() {
 // that happens to contain every scale. That is an intent only this page can
 // see -- the package is handed an item set -- so the page drops `module` from
 // its calls here rather than the package collapsing such a module. It is
-// gated on tilesExactly: on an instrument whose scales overlap or leave gaps,
-// "every scale" is not the same item set as "no module", and the page keeps
-// passing the module.
+// gated on tilesExactly: where the scales' items do not run from 1 without a
+// gap, the page keeps passing the module. That gate is not the coverage test
+// it looks like. A gap-free run from 1 that stops short of the instrument's
+// last item passes it, since nothing here reads that last item, so a form
+// that is not the whole instrument can still lose the module; and an
+// instrument whose own numbering is not itself 1..N would fail it even with
+// every item covered, keeping a module the visitor did not want. It rules out
+// one way of being wrong, not every way. Scales sharing items never puts the
+// page in the module-keeping position: the union is the same item set however
+// the scales share items.
 function wholeInstrument() {
   return tilesExactly && selected().length === scales.length;
 }
@@ -1477,14 +1489,32 @@ async function main() {
   }
   log(`  available_scales("${INSTRUMENT}") returned ${scales.length} scales.`);
 
-  // Ask the package -- never assume -- whether this instrument's scales tile
-  // its items exactly: every item covered once, so the union of all scales is
-  // 1..N with no gaps and no overlap. Only then does ticking every box mean
+  // Ask the package -- never assume -- whether every scale's items together run
+  // from 1 with no gaps: the union of all of them is 1..k, where k is how many
+  // distinct items that union holds. Only then does ticking every box mean
   // "the whole instrument", and only then may the page drop `module`, which is
   // what gives the Word file the instrument's own header instead of the module
-  // one. TRUE for the HiTOP-SR's 76 scales over items 1-405, verified
-  // 2026-08-23; the check is here so a future instrument that does not tile
-  // trips it deliberately rather than silently mislabelling a form.
+  // one.
+  //
+  // Two things this does not establish. It does not rule out items above the
+  // run: seq_along() measures the union against itself, and nothing here reads
+  // the instrument's own item count, so scales covering 1..k of a longer
+  // instrument answer TRUE. And overlap is deliberately not asked about and
+  // needs no check: hitop_module() sorts and de-duplicates the items it
+  // returns, so scales sharing items still yield the same union, and that
+  // union is all the probe looks at.
+  //
+  // TRUE for the HiTOP-SR's 76 scales over items 1-405, and there the union is
+  // the instrument's whole item set (405 of 405), so the tail the probe cannot
+  // see is not open on the one instrument this page builds -- measured
+  // 2026-09-03 against hitopsr_scales and hitopsr_items.
+  //
+  // The as.integer() stays even though hitop_module() now returns integer
+  // items: without it this line would compare doubles to seq_along()'s
+  // integers and be FALSE on any build made before that change, turning a
+  // coverage check into a type check. MIN_HITOP cannot back a type
+  // assumption, because those older builds report 0.2.0 too -- the same
+  // version this page requires -- so the page cannot tell them apart.
   tilesExactly = await webR.evalRBoolean(`
     local({
       .all <- hitop::hitop_module("${INSTRUMENT}",
