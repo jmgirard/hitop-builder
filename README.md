@@ -377,7 +377,7 @@ Every tracked file:
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test: boot the page, count the scale rows and make sure that each has a name, download a Word bundle and read the form out of it |
+| `tests/smoke.spec.js` | The smoke test: boot the page, check that each scale row has a name, download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: eight planted defects, run to prove the smoke test goes red on each |
 | `tests/prose.mjs` | The prose extraction: lists every string a visitor reads, for a linter, and the facts each passage carries |
