@@ -245,40 +245,90 @@
     align-items: flex-start; margin-top: var(--s4);
   }
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
+  #downloadBtn { padding: .7rem 1.2rem; font-size: 1.0625rem; border-radius: var(--r2); }
 
   /* ---- Format choice ------------------------------------------------- */
-  /* One card per format, each a button that both records the choice and
-     moves to that format's own screen -- the choice IS the move, so there is
-     no separate Continue to forget. */
+  /* One card per format, each a button that selects its format in place:
+     the settings and the download button under the cards switch to it. */
   .formats {
     display: grid; gap: var(--s3); margin: var(--s4) 0 0;
     grid-template-columns: repeat(auto-fit, minmax(min(14rem, 100%), 1fr));
   }
   .formats button {
+    position: relative;
     display: flex; flex-direction: column; gap: var(--s1);
     align-items: flex-start; text-align: left;
-    padding: var(--s4); height: 100%;
+    padding: var(--s4) var(--s6) var(--s4) var(--s4); height: 100%;
     background: var(--surface); border-color: var(--line);
+    border-radius: var(--r2);
+    transition: border-color .15s, background .15s, box-shadow .15s;
   }
+  .formats button:hover:not(:disabled) { box-shadow: 0 2px 8px rgb(0 0 0 / .08); }
   .formats .fmtname { font-weight: 600; }
   .formats .fmtwhat { color: var(--muted); font-size: var(--t-small); font-weight: 400; }
-  /* The format last chosen is marked, so arriving on the choice screen a
-     second time says which screen the visitor just came from. */
+  /* The current format's card is filled and carries a check in its corner,
+     so the row reads as a choice of one among three. The check is drawn, not
+     a character, so no screen reader reads it out; aria-current says it. */
+  .formats button::after {
+    content: ''; position: absolute; top: var(--s3); right: var(--s3);
+    width: 1.1rem; height: 1.1rem; border-radius: 50%;
+    border: 1.5px solid var(--line-strong); background: var(--bg);
+  }
   .formats button[aria-current=true] {
     background: var(--accent-weak); border-color: var(--accent); border-style: solid;
+    box-shadow: inset 0 0 0 1px var(--accent);
+  }
+  .formats button[aria-current=true]::after {
+    border-color: var(--accent); background: var(--accent);
+  }
+  .formats button[aria-current=true]::before {
+    content: ''; position: absolute; z-index: 1;
+    top: calc(var(--s3) + .28rem); right: calc(var(--s3) + .36rem);
+    width: .32rem; height: .55rem;
+    border: solid var(--accent-fg); border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
   }
   .fmtpanel[hidden] { display: none; }
 
+  /* ---- Settings disclosure ------------------------------------------- */
+  /* One closed disclosure per format holds every setting, its summary line
+     saying the values in force. The chevron is drawn, so nothing is read out
+     beyond the summary's own text. */
+  details.settings {
+    border: 1px solid var(--line); border-radius: var(--r2);
+    background: var(--surface); margin: var(--s4) 0 0;
+  }
+  details.settings summary {
+    list-style: none; cursor: pointer;
+    display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); align-items: baseline;
+    padding: var(--s3) var(--s4) var(--s3) calc(var(--s4) + 1.1rem);
+    position: relative; border-radius: var(--r2);
+  }
+  details.settings summary::-webkit-details-marker { display: none; }
+  details.settings summary::before {
+    content: ''; position: absolute; left: var(--s4); top: calc(50% - .2rem);
+    width: .42rem; height: .42rem;
+    border: solid var(--muted); border-width: 0 2px 2px 0;
+    transform: rotate(-45deg); transition: transform .15s;
+  }
+  details.settings[open] summary::before { transform: rotate(45deg); top: calc(50% - .32rem); }
+  details.settings summary:hover { background: var(--accent-weak); }
+  details.settings[open] summary { border-radius: var(--r2) var(--r2) 0 0; border-bottom: 1px solid var(--line); }
+  details.settings .sumhead { font-weight: 600; }
+  details.settings .sumvals { color: var(--muted); font-size: var(--t-small); }
+  details.settings > fieldset { margin: var(--s3) var(--s4) 0; background: var(--bg); }
+  details.settings > fieldset:last-child { margin-bottom: var(--s4); }
+
   /* ---- Steps --------------------------------------------------------- */
   /* One step is on screen at a time. The bar above them says which, and its
-     buttons jump straight to any of the three, so nothing is reachable only
-     by walking forward. */
+     buttons jump straight to either, so nothing is reachable only by walking
+     forward. */
   #stepbar ol {
     list-style: none; display: flex; flex-wrap: wrap; gap: var(--s2);
     margin: var(--s5) 0 0; padding: 0;
   }
-  /* Each step sits in a flex row so a chevron can lead the second and third
-     one, showing the steps run in order. The chevron is a clip-path triangle
+  /* Each step sits in a flex row so a chevron can lead the second one,
+     showing the steps run in order. The chevron is a clip-path triangle
      rather than a character, so no screen reader reads it out as text. */
   #stepbar li { flex: 1 1 10rem; display: flex; align-items: center; gap: var(--s2); }
   #stepbar li + li::before {
@@ -295,10 +345,17 @@
     background: var(--accent-weak); border-color: var(--accent);
     border-style: solid; font-weight: 600;
   }
+  /* The step number sits in a small disc, filled for the current step. */
   #stepbar .num {
-    font-variant-numeric: tabular-nums; font-weight: 700; color: var(--muted);
+    flex: none; display: inline-flex; align-items: center; justify-content: center;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%; align-self: center;
+    border: 1.5px solid var(--line-strong); color: var(--muted);
+    font-variant-numeric: tabular-nums; font-weight: 700; font-size: var(--t-micro);
   }
-  #stepbar button[aria-current=step] .num { color: var(--accent); }
+  #stepbar button { align-items: center; padding: var(--s2) var(--s3); }
+  #stepbar button[aria-current=step] .num {
+    background: var(--accent); border-color: var(--accent); color: var(--accent-fg);
+  }
 
   .step[hidden] { display: none; }
   /* Entering a step moves focus to its heading, so the ring has to paint on a
@@ -355,6 +412,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     button:active:not(:disabled) { transform: none; }
+    .formats button, details.settings summary::before { transition: none; }
   }
 </style>
 </head>
@@ -396,8 +454,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
   <nav id="stepbar" aria-label="Steps">
     <ol>
       <li><button type="button" data-goto="0"><span class="num" aria-hidden="true">1</span> <span>Choose scales</span></button></li>
-      <li><button type="button" data-goto="1"><span class="num" aria-hidden="true">2</span> <span>Choose a format</span></button></li>
-      <li><button type="button" data-goto="2"><span class="num" aria-hidden="true">3</span> <span>Options and download</span></button></li>
+      <li><button type="button" data-goto="1"><span class="num" aria-hidden="true">2</span> <span>Choose a format and download</span></button></li>
     </ol>
   </nav>
 
@@ -412,18 +469,25 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
     <p id="tally"></p>
     <div class="stepnav">
-      <button type="button" class="primary" data-goto="1">Continue to the format</button>
+      <button type="button" class="primary" data-goto="1">Continue to the format and download</button>
     </div>
   </section>
 
+  <!-- One screen for the format and its download. The three cards choose a
+       format in place; the chosen format's settings sit folded under them,
+       and the one download button builds that format. The panels are all in
+       the markup and only the chosen one is shown, so nothing a hidden panel
+       holds is ever read by another format's call: each generator is passed
+       only the arguments its own panel sets (see download()). -->
   <section class="step" id="step2" hidden>
-    <h2 tabindex="-1">Choose a format</h2>
+    <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Each format is set up and downloaded on its own screen, so
-    you only ever see the settings that reach the file you are building. Come
-    back here to build another format from the same scales.</p>
-    <div class="formats">
+    <p class="hint">Pick the file you need. Its settings start at the package's
+    own defaults and sit folded below the cards; open them only if you need to
+    change one. Build another format from the same scales by picking another
+    card.</p>
+    <div class="formats" role="group" aria-label="Format">
       <button type="button" data-choose="docx">
         <span class="fmtname">Word (.docx)</span>
         <span class="fmtwhat">A questionnaire to print and fill in on paper.</span>
@@ -437,81 +501,90 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
         <span class="fmtwhat">A data dictionary to import into a REDCap project.</span>
       </button>
     </div>
-    <div class="stepnav">
-      <button type="button" data-goto="0">Back to scales</button>
-    </div>
-  </section>
-
-  <!-- One screen per format. The panels are all in the markup and only the
-       chosen one is shown, so nothing a hidden panel holds is ever read by
-       another format's call: each generator is passed only the arguments its
-       own panel sets (see download()). -->
-  <section class="step" id="step3" hidden>
-    <h2 tabindex="-1" id="step3h">Word: options and download</h2>
-    <p class="recap"><span class="recapText"></span>
-      <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
+    <!-- Each format's settings live in one disclosure, closed on first paint
+         and closed again by every card press, so a settings change made for
+         one build is never left open and unnoticed under the next. The
+         summary line is written by refreshSummaries() from the controls'
+         current values, so a closed disclosure still says what the build
+         will use. -->
     <div id="formatOptions">
       <div class="fmtpanel" data-panel="docx">
-        <fieldset>
-          <legend>Paper size</legend>
-          <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
-          <label><input type="radio" name="papersize" value="a4"> A4</label>
-        </fieldset>
-        <fieldset id="numbering">
-          <legend>Item numbering</legend>
-          <label><input type="radio" name="numbering" value="renumber" checked>
-            Number the items 1 to n</label>
-          <label><input type="radio" name="numbering" value="original">
-            Keep the HiTOP-SR's own item numbers</label>
-          <p class="hint">The instrument's own numbers are what this page's Qualtrics
-          and REDCap exports use for their field names, so a paper response can be
-          typed into a project built here without translating its number.</p>
-        </fieldset>
-        <fieldset>
-          <legend>Item order</legend>
-          <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
-          <div class="notice" id="shuffleNote" hidden>
-            <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-            come back in the order the form printed, which is not the instrument's
-            own; put those columns into the original HiTOP-SR order before scoring, or
-            the scale scores come out wrong and nothing warns you.</p>
-            <!-- What the shuffled file does about recovering the original order
-                 depends on the numbering choice and on whether every scale is
-                 ticked, so this sentence is written by refreshShuffleNote(). -->
-            <p id="shuffleCrosswalk"></p>
-            <p>Shuffling reaches this form only. The Qualtrics and REDCap files
-            are never shuffled: there an item number names a collected data
-            column.</p>
-          </div>
-        </fieldset>
+        <details class="settings" data-settings="docx">
+          <summary><span class="sumhead">Word settings</span>
+            <span class="sumvals" data-summary="docx"></span></summary>
+          <fieldset>
+            <legend>Paper size</legend>
+            <label><input type="radio" name="papersize" value="us" checked> US Letter</label>
+            <label><input type="radio" name="papersize" value="a4"> A4</label>
+          </fieldset>
+          <fieldset id="numbering">
+            <legend>Item numbering</legend>
+            <label><input type="radio" name="numbering" value="renumber" checked>
+              Number the items 1 to n</label>
+            <label><input type="radio" name="numbering" value="original">
+              Keep the HiTOP-SR's own item numbers</label>
+            <p class="hint">The instrument's own numbers are what this page's Qualtrics
+            and REDCap exports use for their field names, so a paper response can be
+            typed into a project built here without translating its number.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Item order</legend>
+            <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
+          </fieldset>
+        </details>
+        <!-- The shuffle warning sits outside the disclosure on purpose: the
+             disclosure closes on every card press, and a warning that a
+             shuffled form is not scored as it stands must stay in view for as
+             long as the box is ticked, fold open or closed. -->
+        <div class="notice" id="shuffleNote" hidden>
+          <p><strong>A shuffled form is not scored as it stands.</strong> Responses
+          come back in the order the form printed, which is not the instrument's
+          own; put those columns into the original HiTOP-SR order before scoring, or
+          the scale scores come out wrong and nothing warns you.</p>
+          <!-- What the shuffled file does about recovering the original order
+               depends on the numbering choice and on whether every scale is
+               ticked, so this sentence is written by refreshShuffleNote(). -->
+          <p id="shuffleCrosswalk"></p>
+          <p>Shuffling reaches this form only. The Qualtrics and REDCap files
+          are never shuffled: there an item number names a collected data
+          column.</p>
+        </div>
       </div>
 
       <div class="fmtpanel" data-panel="qualtrics" hidden>
-        <fieldset id="naming">
-          <legend>Block and question naming</legend>
-          <p class="hint">These name what the import creates in Qualtrics. Neither
-          changes the items, their wording, or their response options. Each box
-          starts at the package's own default; empty one and that default is used
-          again.</p>
-          <label for="blockName">Block name</label>
-          <input type="text" id="blockName" autocomplete="off">
-          <label for="idPrefix">Question ID prefix</label>
-          <input type="text" id="idPrefix" autocomplete="off">
-        </fieldset>
+        <details class="settings" data-settings="qualtrics">
+          <summary><span class="sumhead">Qualtrics settings</span>
+            <span class="sumvals" data-summary="qualtrics"></span></summary>
+          <fieldset id="naming">
+            <legend>Block and question naming</legend>
+            <p class="hint">These name what the import creates in Qualtrics. Neither
+            changes the items, their wording, or their response options. Each box
+            starts at the package's own default; empty one and that default is used
+            again.</p>
+            <label for="blockName">Block name</label>
+            <input type="text" id="blockName" autocomplete="off">
+            <label for="idPrefix">Question ID prefix</label>
+            <input type="text" id="idPrefix" autocomplete="off">
+          </fieldset>
+        </details>
       </div>
 
       <div class="fmtpanel" data-panel="redcap" hidden>
-        <fieldset id="redcapNaming">
-          <legend>Form name and required items</legend>
-          <p class="hint">These name what the import creates in REDCap and how it
-          asks for answers. Neither changes the items, their wording, or their
-          response options. The box starts at the package's own default; empty it
-          and that default is used again.</p>
-          <label for="formName">Form name</label>
-          <input type="text" id="formName" autocomplete="off">
-          <label class="check"><input type="checkbox" id="required" checked>
-            Mark every item as required</label>
-        </fieldset>
+        <details class="settings" data-settings="redcap">
+          <summary><span class="sumhead">REDCap settings</span>
+            <span class="sumvals" data-summary="redcap"></span></summary>
+          <fieldset id="redcapNaming">
+            <legend>Form name and required items</legend>
+            <p class="hint">These name what the import creates in REDCap and how it
+            asks for answers. Neither changes the items, their wording, or their
+            response options. The box starts at the package's own default; empty it
+            and that default is used again.</p>
+            <label for="formName">Form name</label>
+            <input type="text" id="formName" autocomplete="off">
+            <label class="check"><input type="checkbox" id="required" checked>
+              Mark every item as required</label>
+          </fieldset>
+        </details>
       </div>
     </div>
     <!-- Shown for all three formats, because every download this page makes
@@ -547,7 +620,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       </div>
     </div>
     <div class="stepnav">
-      <button type="button" data-goto="1">Choose a different format</button>
+      <button type="button" data-goto="0">Back to scales</button>
     </div>
   </section>
 </div>
@@ -655,17 +728,17 @@ function status(text) { el('status').textContent = text; }
 const FORMATS = {
   docx: {
     fn: 'generate_docx_hitopsr', ext: 'docx', name: 'word',
-    heading: 'Word: options and download',
+    label: 'Word form',
     button: 'Download the Word form (.zip bundle)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', name: 'qualtrics',
-    heading: 'Qualtrics: options and download',
+    label: 'Qualtrics file',
     button: 'Download the Qualtrics file (.zip bundle)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', name: 'redcap',
-    heading: 'REDCap: options and download',
+    label: 'REDCap dictionary',
     button: 'Download the REDCap dictionary (.zip bundle)',
   },
 };
@@ -689,10 +762,9 @@ function downloadStem(format, whole, shuffle) {
     `${whole ? '' : '-module'}${shuffle ? '-shuffled' : ''}`;
 }
 
-// Which format the last screen is set up for. The page starts on Word so that
-// screen is coherent however it is reached -- including a jump straight to it
-// from the step bar -- while the ordinary route through step two is what
-// actually sets this.
+// Which format the second step is set up for. The page starts on Word, so the
+// step shows one format's settings and one download button from its first
+// paint; a card press is what changes it.
 let currentFormat = 'docx';
 
 let webR;
@@ -719,7 +791,7 @@ const namingDefaults = {};
 // the same item set either way. Asked of R once at load rather than assumed
 // (see the call in main()); FALSE until then, so nothing can treat a selection
 // as the whole instrument before the answer is in.
-let tilesExactly = false;
+let itemsRunFromOne = false;
 
 function numberingMode() {
   return document.querySelector('input[name=numbering]:checked').value;
@@ -729,7 +801,7 @@ function numberingMode() {
 // that happens to contain every scale. That is an intent only this page can
 // see -- the package is handed an item set -- so the page drops `module` from
 // its calls here rather than the package collapsing such a module. It is
-// gated on tilesExactly: where the scales' items do not run from 1 without a
+// gated on itemsRunFromOne: where the scales' items do not run from 1 without a
 // gap, the page keeps passing the module. That gate is not the coverage test
 // it looks like. A gap-free run from 1 that stops short of the instrument's
 // last item passes it, since nothing here reads that last item, so a form
@@ -740,7 +812,7 @@ function numberingMode() {
 // page in the module-keeping position: the union is the same item set however
 // the scales share items.
 function wholeInstrument() {
-  return tilesExactly && selected().length === scales.length;
+  return itemsRunFromOne && selected().length === scales.length;
 }
 
 function selected() {
@@ -749,31 +821,69 @@ function selected() {
 }
 
 // ---- Steps -------------------------------------------------------------
-// The three sections are shown one at a time. Nothing here gates moving on:
+// The two sections are shown one at a time. Nothing here gates moving on:
 // a visitor with no scale ticked can still reach the download step and read
 // why its button is off, which is what the tally and the disabled state say.
-const STEP_IDS = ['step1', 'step2', 'step3'];
+const STEP_IDS = ['step1', 'step2'];
 
-// Choosing a format sets up the last step for it: which options panel is shown,
-// what its heading says, and what the one download button is called. Only the
-// shown panel's controls reach the generator call this format makes.
+// Choosing a format sets up the second step for it: which card is marked
+// current, which settings panel is shown, and what the one download button is
+// called. Only the shown panel's controls reach the generator call this
+// format makes. Every disclosure is closed here, the freshly shown one
+// included, so a card press always lands on the summary line and never on
+// settings left open from an earlier build.
 function setFormat(format) {
   currentFormat = format;
   for (const panel of document.querySelectorAll('.fmtpanel')) {
     panel.hidden = panel.dataset.panel !== format;
   }
-  el('step3h').textContent = FORMATS[format].heading;
+  for (const d of document.querySelectorAll('.fmtpanel details')) d.open = false;
+  markFormatChoice(format);
   el('downloadBtn').textContent = FORMATS[format].button;
 }
 
-// The mark on a format card says which screen the visitor just came from, so
-// only an actual choice writes it -- the page's own starting format is not a
-// choice anyone made, and marking it would announce one option as current on
-// the screen whose whole purpose is to make that choice.
+// The mark on a format card says which format the settings and the button
+// below it belong to. The cards act as a choice among three, so the page's
+// starting format is marked as soon as the controls are shown: the panel on
+// show is already Word's, and an unmarked card row would leave that unsaid.
 function markFormatChoice(format) {
   for (const b of document.querySelectorAll('[data-choose]')) {
     if (b.dataset.choose === format) b.setAttribute('aria-current', 'true');
     else b.removeAttribute('aria-current');
+  }
+}
+
+// ---- Settings summaries ------------------------------------------------
+// Each format's disclosure carries a one-line summary of its settings'
+// current values, so a closed disclosure still says what the build will use.
+// Read from the controls, never from a stored copy, and rewritten on every
+// input or change event under #formatOptions. A naming box left empty shows
+// the package default the build falls back to (see namingValue), marked as
+// such.
+function namingSummary(id) {
+  const typed = el(id).value.trim();
+  return typed ? `\u201c${typed}\u201d` : `\u201c${namingDefaults[id] ?? ''}\u201d (default)`;
+}
+
+function settingsSummary(format) {
+  if (format === 'docx') {
+    const paper = document.querySelector('input[name=papersize]:checked').value;
+    return [
+      paper === 'a4' ? 'A4' : 'US Letter',
+      numberingMode() === 'original' ? 'HiTOP-SR item numbers' : 'numbered 1 to n',
+      el('shuffle').checked ? 'shuffled order' : 'original order',
+    ].join(' \u00b7 ');
+  }
+  if (format === 'qualtrics') {
+    return `block ${namingSummary('blockName')} \u00b7 prefix ${namingSummary('idPrefix')}`;
+  }
+  return `form ${namingSummary('formName')} \u00b7 ` +
+    (el('required').checked ? 'every item required' : 'no item required');
+}
+
+function refreshSummaries() {
+  for (const span of document.querySelectorAll('[data-summary]')) {
+    span.textContent = settingsSummary(span.dataset.summary);
   }
 }
 
@@ -790,16 +900,16 @@ function showStep(index, { focus = true } = {}) {
   if (focus) el(STEP_IDS[index]).querySelector('h2').focus();
 }
 
-// Steps two and three each repeat the sentence step one ends on, so neither is
-// a blind continuation of the choice made there. The scale names themselves
-// stay on step one, the only place they can be changed.
+// Step two repeats the sentence step one ends on, so it is not a blind
+// continuation of the choice made there. The scale names themselves stay on
+// step one, the only place they can be changed.
 function refreshRecap() {
   const text = selectionSentence();
   for (const span of document.querySelectorAll('.recapText')) span.textContent = text;
 }
 
-// One sentence, written once and shown in three places: the tally under the
-// scale list and the recap line at the head of each later step.
+// One sentence, written once and shown in two places: the tally under the
+// scale list and the recap line at the head of step two.
 function selectionSentence() {
   const chosen = selected();
   const items = scales
@@ -1171,8 +1281,8 @@ async function download() {
     await webR.objs.globalEnv.bind('readme_path', readmePath);
     await webR.objs.globalEnv.bind('bundle_path', bundlePath);
     if (!whole && chosen.length === scales.length) {
-      log('  keeping the module: the ticked scales do not cover this ' +
-          'instrument\u2019s items as 1..N with no gaps.');
+      log('  keeping the module: the ticked scales\u2019 items do not run ' +
+          'from 1 with no gaps.');
     }
     // Each naming value goes only into the format that has the argument: the
     // Word call takes none of them, and neither online format takes the
@@ -1479,14 +1589,14 @@ async function main() {
   // coverage check into a type check. MIN_HITOP cannot back a type
   // assumption, because those older builds report 0.2.0 too -- the same
   // version this page requires -- so the page cannot tell them apart.
-  tilesExactly = await webR.evalRBoolean(`
+  itemsRunFromOne = await webR.evalRBoolean(`
     local({
       .all <- hitop::hitop_module("${INSTRUMENT}",
         scales = hitop::available_scales("${INSTRUMENT}")$camelCase)
       identical(as.integer(.all$items), seq_along(.all$items))
     })
   `);
-  log(`  every scale ticked covers items 1..N with no gaps: ${tilesExactly}.`);
+  log(`  the scales' items together run from 1 with no gaps: ${itemsRunFromOne}.`);
 
   await readNamingDefaults();
 
@@ -1500,17 +1610,29 @@ async function main() {
   }
   refreshShuffleNote();
   setFormat(currentFormat);
+  // Text boxes fire `input` on every keystroke and radios and checkboxes fire
+  // `change`; one listener each on the panels' container covers every setting,
+  // those added later included.
+  el('formatOptions').addEventListener('input', refreshSummaries);
+  el('formatOptions').addEventListener('change', refreshSummaries);
+  refreshSummaries();
   el('downloadBtn').addEventListener('click', () => download());
-  // Choosing a format both records the choice and moves to its screen, so the
-  // choice is never made and then left behind on a screen it does not affect.
+  // A card press selects its format in place: the step stays where it is and
+  // the settings and button below the cards switch to that format. Focus
+  // stays on the card, so nothing else would announce the swap to a screen
+  // reader; the status line, the page's one announcing region, says which
+  // format the controls below now belong to. It does so only while the page
+  // is idle, so a build's progress or a failure's message is never written
+  // over.
   for (const b of document.querySelectorAll('[data-choose]')) {
     b.addEventListener('click', () => {
       setFormat(b.dataset.choose);
-      markFormatChoice(b.dataset.choose);
-      showStep(2);
+      if (el('status').textContent.startsWith('Ready.')) {
+        status(`Ready. ${FORMATS[b.dataset.choose].label} chosen.`);
+      }
     });
   }
-  // Every control that moves between steps -- the bar's three buttons, the
+  // Every control that moves between steps -- the bar's two buttons, the
   // Back and Continue pair at the foot of each step, and the recap's change
   // link -- says where it goes in the same attribute, so there is one handler.
   for (const b of document.querySelectorAll('[data-goto]')) {
