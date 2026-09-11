@@ -2,10 +2,10 @@
 
 A single-page web app for building **HiTOP-SR modules** — questionnaires
 containing only the scales you choose — and downloading them ready to field in
-Word, Qualtrics, or REDCap. Each download is two files and two clicks: the
-questionnaire, which the page saves as soon as it is built, and a small `.json`
-file recording what it collects, which the page offers on a button of its own
-for you to take. That file is what scores the responses later.
+Word, Qualtrics, or REDCap. Each download is one zip bundle holding three
+files: the questionnaire, a small `.json` file recording what it collects, and
+a `README.txt` saying what to do with each. The `.json` file is what scores the
+responses later.
 
 **Live app: <https://jmgirard.github.io/hitop-builder/>**
 
@@ -32,7 +32,9 @@ download itself to `r2.ropensci.org`. It then calls the
 package's own `available_scales()` to list the scales and its
 `generate_docx_hitopsr()`, `generate_qualtrics_hitopsr()`, and
 `generate_redcap_hitopsr()` to write each file, passing each one the
-`descriptor` argument that writes the scoring file beside it.
+`descriptor` argument that writes the scoring file beside it. It then zips the
+two with a `README.txt` into one bundle, through the package's own `{zip}`
+dependency, and saves that bundle.
 
 The page always installs whatever version r-universe currently serves — that
 service builds only its current version, and the install call takes no version
@@ -82,27 +84,19 @@ its download button says there that it is off until one is.
    scales* button ends the step.
 3. **Options and download.** The step is headed for the format you chose —
    *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
-   options and download* — and carries that format's settings, a
-   *A download here is two files, and takes two clicks* notice, one download
-   button named for the questionnaire it builds, and a *Choose a different
-   format* button at its foot leading back to the second step. Pressing the
-   download button builds both files, saves the questionnaire, and reveals a
-   second button — *Save the scoring file*, named for the file it will hand
-   you — which saves that `.json` file when you click it. A line under the
-   two buttons says what just happened: which scoring file is now on offer,
-   whether a replacement took an untaken one away, and when a click saved
-   one. That button is off while a build is running: when the new build
-   matches the one on offer in format, in whether it is the whole instrument
-   or a selection, and in whether a Word form was shuffled, its scoring file is
-   headed for the name the file on offer already carries, and the button
-   being off is what stops you taking the old one under that name. That
-   second button is a click of your own rather than a second automatic
-   save, because a browser may quietly drop a save nobody asked for, and a
+   options and download* — and carries that format's settings, an
+   *A download here is one zip file holding three* notice, one download
+   button named for the questionnaire it builds — *Download the Word form
+   (.zip bundle)*, *Download the Qualtrics file (.zip bundle)* or *Download
+   the REDCap dictionary (.zip bundle)* — and a *Choose a different format*
+   button at its foot leading back to the second step. Pressing the download
+   button builds the questionnaire and its scoring file, zips them with a
+   `README.txt`, and saves that one bundle; the button is off while a build
+   is running. The bundle is one file rather than two saves because a
+   browser may quietly drop a second save nobody asked for, and a
    questionnaire that arrives without its scoring file is not noticed until
-   scoring day. It stays on offer, takeable more than once, until the next
-   completed build replaces it; when a build does replace one you had not
-   taken, the log says so. Your scale selection is kept, so
-   building a second format needs no re-ticking.
+   scoring day. Your scale selection is kept, so building a second format
+   needs no re-ticking.
 
    - **Word** has three settings groups: *Paper size*, *Item numbering* and
      *Item order*.
@@ -130,10 +124,9 @@ Qualtrics and REDCap exports carry no page size at all.
 
 ## The scoring file
 
-Every download is two files. The page saves the questionnaire itself, then
-offers a small `.json` file taking the same name — `hitopsr-word-module.json`
-beside `hitopsr-word-module.docx`, `hitopsr-redcap.json` beside
-`hitopsr-redcap.zip` — on a button you click to take it. It is written by the
+Every bundle carries a small `.json` file taking the questionnaire's own name:
+`hitopsr-word-module.json` beside `hitopsr-word-module.docx`,
+`hitopsr-redcap.json` beside `hitopsr-redcap-upload.zip`. It is written by the
 `hitop` package's own
 [`descriptor`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 argument, and holds no responses: it records which scales the form collects and,
@@ -161,19 +154,46 @@ Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take, and returns any
 recorded printed order on the module's `item_order` attribute. The page's third
-step says the same in an *A download here is two files, and takes two clicks*
-notice above its download button.
+step says the same in an *A download here is one zip file holding three*
+notice above its download button, and the `README.txt` inside every bundle
+says it again to a reader who never saw the page. From a REDCap bundle:
+
+```
+hitopsr-redcap-module.zip, built by the HiTOP-SR Module Builder
+(https://jmgirard.github.io/hitop-builder/) with hitop 0.2.0.
+
+hitopsr-redcap-module-upload.zip
+  The questionnaire, and the file to field: a data dictionary to import into a
+  REDCap project. Upload this zip file to REDCap as it is, without extracting
+  it. The REDCap instrument upload takes the zip itself.
+
+hitopsr-redcap-module.json
+  The scoring file. Keep it with the responses you collect: it records which
+  scales the questionnaire collects and, on a shuffled Word form, the order
+  the items were printed in. In R, the hitop package reads it back with
+  read_module() when you score the data.
+
+README.txt
+  This file.
+```
+
+A Word or Qualtrics README differs from that one in its stem, which names the
+bundle on the first line and the scoring file, and in the questionnaire entry:
+its name takes that format's extension, and its paragraph says what the file
+is and carries no upload instruction.
 
 ## What the downloads are named
 
-Both files of a build share one name, and that name says which build made them:
-the instrument, the format, `-module` unless the build is the whole instrument,
-and `-shuffled` on a Word form whose printed order you shuffled. The
-questionnaire takes its format's extension and the scoring file takes `.json`.
-Two builds differing in any of those three therefore arrive under different
-names, so neither can overwrite the other's scoring file in your downloads
-folder. Two builds differing only in which scales you ticked do share a name —
-the paragraph under the table says what to do about that.
+A build's bundle and the two named files inside it share one stem, and that
+stem says which build made them: the instrument, the format, `-module` unless
+the build is the whole instrument, and `-shuffled` on a Word form whose printed
+order you shuffled. The bundle takes `.zip`; inside it the questionnaire takes
+its format's extension — except the REDCap data dictionary, itself a zip,
+which takes `-upload.zip` so the two zips cannot be confused — and the scoring
+file takes `.json`. Two builds differing in any of those three therefore
+arrive under different names, so neither can overwrite the other in your
+downloads folder. Two builds differing only in which scales you ticked do
+share a name — the paragraph under the table says what to do about that.
 
 Ticking every scale is not on its own what drops `-module`. The page also has to
 have confirmed with the package that the instrument's scales between them cover
@@ -184,25 +204,25 @@ all 76 does drop `-module`; were it no, ticking every box would still build a
 module and the name would still carry `-module`. [Ticking every
 scale](#ticking-every-scale) below says what else rides on that answer.
 
-| What you built | Questionnaire | Scoring file |
-|---|---|---|
-| Word, every scale | `hitopsr-word.docx` | `hitopsr-word.json` |
-| Word, every scale, shuffled | `hitopsr-word-shuffled.docx` | `hitopsr-word-shuffled.json` |
-| Word, some scales | `hitopsr-word-module.docx` | `hitopsr-word-module.json` |
-| Word, some scales, shuffled | `hitopsr-word-module-shuffled.docx` | `hitopsr-word-module-shuffled.json` |
-| Qualtrics, every scale | `hitopsr-qualtrics.txt` | `hitopsr-qualtrics.json` |
-| Qualtrics, some scales | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` |
-| REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap.json` |
-| REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module.json` |
+| What you built | Bundle | Questionnaire inside | Scoring file inside | README inside |
+|---|---|---|---|---|
+| Word, every scale | `hitopsr-word.zip` | `hitopsr-word.docx` | `hitopsr-word.json` | `README.txt` |
+| Word, every scale, shuffled | `hitopsr-word-shuffled.zip` | `hitopsr-word-shuffled.docx` | `hitopsr-word-shuffled.json` | `README.txt` |
+| Word, some scales | `hitopsr-word-module.zip` | `hitopsr-word-module.docx` | `hitopsr-word-module.json` | `README.txt` |
+| Word, some scales, shuffled | `hitopsr-word-module-shuffled.zip` | `hitopsr-word-module-shuffled.docx` | `hitopsr-word-module-shuffled.json` | `README.txt` |
+| Qualtrics, every scale | `hitopsr-qualtrics.zip` | `hitopsr-qualtrics.txt` | `hitopsr-qualtrics.json` | `README.txt` |
+| Qualtrics, some scales | `hitopsr-qualtrics-module.zip` | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` | `README.txt` |
+| REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap-upload.zip` | `hitopsr-redcap.json` | `README.txt` |
+| REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module-upload.zip` | `hitopsr-redcap-module.json` | `README.txt` |
 
-Verified 2026-08-29 by building all eight and reading back the names the page
-asked the browser to save.
+Verified 2026-09-11 by building all eight and reading the entry names out of
+the bundles the page asked the browser to save.
 
 Nothing else about a build reaches its name. Which scales you ticked is
 recorded in the scoring file travelling beside the questionnaire — and, on a
 shuffled Word form, the order the items were printed in — so two different
-scale selections in one format do share a filename: take the `.json` file, and
-rename the pair yourself if you are keeping both. The paper size, the item
+scale selections in one format do share a filename: rename the bundle
+yourself if you are keeping both. The paper size, the item
 numbering, the Qualtrics and REDCap naming values and REDCap's required flag
 are in neither the name nor the scoring file; the questionnaire itself is the
 only file that keeps them, though the build log names all but the paper size
@@ -326,9 +346,9 @@ number already is the original one, so responses can be entered under it. With
 every scale ticked the page builds the whole instrument, and the package prints
 no crosswalk for a shuffled full instrument — that would be 405 pairs on a
 participant-facing page — so nothing on that form records the order it was
-printed in. The `.json` scoring file the second button offers records that order
-in an `itemOrder` field, so a shuffled whole-instrument form whose scoring file
-is not taken cannot be put back into instrument order at all. The package's
+printed in. The `.json` scoring file inside the bundle records that order in an
+`itemOrder` field, so a shuffled whole-instrument form whose scoring file is
+lost cannot be put back into instrument order at all. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
 help page states the same reordering rule for callers working in R directly.
 
@@ -341,9 +361,9 @@ Every tracked file:
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test: boot the page, check the scale list, download a Word form |
+| `tests/smoke.spec.js` | The smoke test: boot the page, check the scale list, download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and check the page gives up and says which half stalled |
-| `tests/plants.mjs` | The plant matrix: six planted defects, run to prove the smoke test goes red on each |
+| `tests/plants.mjs` | The plant matrix: eight planted defects, run to prove the smoke test goes red on each |
 | `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
 | `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
 | `package.json`, `package-lock.json` | The pinned `@playwright/test` they run under |

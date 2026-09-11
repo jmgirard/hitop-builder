@@ -1,5 +1,5 @@
 // The smoke test: one headless run of the builder page, from a cold boot to a
-// Word file on disk. It drives the page the way a visitor does -- it reads no
+// Word form on disk. It drives the page the way a visitor does -- it reads no
 // page internals and stubs nothing -- so a green run means the deployed
 // article really does hand over a document.
 //
@@ -10,15 +10,16 @@
 //   A1: the status region reaches "Ready."
 //   A2: more than MIN_SCALE_ROWS scale rows render in the initial list
 //   A3: every rendered row carries a non-empty name
-//   A4: the downloaded file begins with the four bytes of a zip container
-//   A5: the downloaded file is longer than MIN_DOCX_BYTES
-//   A6: the download button is present and enabled
+//   A4: the downloaded bundle holds exactly the three expected entries
+//   A5: the bundle's .docx entry begins with the four bytes of a zip container
+//   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
+//   A7: the download button is present and enabled
 //
-// A4 and A5 are soft assertions so that one download is measured against
-// both: a file that is neither a zip nor long enough has to be reported as
-// failing both, not only whichever is checked first.
+// A4, A5 and A6 are soft assertions so that one download is measured against
+// all three: a bundle whose form is neither a zip nor long enough has to be
+// reported as failing every one it fails, not only whichever is checked first.
 //
-// A6 is asserted before the click rather than left to the click's own
+// A7 is asserted before the click rather than left to the click's own
 // failure, so a renamed or missing button is reported as a named assertion
 // the plant matrix can account for, not as a bare locator timeout.
 
@@ -26,7 +27,40 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { inflateRawSync } from 'node:zlib';
 import { serveDir } from './serve.mjs';
+
+// Reads a zip's entries from its central directory: a map of entry name to
+// bytes. Only what the page's bundles use is handled -- stored and deflated
+// entries, no encryption, no zip64 -- and a buffer with no central directory
+// yields an empty map rather than throwing, so a bundle that is not a zip at
+// all fails A4 by name instead of crashing the test.
+function zipEntries(buf) {
+  const entries = new Map();
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= 0; i--) {
+    if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return entries;
+  const count = buf.readUInt16LE(eocd + 10);
+  let p = buf.readUInt32LE(eocd + 16);
+  for (let n = 0; n < count; n++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) break;
+    const method = buf.readUInt16LE(p + 10);
+    const csize = buf.readUInt32LE(p + 20);
+    const nameLen = buf.readUInt16LE(p + 28);
+    const extraLen = buf.readUInt16LE(p + 30);
+    const commentLen = buf.readUInt16LE(p + 32);
+    const local = buf.readUInt32LE(p + 42);
+    const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
+    const dataStart =
+      local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    const raw = buf.subarray(dataStart, dataStart + csize);
+    entries.set(name, method === 8 ? inflateRawSync(raw) : Buffer.from(raw));
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return entries;
+}
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -120,29 +154,39 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     await expect(
       page.locator('#downloadBtn'),
-      'A6: the download button is present and enabled'
+      'A7: the download button is present and enabled'
     ).toBeEnabled();
 
-    // The page hands the file over by clicking an anchor carrying a `download`
-    // attribute, which arrives here as Playwright's download event. webR's own
-    // requests come from a Web Worker and are invisible to the page's network
-    // panel, which is why nothing here watches for them.
+    // The page hands the bundle over by clicking an anchor carrying a
+    // `download` attribute, which arrives here as Playwright's download event.
+    // webR's own requests come from a Web Worker and are invisible to the
+    // page's network panel, which is why nothing here watches for them.
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: BUILD_MS }),
       page.locator('#downloadBtn').click(),
     ]);
-    const bytes = await readFile(await download.path());
+    const bundle = zipEntries(await readFile(await download.path()));
 
+    // One scale ticked is a module, and the page names a Word module's bundle
+    // and its entries hitopsr-word-module; the README travels in every bundle.
+    const STEM = 'hitopsr-word-module';
     expect
       .soft(
-        Array.from(bytes.subarray(0, 4)),
-        'A4: the downloaded file begins with the four bytes of a zip container'
+        Array.from(bundle.keys()),
+        'A4: the downloaded bundle holds exactly the three expected entries'
+      )
+      .toEqual([`${STEM}.docx`, `${STEM}.json`, 'README.txt']);
+    const docx = bundle.get(`${STEM}.docx`) ?? Buffer.alloc(0);
+    expect
+      .soft(
+        Array.from(docx.subarray(0, 4)),
+        "A5: the bundle's .docx entry begins with the four bytes of a zip container"
       )
       .toEqual([0x50, 0x4b, 0x03, 0x04]);
     expect
       .soft(
-        bytes.length,
-        `A5: the downloaded file is longer than ${MIN_DOCX_BYTES} bytes`
+        docx.length,
+        `A6: the bundle's .docx entry is longer than ${MIN_DOCX_BYTES} bytes`
       )
       .toBeGreaterThan(MIN_DOCX_BYTES);
   } finally {
