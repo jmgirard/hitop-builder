@@ -102,8 +102,12 @@ there that it is off until one is.
    - **Qualtrics settings** holds one: *Block and question naming*.
    - **REDCap settings** holds one: *Form name and required items*.
 
-   Only the current format's settings are on the page, and nothing set under
-   one format reaches another format's file.
+   Only the current format's settings are shown, and nothing set under one
+   format reaches another format's file. Ticking *Shuffle the printed item
+   order* puts a warning below the settings line that a shuffled form is not
+   scored as it stands. The warning stays in view while the box is ticked,
+   whether the settings line is open or closed. After each card press the
+   status line says which format was chosen.
 
 The second step opens with the same tally the first step ends on, followed by a
 *Change the selection* button back to the scale list, so it is not a blind
@@ -154,7 +158,7 @@ minimum the page requires; the minimum is `MIN_HITOP` in `index.html`, above.
 Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take, and returns any
-recorded printed order on the module's `item_order` attribute. The page's third
+recorded printed order on the module's `item_order` attribute. The page's second
 step says the same in an *A download here is one zip file holding three*
 notice above its download button, and the `README.txt` inside every bundle
 says it again to a reader who never saw the page. From a REDCap bundle:
@@ -265,9 +269,9 @@ and [Shuffling the Word form](#shuffling-the-word-form) below tabulates all four
 
 These settings name what the import creates in the target system. None of them
 reaches the Word form, and none of them changes the items, their wording, or
-their response options. They sit on the screen of the format they reach: the
-Qualtrics screen carries a *Block and question naming* group, and the REDCap
-screen a *Form name and required items* group.
+their response options. They sit under the settings line of the format they
+reach: *Qualtrics settings* holds a *Block and question naming* group, and
+*REDCap settings* a *Form name and required items* group.
 
 - **Block name** (Qualtrics) becomes the `[[Block:…]]` line at the top of the
   Qualtrics `.txt`, naming the block the questions land in.

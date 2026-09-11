@@ -530,21 +530,25 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
           <fieldset>
             <legend>Item order</legend>
             <label><input type="checkbox" id="shuffle"> Shuffle the printed item order</label>
-            <div class="notice" id="shuffleNote" hidden>
-              <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-              come back in the order the form printed, which is not the instrument's
-              own; put those columns into the original HiTOP-SR order before scoring, or
-              the scale scores come out wrong and nothing warns you.</p>
-              <!-- What the shuffled file does about recovering the original order
-                   depends on the numbering choice and on whether every scale is
-                   ticked, so this sentence is written by refreshShuffleNote(). -->
-              <p id="shuffleCrosswalk"></p>
-              <p>Shuffling reaches this form only. The Qualtrics and REDCap files
-              are never shuffled: there an item number names a collected data
-              column.</p>
-            </div>
           </fieldset>
         </details>
+        <!-- The shuffle warning sits outside the disclosure on purpose: the
+             disclosure closes on every card press, and a warning that a
+             shuffled form is not scored as it stands must stay in view for as
+             long as the box is ticked, fold open or closed. -->
+        <div class="notice" id="shuffleNote" hidden>
+          <p><strong>A shuffled form is not scored as it stands.</strong> Responses
+          come back in the order the form printed, which is not the instrument's
+          own; put those columns into the original HiTOP-SR order before scoring, or
+          the scale scores come out wrong and nothing warns you.</p>
+          <!-- What the shuffled file does about recovering the original order
+               depends on the numbering choice and on whether every scale is
+               ticked, so this sentence is written by refreshShuffleNote(). -->
+          <p id="shuffleCrosswalk"></p>
+          <p>Shuffling reaches this form only. The Qualtrics and REDCap files
+          are never shuffled: there an item number names a collected data
+          column.</p>
+        </div>
       </div>
 
       <div class="fmtpanel" data-panel="qualtrics" hidden>
@@ -724,14 +728,17 @@ function status(text) { el('status').textContent = text; }
 const FORMATS = {
   docx: {
     fn: 'generate_docx_hitopsr', ext: 'docx', name: 'word',
+    label: 'Word form',
     button: 'Download the Word form (.zip bundle)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', name: 'qualtrics',
+    label: 'Qualtrics file',
     button: 'Download the Qualtrics file (.zip bundle)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', name: 'redcap',
+    label: 'REDCap dictionary',
     button: 'Download the REDCap dictionary (.zip bundle)',
   },
 };
@@ -1611,9 +1618,19 @@ async function main() {
   refreshSummaries();
   el('downloadBtn').addEventListener('click', () => download());
   // A card press selects its format in place: the step stays where it is and
-  // the settings and button below the cards switch to that format.
+  // the settings and button below the cards switch to that format. Focus
+  // stays on the card, so nothing else would announce the swap to a screen
+  // reader; the status line, the page's one announcing region, says which
+  // format the controls below now belong to. It does so only while the page
+  // is idle, so a build's progress or a failure's message is never written
+  // over.
   for (const b of document.querySelectorAll('[data-choose]')) {
-    b.addEventListener('click', () => setFormat(b.dataset.choose));
+    b.addEventListener('click', () => {
+      setFormat(b.dataset.choose);
+      if (el('status').textContent.startsWith('Ready.')) {
+        status(`Ready. ${FORMATS[b.dataset.choose].label} chosen.`);
+      }
+    });
   }
   // Every control that moves between steps -- the bar's two buttons, the
   // Back and Continue pair at the foot of each step, and the recap's change
