@@ -424,22 +424,21 @@
 </nav>
 
 <h1>HiTOP-SR Module Builder</h1>
-<p class="lede">Choose the HiTOP-SR scales you need and download a questionnaire
-carrying only those items — a Word form to print, a Qualtrics import file, or a
-REDCap data dictionary.</p>
+<p class="lede">Choose the HiTOP-SR scales you need. Download a questionnaire
+that carries only those items, as a Word form to print, a Qualtrics import
+file, or a REDCap data dictionary.</p>
 
-<p class="lede">Everything runs in your own browser. To do that the page fetches
-R from <code>webr.r-wasm.org</code>, the
+<p class="lede">Everything runs in your own browser. To do that, the page
+fetches R from <code>webr.r-wasm.org</code>. It fetches the
 <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
 <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
-hands the file itself off to <code>r2.ropensci.org</code>, and the further R
+hands the file itself to <code>r2.ropensci.org</code>. It fetches the other R
 packages it needs from <code>repo.r-wasm.org</code>.</p>
 
 <noscript>
   <div class="notice">
-    <strong>This page needs JavaScript.</strong> It runs R inside your browser,
-    which scripting disabled makes impossible. The complete instruments are
-    ready to download on the
+    This page needs JavaScript. It runs R inside your browser, and that needs
+    scripting turned on. The complete instruments are ready to download on the
     <a href="https://jmgirard.github.io/hitop/articles/download-hitopsr.html">HiTOP-SR
     download page</a>.
   </div>
@@ -483,9 +482,9 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Pick the file you need. Its settings start at the package's
-    own defaults and sit folded below the cards; open them only if you need to
-    change one. Build another format from the same scales by picking another
+    <p class="hint">Pick the file you need. Its settings start at their defaults
+    and sit folded below the cards. If you need to change a setting,
+    open the panel. To build another format from the same scales, pick another
     card.</p>
     <div class="formats" role="group" aria-label="Format">
       <button type="button" data-choose="docx">
@@ -523,9 +522,10 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
               Number the items 1 to n</label>
             <label><input type="radio" name="numbering" value="original">
               Keep the HiTOP-SR's own item numbers</label>
-            <p class="hint">The instrument's own numbers are what this page's Qualtrics
-            and REDCap exports use for their field names, so a paper response can be
-            typed into a project built here without translating its number.</p>
+            <p class="hint">The Qualtrics and REDCap exports on this page use the
+            instrument's own numbers for their field names. With those numbers on the
+            paper form, you can type a paper response into a project built here
+            without translating its number.</p>
           </fieldset>
           <fieldset>
             <legend>Item order</legend>
@@ -537,17 +537,17 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
              shuffled form is not scored as it stands must stay in view for as
              long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p><strong>A shuffled form is not scored as it stands.</strong> Responses
-          come back in the order the form printed, which is not the instrument's
-          own; put those columns into the original HiTOP-SR order before scoring, or
+          <p>A shuffled form is not scored as it stands. Responses come back in
+          the order the form printed them, not in the instrument's own order. Put
+          those columns into the original HiTOP-SR order before scoring. Otherwise
           the scale scores come out wrong and nothing warns you.</p>
           <!-- What the shuffled file does about recovering the original order
                depends on the numbering choice and on whether every scale is
                ticked, so this sentence is written by refreshShuffleNote(). -->
           <p id="shuffleCrosswalk"></p>
-          <p>Shuffling reaches this form only. The Qualtrics and REDCap files
-          are never shuffled: there an item number names a collected data
-          column.</p>
+          <p>Shuffling reaches this form only. The page never shuffles the
+          Qualtrics and REDCap files: there an item number names a collected
+          data column.</p>
         </div>
       </div>
 
@@ -559,8 +559,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
             <legend>Block and question naming</legend>
             <p class="hint">These name what the import creates in Qualtrics. Neither
             changes the items, their wording, or their response options. Each box
-            starts at the package's own default; empty one and that default is used
-            again.</p>
+            starts at the package's own default. If you empty a box, the page uses
+            that default again.</p>
             <label for="blockName">Block name</label>
             <input type="text" id="blockName" autocomplete="off">
             <label for="idPrefix">Question ID prefix</label>
@@ -577,8 +577,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
             <legend>Form name and required items</legend>
             <p class="hint">These name what the import creates in REDCap and how it
             asks for answers. Neither changes the items, their wording, or their
-            response options. The box starts at the package's own default; empty it
-            and that default is used again.</p>
+            response options. The box starts at the package's own default. If you
+            empty it, the page uses that default again.</p>
             <label for="formName">Form name</label>
             <input type="text" id="formName" autocomplete="off">
             <label class="check"><input type="checkbox" id="required" checked>
@@ -593,26 +593,25 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
          in. It sits above the button rather than in the small print under it,
          so it is read before the file arrives rather than after. -->
     <div class="notice" id="descriptorNote">
-      <p><strong>A download here is one zip file holding three.</strong>
-      The button below builds the questionnaire and saves a
-      <code>.zip</code> bundle holding it, a small <code>.json</code> scoring
-      file listing the scales you chose and, on a shuffled Word form, the
-      order the items were printed in, and a <code>README.txt</code> saying
-      what each file is for. The bundle is named for the build that made it
-      &mdash; the format, whether you took every scale or a selection, and
-      whether a Word form was shuffled &mdash; so a build differing from an
-      earlier one in any of those three never lands on top of it. Two builds
-      differing only in which scales you ticked do share a name, so rename one
-      of them if you are keeping both.</p>
-      <p>Keep the <code>.json</code> file with the responses you collect: the
-      <code>hitop</code> package reads it back with <code>read_module()</code>
-      when you score the data. A REDCap bundle holds a second zip inside it,
-      the data dictionary; upload that inner zip to REDCap as it is, without
+      <p>A download here is one zip file holding three. The button below
+      builds the questionnaire and saves a <code>.zip</code> bundle. The bundle
+      holds the questionnaire, a small <code>.json</code> scoring file, and a
+      <code>README.txt</code> that says what each file is for. The scoring file
+      lists the scales you chose. On a shuffled Word form, it also records the
+      order the items were printed in. The bundle takes its name from the build
+      that made it: the format, every scale or a selection, and shuffled or not. A
+      build that differs from an earlier one in any of those three never lands
+      on top of it. Two builds that differ only in which scales you ticked share
+      a name. If you keep both, rename one of them.</p>
+      <p>Keep the <code>.json</code> file with the responses you collect. When
+      you score the data, the <code>hitop</code> package reads it back with
+      <code>read_module()</code>. A REDCap bundle holds a second zip inside it,
+      the data dictionary. Upload that inner zip to REDCap as it is, without
       extracting it.</p>
     </div>
     <p class="hint" id="downloadHint">The button builds the questionnaire and
     its scoring file in this browser, zips them with the README, and saves that
-    one bundle. It turns on once at least one scale is ticked, and switches off
+    one bundle. It turns on once you tick at least one scale, and switches off
     while a build is running.</p>
     <div class="downloadrow">
       <div class="downloads">
@@ -915,7 +914,7 @@ function selectionSentence() {
   const items = scales
     .filter((s) => chosen.includes(s.camelCase))
     .reduce((a, s) => a + s.nItems, 0);
-  return `${chosen.length} of ${scales.length} scales selected — ${items} items.`;
+  return `${chosen.length} of ${scales.length} scales selected (${items} items).`;
 }
 
 function refreshTally() {
@@ -1094,10 +1093,10 @@ function crosswalkSentence() {
       'beside it.';
   }
   if (wholeInstrument()) {
-    return 'This form carries no crosswalk: a shuffled whole instrument ' +
-      'would print 405 pairs on a page a participant reads. The printed ' +
-      'order is recorded only in the .json scoring file inside the bundle ' +
-      '\u2014 keep it, or the order is lost.';
+    return 'This form carries no crosswalk: for a shuffled whole instrument ' +
+      'such a crosswalk runs to 405 pairs on a page a participant reads, so the package ' +
+      'prints none. Only the .json scoring file inside the bundle records ' +
+      'the printed order. Keep it, or the order is lost.';
   }
   return 'This form carries a crosswalk: each printed number beside the ' +
     'original HiTOP-SR number it came from. The .json scoring file inside ' +
@@ -1137,7 +1136,7 @@ async function readNamingDefaults() {
 function namingValue(id) {
   const typed = el(id).value.trim();
   if (typed) return typed;
-  log(`  ${id} was empty; using the package default ` +
+  log(`  ${id} was empty, so the build uses the package default ` +
       `"${namingDefaults[id]}".`);
   return namingDefaults[id];
 }
@@ -1210,8 +1209,8 @@ function bundleReadme(format, stem, version) {
     ...wrapIndented(
       'The scoring file. Keep it with the responses you collect: it records ' +
       'which scales the questionnaire collects and, on a shuffled Word form, ' +
-      'the order the items were printed in. In R, the hitop package reads it ' +
-      'back with read_module() when you score the data.'
+      'the order the items were printed in. When you score the data in R, ' +
+      'the hitop package reads it back with read_module().'
     ),
     '',
     'README.txt',
@@ -1364,7 +1363,7 @@ async function download() {
     status('Ready.');
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
-    status(`Could not build the ${spec.ext.toUpperCase()} file — the log below says why.`);
+    status(`The ${spec.ext.toUpperCase()} build failed. The log below says why.`);
   } finally {
     buttons.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
@@ -1393,7 +1392,7 @@ async function main() {
       try {
         ({ WebR } = await import(WEBR_URL));
       } catch (err) {
-        log(`FATAL: could not import webR: ${err && err.message ? err.message : err}`);
+        log(`FATAL: the import of webR failed: ${err && err.message ? err.message : err}`);
         return 'no import';
       }
       const started = new WebR({ baseUrl: WEBR_BASE });
@@ -1419,24 +1418,24 @@ async function main() {
   // come back on; the latch is here so that stays true of a branch added later
   // rather than resting on a reading of what this one leaves pending.
   if (runtimeOutcome === 'no import') {
-    abandonBoot('Could not load R. This page has to reach webr.r-wasm.org — a ' +
-                'network block or a browser extension may be stopping it.');
+    abandonBoot('R did not load. This page has to reach webr.r-wasm.org. A ' +
+                'network block or a browser extension can stop that.');
     return;
   }
   if (runtimeOutcome === 'failed') {
-    abandonBoot('Could not start R — the log below says why.');
+    abandonBoot('R did not start. The log below says why.');
     return;
   }
   if (runtimeOutcome === 'timed out') {
     log(`  R did not finish downloading within ` +
-        `${RUNTIME_TIMEOUT_MS / 1000} seconds; giving up on it.`);
+        `${RUNTIME_TIMEOUT_MS / 1000} seconds. The page gave up on it.`);
     // Said as R itself failing to arrive, not as the package install: the
     // install has not been asked for yet, and pointing the visitor at the
     // wrong half wastes their time.
     abandonBoot(
       `R in your browser did not finish downloading within ` +
       `${RUNTIME_TIMEOUT_MS / 1000} seconds, so this page cannot build ` +
-      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `anything. Reload to try again. If it keeps failing, the complete ` +
       `instruments are ready to download at jmgirard.github.io/hitop.`
     );
     return;
@@ -1457,14 +1456,14 @@ async function main() {
         // Latched rather than merely disabled: refreshTally() runs on every
         // selection change, and without the latch the next checkbox click
         // would hand the build button back over an R that is gone.
-        abandonBoot('Lost the connection to R — reload the page to start over.');
+        abandonBoot('The page lost its connection to R. Reload the page to start over.');
         return;
       }
       if (out.type === 'stdout' || out.type === 'stderr') log(out.data);
     }
   })();
 
-  status('Downloading the hitop package — about twenty seconds the first time…');
+  status('Downloading the hitop package, about twenty seconds the first time…');
   log('> installPackages("hitop")');
   // Raced rather than simply awaited: an install that never settles would
   // otherwise leave "Downloading…" on screen forever with nothing said. The
@@ -1494,19 +1493,19 @@ async function main() {
     // Said as the package download failing, not as R failing to start: R is
     // running, and pointing the visitor at the wrong half wastes their time.
     abandonBoot(
-      `The hitop package could not be downloaded, so this page cannot build ` +
-      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `The hitop package did not download, so this page cannot build ` +
+      `anything. Reload to try again. If it keeps failing, the complete ` +
       `instruments are ready to download at jmgirard.github.io/hitop.`
     );
     return;
   }
   if (installOutcome === 'timed out') {
     log(`  installPackages("hitop") did not finish within ` +
-        `${INSTALL_TIMEOUT_MS / 1000} seconds; giving up on it.`);
+        `${INSTALL_TIMEOUT_MS / 1000} seconds. The page gave up on it.`);
     abandonBoot(
       `The hitop package did not finish downloading within ` +
       `${INSTALL_TIMEOUT_MS / 1000} seconds, so this page cannot build ` +
-      `anything. Reload to try again; if it keeps failing, the complete ` +
+      `anything. Reload to try again. If it keeps failing, the complete ` +
       `instruments are ready to download at jmgirard.github.io/hitop.`
     );
     return;
@@ -1526,18 +1525,18 @@ async function main() {
     // The guard refuses through its own path rather than throwing: a version
     // this page cannot read or compare is one it cannot vouch for either, and
     // the top-level catch would blame R for starting badly.
-    log(`  could not check the installed hitop version: ` +
+    log(`  reading the installed hitop version failed: ` +
         `${err && err.message ? err.message : err}`);
     abandonBoot(
-      `This page could not check which version of hitop it installed, so it ` +
-      `will not build a form against it. Reload to try again; the complete ` +
+      `This page failed to read which version of hitop it installed, so it ` +
+      `will not build a form against it. Reload to try again. The complete ` +
       `instruments are ready to download at jmgirard.github.io/hitop.`
     );
     return;
   }
   if (installedTooOld) {
-    log(`  hitop ${version} is older than the ${MIN_HITOP} this page needs; ` +
-        `giving up.`);
+    log(`  hitop ${version} is older than the ${MIN_HITOP} this page needs. ` +
+        `The page gave up.`);
     abandonBoot(
       `This page needs hitop ${MIN_HITOP} or newer, and the version it just ` +
       `installed is ${version}. It will not build a form against a package ` +
@@ -1652,7 +1651,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  status('Could not start R — the log below says why.');
+  status('R did not start. The log below says why.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>
