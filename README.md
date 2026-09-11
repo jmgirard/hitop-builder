@@ -1,7 +1,7 @@
 # HiTOP-SR Module Builder
 
 A single-page web app that builds HiTOP-SR modules, questionnaires that hold
-only the scales you choose. It downloads them ready to field in Word,
+only the scales you choose. You download them ready to field in Word,
 Qualtrics, or REDCap. Each download is one zip bundle that holds three files:
 the questionnaire, a small `.json` file that records what it collects, and a
 `README.txt` that says what to do with each. The `.json` file is what scores
@@ -50,8 +50,9 @@ package's keying tables at runtime. This repository contains no copy of the
 instrument's content.
 
 The page also stops waiting on a half of the load that never finishes. It
-races the download of R itself, the webR module import and the `init()` that
-fetches the WebAssembly build behind it, against `RUNTIME_TIMEOUT_MS`. It
+races the download of R itself against `RUNTIME_TIMEOUT_MS`. That download is
+the webR module import plus the `init()` that fetches the WebAssembly build
+behind it. It
 races `installPackages` against `INSTALL_TIMEOUT_MS`. The file `index.html`
 states both and sets both to `120000` milliseconds, two minutes, against a
 first load of roughly twenty seconds each. On either timeout the page says
@@ -197,8 +198,9 @@ stem says which build made them. It carries the instrument, the format,
 `-module` unless the build is the whole instrument, and `-shuffled` on a Word
 form whose printed order you shuffled. The bundle takes `.zip`. Inside it the
 questionnaire takes its format's extension, and the scoring file takes
-`.json`. The exception is the REDCap data dictionary, itself a zip, which
-takes `-upload.zip` so the two zips cannot be confused. Two builds that differ
+`.json`. The one exception is the questionnaire in a REDCap bundle. The data
+dictionary is itself a zip, so it takes `-upload.zip` and the two zips cannot
+be confused. Two builds that differ
 in any of those three therefore arrive under different names, so neither can
 overwrite the other in your downloads folder. Two builds that differ only in
 which scales you ticked share a name. The paragraph under the table says what
@@ -375,7 +377,7 @@ Every tracked file:
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test: boot the page, count the scale rows, download a Word bundle and read the form out of it |
+| `tests/smoke.spec.js` | The smoke test: boot the page, count the scale rows and make sure that each has a name, download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: eight planted defects, run to prove the smoke test goes red on each |
 | `tests/prose.mjs` | The prose extraction: lists every string a visitor reads, for a linter, and the facts each passage carries |
