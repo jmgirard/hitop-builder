@@ -444,9 +444,20 @@ if (JSON_OUT) {
 if (COMPARE) {
   const base = JSON.parse(readFileSync(COMPARE, 'utf8'));
   const sorted = (a) => [...a].sort();
-  const key = (id) => id.replace(/@\d+/, '');
-  const mine = new Map(passages.map((p) => [key(p.id), p]));
-  const theirs = new Map(base.passages.map((p) => [key(p.id), p]));
+  // A passage id carries its source line (`log@479`), which a rewrite moves,
+  // so passages pair by their group and their ordinal within it: the sixth
+  // log() call on one side is the sixth on the other, whatever line it is on.
+  const keyed = (list) => {
+    const seen = new Map();
+    return new Map(list.map((p) => {
+      const group = p.id.replace(/@\d+/, '');
+      const n = (seen.get(group) ?? 0) + 1;
+      seen.set(group, n);
+      return [`${group}#${n}`, p];
+    }));
+  };
+  const mine = keyed(passages);
+  const theirs = keyed(base.passages);
   let bad = 0;
   const same = (a, b) => JSON.stringify(sorted(a)) === JSON.stringify(sorted(b));
   for (const [id, b] of theirs) {
