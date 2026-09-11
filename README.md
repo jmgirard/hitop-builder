@@ -44,17 +44,17 @@ against as `MIN_HITOP` in `index.html`, the one place that minimum is set.
 Today it is 0.2.0. On load the page reads the installed version, shows it, and
 compares the two the way R does: component by component as numbers, so
 `0.10.0` counts as newer than `0.9.0`. Anything older stops the page with a
-message that names both versions, and no download button is offered. Every
-scale name and item number the page shows is read from the installed
+message that names both versions, and the page offers no download button. The
+page reads every scale name and item number it shows from the installed
 package's keying tables at runtime. This repository contains no copy of the
 instrument's content.
 
 The page also stops waiting on a half of the load that never finishes. It
 races the download of R itself, the webR module import and the `init()` that
 fetches the WebAssembly build behind it, against `RUNTIME_TIMEOUT_MS`. It
-races `installPackages` against `INSTALL_TIMEOUT_MS`. Both are stated in
-`index.html`, and both are set to `120000` milliseconds, two minutes, against
-a first load of roughly twenty seconds each. On either timeout the page says
+races `installPackages` against `INSTALL_TIMEOUT_MS`. The file `index.html`
+states both and sets both to `120000` milliseconds, two minutes, against a
+first load of roughly twenty seconds each. On either timeout the page says
 which half stalled and stays switched off. A stalled step that settles
 afterwards does not turn it back on.
 
@@ -104,12 +104,12 @@ there that it is off until you select one.
    - *Qualtrics settings* holds one: *Block and question naming*.
    - *REDCap settings* holds one: *Form name and required items*.
 
-   Only the current format's settings are shown, and nothing set under one
-   format reaches another format's file. Tick *Shuffle the printed item
+   The page shows only the current format's settings, and nothing set under
+   one format reaches another format's file. Tick *Shuffle the printed item
    order*, and a warning appears below the settings line that a shuffled form
    is not scored as it stands. The warning stays in view while the box is
-   ticked, whether the settings line is open or closed. After each card press
-   the status line says which format was chosen.
+   ticked, whether the settings line is open or closed. After a card press
+   while the page is idle, the status line says which format was chosen.
 
 The second step opens with the same tally the first step ends on, followed by
 a *Change the selection* button back to the scale list. So it is not a blind
@@ -209,8 +209,8 @@ the package whether the instrument's scales, taken together, hold a run of
 item numbers from 1 with no gaps in it. It asks once while starting up and
 reports the answer in the log as *the scales' items together run from 1 with
 no gaps*. The answer is yes for the HiTOP-SR, the only instrument this page
-builds, so ticking all 76 does drop `-module`. Were it no, ticking every box
-still builds a module and the name still carries `-module`. [Ticking every
+builds, so ticking all 76 does drop `-module`. With a no answer, ticking every
+box still builds a module and the name still carries `-module`. [Ticking every
 scale](#ticking-every-scale) below says what else rides on that answer.
 
 | What you built | Bundle | Questionnaire inside | Scoring file inside | README inside |
@@ -294,8 +294,8 @@ a line in the log that says so.
 
 The page does not test whether a name is one its target system will take.
 Qualtrics and REDCap each have their own rules about what a block, field, or
-form can be called. Either system refuses such a name at import time, not at
-build time here.
+form can be called. The target system refuses a name that breaks those rules
+at import time, not at build time here.
 
 Verified 2026-08-24 on a two-scale module. A block name of `Wave 2 Screening`,
 an ID prefix of `W2SCR` and a form name of `wave2_screening` produced
@@ -358,8 +358,8 @@ in each. Verified 2026-08-23 by reading the four built files back:
 With the instrument's own numbers there is nothing to cross-walk. The printed
 number already is the original one, so you can enter responses under it. With
 every scale ticked the page builds the whole instrument, and the package
-prints no crosswalk for a shuffled full instrument. That crosswalk is 405
-pairs on a participant-facing page. So nothing on that form records the order
+prints no crosswalk for a shuffled full instrument. Such a crosswalk runs to
+405 pairs on a participant-facing page. So nothing on that form records the order
 it was printed in. The `.json` scoring file inside the bundle records that
 order in an `itemOrder` field. A shuffled whole-instrument form whose scoring
 file is lost cannot be put back into instrument order at all. The package's
@@ -373,7 +373,7 @@ Every tracked file:
 | Path | Purpose |
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
-| `.github/workflows/pages.yml` | Publishes `index.html`, and nothing else in the repository, to GitHub Pages on every push to `main` |
+| `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
 | `tests/smoke.spec.js` | The smoke test: boot the page, count the scale rows, download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
@@ -389,8 +389,8 @@ Every tracked file:
 There is still no R file and no backend of any kind, and nothing is compiled,
 bundled or generated. The deployed site is `index.html`, `LICENSE.md` and
 `README.md`. The Pages workflow copies those three into the artifact it
-uploads and nothing else. So `package.json`, `playwright.config.js` and
-everything under `tests/` are never served at all. They exist only for the
+uploads and nothing else. So it never serves `package.json`,
+`playwright.config.js` or anything under `tests/`. Those exist only for the
 tests, and run only in CI or from a checkout.
 
 ## Instrument content

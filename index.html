@@ -482,8 +482,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Pick the file you need. Its settings start at the package's
-    own defaults and sit folded below the cards. If you need to change one,
+    <p class="hint">Pick the file you need. Its settings start at their defaults
+    and sit folded below the cards. If you need to change one,
     open them. To build another format from the same scales, pick another
     card.</p>
     <div class="formats" role="group" aria-label="Format">
@@ -598,8 +598,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       holds the questionnaire, a small <code>.json</code> scoring file, and a
       <code>README.txt</code> that says what each file is for. The scoring file
       lists the scales you chose. On a shuffled Word form, it also records the
-      order the items were printed in. The bundle is named for the build that
-      made it: the format, every scale or a selection, and shuffled or not. A
+      order the items were printed in. The bundle takes its name from the build
+      that made it: the format, every scale or a selection, and shuffled or not. A
       build that differs from an earlier one in any of those three never lands
       on top of it. Two builds that differ only in which scales you ticked share
       a name. If you keep both, rename one of them.</p>
@@ -914,7 +914,7 @@ function selectionSentence() {
   const items = scales
     .filter((s) => chosen.includes(s.camelCase))
     .reduce((a, s) => a + s.nItems, 0);
-  return `${chosen.length} of ${scales.length} scales selected, ${items} items.`;
+  return `${chosen.length} of ${scales.length} scales selected (${items} items).`;
 }
 
 function refreshTally() {
@@ -1094,7 +1094,7 @@ function crosswalkSentence() {
   }
   if (wholeInstrument()) {
     return 'This form carries no crosswalk: for a shuffled whole instrument ' +
-      'that is 405 pairs on a page a participant reads, so the package ' +
+      'one runs to 405 pairs on a page a participant reads, so the package ' +
       'prints none. Only the .json scoring file inside the bundle records ' +
       'the printed order. Keep it, or the order is lost.';
   }

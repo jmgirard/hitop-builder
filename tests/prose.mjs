@@ -454,8 +454,13 @@ if (COMPARE) {
     if (!m) { console.log(`MISSING ${id}`); bad++; continue; }
     if (!same(m.facts, b.facts)) {
       bad++;
-      const lost = sorted(b.facts).filter((f) => !m.facts.includes(f));
-      const gained = sorted(m.facts).filter((f) => !b.facts.includes(f));
+      // Multiset difference: a token that appears more often on one side
+      // is listed once per extra occurrence.
+      const count = (a) => a.reduce((c, f) => c.set(f, (c.get(f) ?? 0) + 1), new Map());
+      const cm = count(m.facts); const cb = count(b.facts);
+      const extra = (x, y) => [...x].flatMap(([f, n]) => Array(Math.max(0, n - (y.get(f) ?? 0))).fill(f)).sort();
+      const lost = extra(cb, cm);
+      const gained = extra(cm, cb);
       console.log(`DIFFER ${id}\n  lost: ${lost.join(' | ') || '-'}\n  gained: ${gained.join(' | ') || '-'}`);
     }
   }
