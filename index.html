@@ -837,8 +837,8 @@ function setFormat(format) {
 
 // The mark on a format card says which format the settings and the button
 // below it belong to. The cards act as a choice among three, so the page's
-// starting format is marked from the first paint: the panel it shows is
-// already Word's, and an unmarked card row would leave that unsaid.
+// starting format is marked as soon as the controls are shown: the panel on
+// show is already Word's, and an unmarked card row would leave that unsaid.
 function markFormatChoice(format) {
   for (const b of document.querySelectorAll('[data-choose]')) {
     if (b.dataset.choose === format) b.setAttribute('aria-current', 'true');
@@ -901,8 +901,8 @@ function refreshRecap() {
   for (const span of document.querySelectorAll('.recapText')) span.textContent = text;
 }
 
-// One sentence, written once and shown in three places: the tally under the
-// scale list and the recap line at the head of each later step.
+// One sentence, written once and shown in two places: the tally under the
+// scale list and the recap line at the head of step two.
 function selectionSentence() {
   const chosen = selected();
   const items = scales
