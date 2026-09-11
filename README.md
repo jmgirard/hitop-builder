@@ -62,13 +62,11 @@ the browser caches them afterwards.
 
 ## What the page shows
 
-The page works in three steps, one on screen at a time. It asks which format you
-want before it asks anything about that format, so you only ever see the
-settings that reach the file you are building. A *Steps* bar above the steps
-says which one you are on, and its three buttons — *Choose scales*,
-*Choose a format*, *Options and download* — jump straight to any of them.
-Nothing gates moving on: the last step is reachable with no scale selected, and
-its download button says there that it is off until one is.
+The page works in two steps, one on screen at a time. A *Steps* bar above them
+says which one you are on, and its two buttons — *Choose scales* and *Choose a
+format and download* — jump straight to either. Nothing gates moving on: the
+second step is reachable with no scale selected, and its download button says
+there that it is off until one is.
 
 1. **Choose scales.** A *Filter the scale list by name* box narrows the
    *HiTOP-SR scales* group; each row carries a scale's name and its item count,
@@ -77,49 +75,52 @@ its download button says there that it is off until one is.
    key, shows that scale's brief clinician-facing definition in a popup, which
    Escape dismisses; the definitions come from the installed package, like every
    other scale fact on the page, so a version that does not supply them simply
-   shows no popup. A *Continue to the format* button ends the step.
-2. **Choose a format.** Three buttons — *Word (.docx)*, *Qualtrics (.txt)* and
-   *REDCap (.zip)* — each with a line saying what that file is for. Pressing one
-   both records the choice and opens the third step set up for it. A *Back to
-   scales* button ends the step.
-3. **Options and download.** The step is headed for the format you chose —
-   *Word: options and download*, *Qualtrics: options and download*, or *REDCap:
-   options and download* — and carries that format's settings, an
-   *A download here is one zip file holding three* notice, one download
-   button named for the questionnaire it builds — *Download the Word form
-   (.zip bundle)*, *Download the Qualtrics file (.zip bundle)* or *Download
-   the REDCap dictionary (.zip bundle)* — and a *Choose a different format*
-   button at its foot leading back to the second step. Pressing the download
-   button builds the questionnaire and its scoring file, zips them with a
-   `README.txt`, and saves that one bundle; the button is off while a build
-   is running. The bundle is one file rather than two saves because a
-   browser may quietly drop a second save nobody asked for, and a
-   questionnaire that arrives without its scoring file is not noticed until
-   scoring day. Your scale selection is kept, so building a second format
-   needs no re-ticking.
+   shows no popup. A *Continue to the format and download* button ends the step.
+2. **Choose a format and download.** Three cards — *Word (.docx)*, *Qualtrics
+   (.txt)* and *REDCap (.zip)* — each with a line saying what that file is for.
+   The page starts on Word; pressing a card marks it as the current format and
+   switches everything under the cards to that format, without leaving the
+   step. Under the cards sits one folded settings line for the current format —
+   *Word settings*, *Qualtrics settings* or *REDCap settings* — whose summary
+   names the values in force, *US Letter · numbered 1 to n · original order* to
+   begin with. It is closed when the page first paints and closes again on
+   every card press; open it to change a setting, and the summary follows the
+   change. Below it are an *A download here is one zip file holding three*
+   notice and one download button named for the questionnaire it builds —
+   *Download the Word form (.zip bundle)*, *Download the Qualtrics file (.zip
+   bundle)* or *Download the REDCap dictionary (.zip bundle)*. Pressing it
+   builds the questionnaire and its scoring file, zips them with a
+   `README.txt`, and saves that one bundle; the button is off while a build is
+   running. The bundle is one file rather than two saves because a browser may
+   quietly drop a second save nobody asked for, and a questionnaire that
+   arrives without its scoring file is not noticed until scoring day. Your
+   scale selection is kept, so building a second format needs no re-ticking. A
+   *Back to scales* button ends the step.
 
-   - **Word** has three settings groups: *Paper size*, *Item numbering* and
+   - **Word settings** holds three groups: *Paper size*, *Item numbering* and
      *Item order*.
-   - **Qualtrics** has one: *Block and question naming*.
-   - **REDCap** has one: *Form name and required items*.
+   - **Qualtrics settings** holds one: *Block and question naming*.
+   - **REDCap settings** holds one: *Form name and required items*.
 
-   No format's screen shows another format's settings, and nothing set under one
-   format reaches another format's file.
+   Only the current format's settings are on the page, and nothing set under
+   one format reaches another format's file.
 
-Steps two and three each open with the same tally the first step ends on,
-followed by a *Change the selection* button back to the scale list, so neither
-is a blind continuation of the choice you made.
+The second step opens with the same tally the first step ends on, followed by a
+*Change the selection* button back to the scale list, so it is not a blind
+continuation of the choice you made.
 
-Below the three steps, a *Log* records what the page asked R to do and what R
+Below the two steps, a *Log* records what the page asked R to do and what R
 replied; it is where a failed download says what went wrong. It stays visible on
 every step, as does the status line above them.
 
-Re-cutting the page into these steps changed no file it builds: on 2026-08-24,
+Re-cutting the page into steps changed no file it builds: on 2026-08-24,
 sixteen combinations of format, scale selection and settings each came out
-matching the file the previously deployed page built from the same inputs.
+matching the file the previously deployed page built from the same inputs, and
+the 2026-09-11 fold of the settings into a disclosure was checked the same way
+against the eight bundles the previous page built.
 
 *Paper size* chooses between **US Letter**, the default, and **A4**. Like the
-other two groups on the Word screen it reaches the Word form only — the
+other two groups under *Word settings* it reaches the Word form only — the
 Qualtrics and REDCap exports carry no page size at all.
 
 ## The scoring file
@@ -196,13 +197,13 @@ downloads folder. Two builds differing only in which scales you ticked do
 share a name — the paragraph under the table says what to do about that.
 
 Ticking every scale is not on its own what drops `-module`. The page also has to
-have confirmed with the package that the instrument's scales between them cover
-its items with nothing left out, which it asks once while starting up and
-reports in the log as *every scale ticked covers items 1..N with no gaps*. The
-answer is yes for the HiTOP-SR, the only instrument this page builds, so ticking
-all 76 does drop `-module`; were it no, ticking every box would still build a
-module and the name would still carry `-module`. [Ticking every
-scale](#ticking-every-scale) below says what else rides on that answer.
+have confirmed with the package that the instrument's scales, taken together,
+hold a run of item numbers from 1 with no gaps in it, which it asks once while
+starting up and reports in the log as *the scales' items together run from 1
+with no gaps*. The answer is yes for the HiTOP-SR, the only instrument this page
+builds, so ticking all 76 does drop `-module`; were it no, ticking every box
+would still build a module and the name would still carry `-module`. [Ticking
+every scale](#ticking-every-scale) below says what else rides on that answer.
 
 | What you built | Bundle | Questionnaire inside | Scoring file inside | README inside |
 |---|---|---|---|---|
@@ -230,7 +231,7 @@ while the page stays open.
 
 ## Numbering the Word form
 
-On the Word screen, an *Item numbering* group chooses which numbers the Word
+Under *Word settings*, an *Item numbering* group chooses which numbers the Word
 form prints beside its items:
 
 - **Number the items 1 to n** — the default — numbers the printed items from
@@ -300,11 +301,14 @@ files the deployed page built.
 
 Ticking all 76 scales builds the whole instrument rather than a module that
 happens to contain every scale — but only because the page has asked the package
-whether this instrument's scales, taken together, cover its items with nothing
-left out. It asks once while starting up, and the log line *every scale ticked
-covers items 1..N with no gaps* carries the answer; on the HiTOP-SR it is true.
-On an instrument where it were false, "every scale" would not be the same thing
-as the whole instrument, and ticking every box would keep building a module.
+whether this instrument's scales, taken together, hold a run of item numbers
+from 1 with no gaps in it. That is all the probe asks: it reads no separate
+count of the instrument's items, so it cannot see a tail of higher-numbered
+items no scale claims. It asks once while starting up, and the log line *the
+scales' items together run from 1 with no gaps* carries the answer; on the
+HiTOP-SR it is true, and there the run is the instrument's whole item set. On
+an instrument where it were false, "every scale" would not be the same thing as
+the whole instrument, and ticking every box would keep building a module.
 
 With the answer true and every box ticked, the Word form is headed
 `HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`, and the downloads drop
@@ -316,7 +320,7 @@ the REDCap `instrument.csv` identical.
 
 ## Shuffling the Word form
 
-On the Word screen, an *Item order* box shuffles the printed order of the
+Under *Word settings*, an *Item order* box shuffles the printed order of the
 items on the Word form. It is unticked by default, and it applies to the Word
 file only: in the Qualtrics and REDCap exports an item number names a collected
 data column, so those two downloads are the same whether the box is ticked or

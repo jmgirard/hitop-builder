@@ -784,7 +784,7 @@ const namingDefaults = {};
 // the same item set either way. Asked of R once at load rather than assumed
 // (see the call in main()); FALSE until then, so nothing can treat a selection
 // as the whole instrument before the answer is in.
-let tilesExactly = false;
+let itemsRunFromOne = false;
 
 function numberingMode() {
   return document.querySelector('input[name=numbering]:checked').value;
@@ -794,7 +794,7 @@ function numberingMode() {
 // that happens to contain every scale. That is an intent only this page can
 // see -- the package is handed an item set -- so the page drops `module` from
 // its calls here rather than the package collapsing such a module. It is
-// gated on tilesExactly: where the scales' items do not run from 1 without a
+// gated on itemsRunFromOne: where the scales' items do not run from 1 without a
 // gap, the page keeps passing the module. That gate is not the coverage test
 // it looks like. A gap-free run from 1 that stops short of the instrument's
 // last item passes it, since nothing here reads that last item, so a form
@@ -805,7 +805,7 @@ function numberingMode() {
 // page in the module-keeping position: the union is the same item set however
 // the scales share items.
 function wholeInstrument() {
-  return tilesExactly && selected().length === scales.length;
+  return itemsRunFromOne && selected().length === scales.length;
 }
 
 function selected() {
@@ -1274,8 +1274,8 @@ async function download() {
     await webR.objs.globalEnv.bind('readme_path', readmePath);
     await webR.objs.globalEnv.bind('bundle_path', bundlePath);
     if (!whole && chosen.length === scales.length) {
-      log('  keeping the module: the ticked scales do not cover this ' +
-          'instrument\u2019s items as 1..N with no gaps.');
+      log('  keeping the module: the ticked scales\u2019 items do not run ' +
+          'from 1 with no gaps.');
     }
     // Each naming value goes only into the format that has the argument: the
     // Word call takes none of them, and neither online format takes the
@@ -1582,14 +1582,14 @@ async function main() {
   // coverage check into a type check. MIN_HITOP cannot back a type
   // assumption, because those older builds report 0.2.0 too -- the same
   // version this page requires -- so the page cannot tell them apart.
-  tilesExactly = await webR.evalRBoolean(`
+  itemsRunFromOne = await webR.evalRBoolean(`
     local({
       .all <- hitop::hitop_module("${INSTRUMENT}",
         scales = hitop::available_scales("${INSTRUMENT}")$camelCase)
       identical(as.integer(.all$items), seq_along(.all$items))
     })
   `);
-  log(`  every scale ticked covers items 1..N with no gaps: ${tilesExactly}.`);
+  log(`  the scales' items together run from 1 with no gaps: ${itemsRunFromOne}.`);
 
   await readNamingDefaults();
 

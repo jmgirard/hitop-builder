@@ -146,8 +146,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       'A3: every rendered row carries a non-empty name'
     ).toEqual({ named: rowCount, blank: [] });
 
-    // One scale, then the format screen the Word download lives on. Ticking
-    // before moving is what turns the download button on.
+    // One scale, then the second step, where the format cards and the
+    // download button live; the Word card is pressed rather than relied on
+    // as the page's starting format. Ticking before moving is what turns the
+    // download button on.
     await rows.first().locator('input[type=checkbox]').check();
     await page.locator('#stepbar button[data-goto="1"]').click();
     await page.locator('[data-choose="docx"]').click();
