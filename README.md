@@ -177,8 +177,9 @@ README.txt
   This file.
 ```
 
-The Word and Qualtrics READMEs differ only in the questionnaire paragraph,
-which says what that file is and carries no upload instruction.
+The Word and Qualtrics READMEs differ only in the questionnaire entry: its
+name takes that format's extension, and its paragraph says what the file is
+and carries no upload instruction.
 
 ## What the downloads are named
 
