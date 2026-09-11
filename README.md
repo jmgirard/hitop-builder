@@ -177,9 +177,10 @@ README.txt
   This file.
 ```
 
-The Word and Qualtrics READMEs differ only in the questionnaire entry: its
-name takes that format's extension, and its paragraph says what the file is
-and carries no upload instruction.
+A Word or Qualtrics README differs from that one in its stem, which names the
+bundle on the first line and the scoring file, and in the questionnaire entry:
+its name takes that format's extension, and its paragraph says what the file
+is and carries no upload instruction.
 
 ## What the downloads are named
 
@@ -203,20 +204,19 @@ all 76 does drop `-module`; were it no, ticking every box would still build a
 module and the name would still carry `-module`. [Ticking every
 scale](#ticking-every-scale) below says what else rides on that answer.
 
-| What you built | Bundle | Questionnaire inside | Scoring file inside |
-|---|---|---|---|
-| Word, every scale | `hitopsr-word.zip` | `hitopsr-word.docx` | `hitopsr-word.json` |
-| Word, every scale, shuffled | `hitopsr-word-shuffled.zip` | `hitopsr-word-shuffled.docx` | `hitopsr-word-shuffled.json` |
-| Word, some scales | `hitopsr-word-module.zip` | `hitopsr-word-module.docx` | `hitopsr-word-module.json` |
-| Word, some scales, shuffled | `hitopsr-word-module-shuffled.zip` | `hitopsr-word-module-shuffled.docx` | `hitopsr-word-module-shuffled.json` |
-| Qualtrics, every scale | `hitopsr-qualtrics.zip` | `hitopsr-qualtrics.txt` | `hitopsr-qualtrics.json` |
-| Qualtrics, some scales | `hitopsr-qualtrics-module.zip` | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` |
-| REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap-upload.zip` | `hitopsr-redcap.json` |
-| REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module-upload.zip` | `hitopsr-redcap-module.json` |
+| What you built | Bundle | Questionnaire inside | Scoring file inside | README inside |
+|---|---|---|---|---|
+| Word, every scale | `hitopsr-word.zip` | `hitopsr-word.docx` | `hitopsr-word.json` | `README.txt` |
+| Word, every scale, shuffled | `hitopsr-word-shuffled.zip` | `hitopsr-word-shuffled.docx` | `hitopsr-word-shuffled.json` | `README.txt` |
+| Word, some scales | `hitopsr-word-module.zip` | `hitopsr-word-module.docx` | `hitopsr-word-module.json` | `README.txt` |
+| Word, some scales, shuffled | `hitopsr-word-module-shuffled.zip` | `hitopsr-word-module-shuffled.docx` | `hitopsr-word-module-shuffled.json` | `README.txt` |
+| Qualtrics, every scale | `hitopsr-qualtrics.zip` | `hitopsr-qualtrics.txt` | `hitopsr-qualtrics.json` | `README.txt` |
+| Qualtrics, some scales | `hitopsr-qualtrics-module.zip` | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` | `README.txt` |
+| REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap-upload.zip` | `hitopsr-redcap.json` | `README.txt` |
+| REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module-upload.zip` | `hitopsr-redcap-module.json` | `README.txt` |
 
-Every bundle's third entry is `README.txt`. Verified 2026-09-11 by building
-all eight and reading the entry names out of the bundles the page asked the
-browser to save.
+Verified 2026-09-11 by building all eight and reading the entry names out of
+the bundles the page asked the browser to save.
 
 Nothing else about a build reaches its name. Which scales you ticked is
 recorded in the scoring file travelling beside the questionnaire — and, on a
