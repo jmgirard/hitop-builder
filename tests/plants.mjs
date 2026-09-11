@@ -50,9 +50,25 @@ const PLANTS = [
   },
   {
     id: 'd',
-    what: 'the download handler hands over a 12-byte non-zip blob',
-    from: "saveFile(bytes, spec.mime, `${stem}.${spec.ext}`, 'build');",
-    to: "saveFile(new Uint8Array(12), spec.mime, `${stem}.${spec.ext}`, 'build');",
+    what: 'the download handler hands over a 12-byte non-zip blob as the bundle',
+    from: "saveFile(bundleBytes, 'application/zip', `${stem}.zip`);",
+    to: "saveFile(new Uint8Array(12), 'application/zip', `${stem}.zip`);",
+  },
+  {
+    id: 'g',
+    what: 'the README left out of the bundle',
+    from: 'files = c(out_path, desc_path, readme_path),',
+    to: 'files = c(out_path, desc_path),',
+  },
+  {
+    id: 'h',
+    what: 'the Word form inside the bundle replaced by a 12-byte stub',
+    // Planted after the generator wrote the real form and before the bundle
+    // is zipped, so the bundle itself is a well-formed zip with the right
+    // three names and only its .docx entry is wrong.
+    from: '    const bytes = await webR.FS.readFile(path);',
+    to: '    await webR.FS.writeFile(path, new Uint8Array(12));\n' +
+      '    const bytes = await webR.FS.readFile(path);',
   },
   {
     id: 'e',
@@ -69,7 +85,7 @@ const PLANTS = [
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
-// rather than restated here: a spec that grows a sixth assertion has to grow a
+// rather than restated here: a spec that grows an assertion has to grow a
 // plant that fails it, and reading the list from the spec is what notices.
 async function enumeratedAssertions() {
   const spec = await readFile(SPEC, 'utf8');
@@ -255,8 +271,9 @@ if (uncovered.length) {
 }
 if (ok) {
   console.log(
-    'OK: the unplanted copy passed, all six plants turned the smoke test red, ' +
-      'and every enumerated assertion was failed by at least one of them.'
+    `OK: the unplanted copy passed, all ${PLANTS.length} plants turned the ` +
+      'smoke test red, and every enumerated assertion was failed by at least ' +
+      'one of them.'
   );
 }
 process.exit(ok ? 0 : 1);
