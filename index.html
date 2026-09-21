@@ -239,7 +239,7 @@
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
   /* The row holding the download button; refreshTally() disables
-     `.downloads button` whenever no scale is ticked. */
+     `.downloads button` whenever no scale is ticked or a build is running. */
   .downloadrow {
     display: flex; flex-wrap: wrap; gap: var(--s2);
     align-items: flex-start; margin-top: var(--s4);
@@ -614,8 +614,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     </div>
     <p class="hint" id="downloadHint">The button builds the questionnaire and
     its scoring file in this browser, zips them with the README, and saves that
-    one bundle. It turns on once you tick at least one scale, and switches off
-    while a build is running.</p>
+    one bundle. It is on while at least one scale is ticked and no build is
+    running.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
