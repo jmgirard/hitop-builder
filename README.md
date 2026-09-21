@@ -161,7 +161,10 @@ minimum the page requires. The minimum is `MIN_HITOP` in `index.html`, above.
 Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take. It returns
-any recorded printed order on the module's `item_order` attribute. The page's
+any recorded printed order on the module's `item_order` attribute.
+[`score_hitopsr()`](https://jmgirard.github.io/hitop/reference/score_hitopsr.html)
+reads that attribute under `layout = "printed"`, so columns left in a shuffled
+form's printed order score as they stand. The page's
 second step says the same in an *A download here is one zip file holding
 three* notice above its download button. The `README.txt` inside every bundle
 says it again, to a reader who never saw the page. This one comes from a
@@ -189,7 +192,11 @@ README.txt
 A Word or Qualtrics README differs from that one in two places. Its stem,
 which names the bundle on the first line and the scoring file, takes that
 format's name. Its questionnaire entry takes that format's extension, and its
-paragraph says what the file is and carries no upload instruction.
+paragraph says what the file is and carries no upload instruction. A shuffled
+Word README also adds one paragraph under the scoring file. It says to score
+printed-order columns with the module from `read_module()` and
+`layout = "printed"`, and it says that columns in HiTOP-SR order take the
+default layout.
 
 ## What the downloads are named
 
@@ -340,9 +347,13 @@ ticked or not. Verified 2026-08-23 on a two-scale module: the Qualtrics files
 came out byte-identical, and the REDCap archives carried an identical
 `instrument.csv`.
 
-Responses collected on a shuffled form arrive in the printed order, not the
-instrument's own. Put the columns back into the original HiTOP-SR order
-before scoring, or the scale scores come out wrong with no error raised.
+Data entered straight off a shuffled form has its columns in the printed
+order, not the instrument's own. Score those columns in R with the module that
+`read_module()` returns from the bundle's `.json` file, and pass
+`layout = "printed"` to `score_hitopsr()`. Columns already in the original
+HiTOP-SR order take the default layout, and `layout = "printed"` scrambles
+them. Under the wrong layout the scale scores come out wrong with no error
+raised.
 
 A shuffled Word file carries a crosswalk in one case only: the form is
 numbered `1 to n` *and* built from a selection of scales. The crosswalk lists
@@ -363,10 +374,12 @@ every scale ticked the page builds the whole instrument, and the package
 prints no crosswalk for a shuffled full instrument. Such a crosswalk runs to
 405 pairs on a participant-facing page. So nothing on that form records the order
 it was printed in. The `.json` scoring file inside the bundle records that
-order in an `itemOrder` field. A shuffled whole-instrument form whose scoring
-file is lost cannot be put back into instrument order at all. The package's
+order in an `itemOrder` field, and `layout = "printed"` scores through it. A
+shuffled whole-instrument form whose scoring file is lost cannot be put back
+into instrument order at all. The package's
 [`generate_docx_hitopsr()`](https://jmgirard.github.io/hitop/reference/generate_docx_hitopsr.html)
-help page states the same reordering rule for callers who work in R directly.
+help page gives the same scoring rule under its `randomize` argument, for
+callers who work in R directly.
 
 ## Repository layout
 
