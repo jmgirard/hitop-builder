@@ -486,7 +486,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <p class="hint">Pick the file you need. Its settings start at their defaults
     and sit folded below the cards. If you need to change a setting,
     open the panel. To build another format from the same scales, pick another
-    card.</p>
+    card. The cards are off while a build runs.</p>
     <div class="formats" role="group" aria-label="Format">
       <button type="button" data-choose="docx">
         <span class="fmtname">Word (.docx)</span>
@@ -702,7 +702,9 @@ let bootAbandoned = false;
 // directory and ends in one save, so a second build that starts before the
 // first ends can put its files into the first one's bundle. refreshTally()
 // reads this flag so that a selection change during a build leaves the button
-// off, and download() returns at once while it is set.
+// off, and download() returns at once while it is set. download() also turns
+// the three format cards off until the build ends, so a card press cannot
+// switch the page to another format while it builds this one.
 let building = false;
 
 // Stops the page where it stands and says why. The controls are hidden rather
@@ -1658,9 +1660,10 @@ async function main() {
   // the settings and button below the cards switch to that format. Focus
   // stays on the card, so nothing else would announce the swap to a screen
   // reader; the status line, the page's one announcing region, says which
-  // format the controls below now belong to. It does so only while the page
-  // is idle, so a build's progress or a failure's message is never written
-  // over.
+  // format the controls below now belong to. It does so only while the status
+  // reads "Ready.", so a failure's message is never written over. A build's
+  // progress is never written over either: download() turns the cards off
+  // until the build ends, so no press lands during one.
   for (const b of document.querySelectorAll('[data-choose]')) {
     b.addEventListener('click', () => {
       setFormat(b.dataset.choose);
