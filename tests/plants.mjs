@@ -92,6 +92,16 @@ const PLANTS = [
     from: '    b.disabled = bootAbandoned || building || selected().length === 0;',
     to: '    b.disabled = bootAbandoned || selected().length === 0;',
   },
+  {
+    id: 'j',
+    what: "the format cards left on during a build",
+    // Only the line that turns the cards off is removed. The build still runs
+    // on the format read at the click, so the bundle is the same Word bundle.
+    // What changes is that A9's press on the Qualtrics card now reaches
+    // setFormat() during the build.
+    from: '    cards.forEach((b) => (b.disabled = true));\n',
+    to: '',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
