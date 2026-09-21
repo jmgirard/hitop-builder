@@ -82,6 +82,16 @@ const PLANTS = [
     from: '    name.textContent = s.Scale;',
     to: "    name.textContent = s === scales[0] ? '' : s.Scale;",
   },
+  {
+    id: 'i',
+    what: 'the build flag dropped from the button state refreshTally() sets',
+    // download() still turns the button off at its start and still turns away
+    // a second call, so the page builds as before. Only a refreshTally() call
+    // during a build that leaves a scale ticked now turns the button back on.
+    // A8's tick is such a call.
+    from: '    b.disabled = bootAbandoned || building || selected().length === 0;',
+    to: '    b.disabled = bootAbandoned || selected().length === 0;',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself

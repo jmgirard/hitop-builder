@@ -239,7 +239,8 @@
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
   /* The row holding the download button; refreshTally() disables
-     `.downloads button` whenever no scale is ticked. */
+     `.downloads button` whenever no scale is ticked, a build is running, or
+     boot was abandoned. */
   .downloadrow {
     display: flex; flex-wrap: wrap; gap: var(--s2);
     align-items: flex-start; margin-top: var(--s4);
@@ -614,8 +615,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     </div>
     <p class="hint" id="downloadHint">The button builds the questionnaire and
     its scoring file in this browser, zips them with the README, and saves that
-    one bundle. It turns on once you tick at least one scale, and switches off
-    while a build is running.</p>
+    one bundle. It is on while at least one scale is ticked and no build is
+    running.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
@@ -696,6 +697,13 @@ const INSTALL_TIMEOUT_MS = 120000;
 // rest of boot and put a build button back within reach.
 // Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
+
+// True while download() runs. Every build writes into the one /tmp/bundle
+// directory and ends in one save, so a second build that starts before the
+// first ends can put its files into the first one's bundle. refreshTally()
+// reads this flag so that a selection change during a build leaves the button
+// off, and download() returns at once while it is set.
+let building = false;
 
 // Stops the page where it stands and says why. The controls are hidden rather
 // than merely disabled: nothing behind them can produce a file, and a visitor
@@ -923,7 +931,7 @@ function selectionSentence() {
 function refreshTally() {
   el('tally').textContent = selectionSentence();
   for (const b of document.querySelectorAll('.downloads button')) {
-    b.disabled = bootAbandoned || selected().length === 0;
+    b.disabled = bootAbandoned || building || selected().length === 0;
   }
   // The shuffle notice and the later steps' recap line both read the selection,
   // and every path that changes the selection already comes through here.
@@ -1249,14 +1257,13 @@ async function installedIsOlderThan(installed, minimum) {
 }
 
 async function download() {
+  if (building) return;
   const format = currentFormat;
   const spec = FORMATS[format];
   const chosen = selected();
   if (!chosen.length) return;
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
-  buttons.forEach((b) => (b.disabled = true));
-  status(`Building the ${spec.ext.toUpperCase()} file…`);
 
   // Every build lands in one directory that is emptied first, and every file
   // in it is written under the name it will carry inside the bundle: the zip
@@ -1264,6 +1271,11 @@ async function download() {
   // fixed here, on the R side, not at the save.
   const bundleDir = '/tmp/bundle';
   try {
+    // Set inside the try, so the finally below clears it whatever throws.
+    building = true;
+    buttons.forEach((b) => (b.disabled = true));
+    status(`Building the ${spec.ext.toUpperCase()} file…`);
+
     // The paper form is the only format taking a page size, and the only one
     // offered a shuffle or a numbering choice: on the two online exports an
     // item number names a collected data column, so reordering or renumbering
@@ -1282,9 +1294,22 @@ async function download() {
     const readmePath = `${bundleDir}/README.txt`;
     const bundlePath = `/tmp/${stem}.zip`;
 
-    await webR.objs.globalEnv.bind('selected_scales', chosen);
+    // Every control this build reads has been read by the end of this block,
+    // before the first await.
+    // The visitor can change a control while the build waits on R, and a
+    // value read after that point would mix two sets of settings in one
+    // bundle. Each naming value goes only into the format that has the
+    // argument: the Word call takes none of them, and neither online format
+    // takes the other's.
     const papersize =
       document.querySelector('input[name=papersize]:checked').value;
+    const block = format === 'qualtrics' ? namingValue('blockName') : '';
+    const prefix = format === 'qualtrics' ? namingValue('idPrefix') : '';
+    const form = format === 'redcap' ? namingValue('formName') : '';
+    const required =
+      format === 'redcap' && el('required').checked ? 'TRUE' : 'FALSE';
+
+    await webR.objs.globalEnv.bind('selected_scales', chosen);
     await webR.objs.globalEnv.bind('paper_size', papersize);
     await webR.objs.globalEnv.bind('bundle_dir', bundleDir);
     await webR.objs.globalEnv.bind('out_path', path);
@@ -1295,23 +1320,17 @@ async function download() {
       log('  keeping the module: the ticked scales\u2019 items do not run ' +
           'from 1 with no gaps.');
     }
-    // Each naming value goes only into the format that has the argument: the
-    // Word call takes none of them, and neither online format takes the
-    // other's. Every free-text value is bound as an R object rather than
-    // pasted into the code string, so a quote or a backslash in a block name
-    // is data, not syntax.
+    // Every free-text value is bound as an R object rather than pasted into
+    // the code string, so a quote or a backslash in a block name is data, not
+    // syntax.
     let naming = '';
     let namingLog = '';
     if (format === 'qualtrics') {
-      const block = namingValue('blockName');
-      const prefix = namingValue('idPrefix');
       await webR.objs.globalEnv.bind('block_name', block);
       await webR.objs.globalEnv.bind('id_prefix', prefix);
       naming = ', block_name = block_name, id_prefix = id_prefix';
       namingLog = `, block_name = "${block}", id_prefix = "${prefix}"`;
     } else if (format === 'redcap') {
-      const form = namingValue('formName');
-      const required = el('required').checked ? 'TRUE' : 'FALSE';
       await webR.objs.globalEnv.bind('form_name', form);
       naming = `, form_name = form_name, required = ${required}`;
       namingLog = `, form_name = "${form}", required = ${required}`;
@@ -1377,6 +1396,7 @@ async function download() {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     status(`The ${spec.ext.toUpperCase()} build failed. The log below says why.`);
   } finally {
+    building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
   }
