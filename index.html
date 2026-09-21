@@ -239,7 +239,8 @@
   .hint { color: var(--muted); font-size: var(--t-small); margin: var(--s2) 0 var(--s1); }
 
   /* The row holding the download button; refreshTally() disables
-     `.downloads button` whenever no scale is ticked or a build is running. */
+     `.downloads button` whenever no scale is ticked, a build is running, or
+     boot was abandoned. */
   .downloadrow {
     display: flex; flex-wrap: wrap; gap: var(--s2);
     align-items: flex-start; margin-top: var(--s4);
@@ -1291,7 +1292,8 @@ async function download() {
     const readmePath = `${bundleDir}/README.txt`;
     const bundlePath = `/tmp/${stem}.zip`;
 
-    // Every control this build reads is read here, before the first await.
+    // Every control this build reads has been read by the end of this block,
+    // before the first await.
     // The visitor can change a control while the build waits on R, and a
     // value read after that point would mix two sets of settings in one
     // bundle. Each naming value goes only into the format that has the

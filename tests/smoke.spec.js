@@ -167,9 +167,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
 
-    // A tick is the one action that sends every selection change through
-    // refreshTally(), which is the site that turns the button back on. The
-    // state is read once, not polled: a poll could pass on a later state. The
+    // Every selection change (a tick, an untick, Select all, Clear all) goes
+    // through refreshTally(), the one site that can turn the button back on
+    // during a build. A tick is the simplest of them to make. The state is
+    // read once, not polled: a poll could pass on a later state. The
     // build takes seconds, so the tick lands while it runs. A build that ends
     // first leaves the button on and fails A8, which is a false red, never a
     // false green.

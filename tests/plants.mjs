@@ -86,8 +86,9 @@ const PLANTS = [
     id: 'i',
     what: 'the build flag dropped from the button state refreshTally() sets',
     // download() still turns the button off at its start and still turns away
-    // a second call, so the page builds as before. Only a selection change
-    // during a build now turns the button back on, which is what A8 reads.
+    // a second call, so the page builds as before. Only a refreshTally() call
+    // during a build that leaves a scale ticked now turns the button back on.
+    // A8's tick is such a call.
     from: '    b.disabled = bootAbandoned || building || selected().length === 0;',
     to: '    b.disabled = bootAbandoned || selected().length === 0;',
   },
