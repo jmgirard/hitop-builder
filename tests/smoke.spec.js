@@ -14,6 +14,7 @@
 //   A5: the bundle's .docx entry begins with the four bytes of a zip container
 //   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
 //   A7: the download button is present and enabled
+//   A8: the download button stays disabled when a scale is ticked during a build
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -163,10 +164,25 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // `download` attribute, which arrives here as Playwright's download event.
     // webR's own requests come from a Web Worker and are invisible to the
     // page's network panel, which is why nothing here watches for them.
-    const [download] = await Promise.all([
-      page.waitForEvent('download', { timeout: BUILD_MS }),
-      page.locator('#downloadBtn').click(),
-    ]);
+    const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
+    await page.locator('#downloadBtn').click();
+
+    // A tick is the one action that sends every selection change through
+    // refreshTally(), which is the site that turns the button back on. The
+    // state is read once, not polled: a poll could pass on a later state. The
+    // build takes seconds, so the tick lands while it runs. A build that ends
+    // first leaves the button on and fails A8, which is a false red, never a
+    // false green.
+    await page.locator('#stepbar button[data-goto="0"]').click();
+    await rows.nth(1).locator('input[type=checkbox]').check();
+    expect
+      .soft(
+        await page.locator('#downloadBtn').isDisabled(),
+        'A8: the download button stays disabled when a scale is ticked during a build'
+      )
+      .toBe(true);
+
+    const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
 
     // One scale ticked is a module, and the page names a Word module's bundle
