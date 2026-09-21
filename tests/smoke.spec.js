@@ -15,6 +15,7 @@
 //   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
 //   A7: the download button is present and enabled
 //   A8: the download button stays disabled when a scale is ticked during a build
+//   A9: a format card pressed during a build leaves the page on the build's format
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -159,6 +160,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       page.locator('#downloadBtn'),
       'A7: the download button is present and enabled'
     ).toBeEnabled();
+    // The button's Word text, read before the build starts. A9 compares the
+    // text after a card press during the build against it.
+    const wordButton = await page.locator('#downloadBtn').textContent();
 
     // The page hands the bundle over by clicking an anchor carrying a
     // `download` attribute, which arrives here as Playwright's download event.
@@ -188,6 +192,26 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         'A8: the download button stays disabled when a scale is ticked during a build'
       )
       .toEqual({ disabled: true, tallyCountsTwo: true });
+
+    // Back on the second step, still during the build, the Qualtrics card is
+    // pressed. download() turns the cards off, so the press must change
+    // nothing: the button keeps its Word text and the Word card keeps its
+    // mark. The press is forced because Playwright would otherwise wait for
+    // the disabled card to turn on, and time out without naming A9. A forced
+    // click still lands as a real mouse click, which a browser does not
+    // deliver to a disabled button. The state is read once, like A8's.
+    await page.locator('#stepbar button[data-goto="1"]').click();
+    await page.locator('[data-choose="qualtrics"]').click({ force: true });
+    const afterPress = {
+      button: await page.locator('#downloadBtn').textContent(),
+      wordMarked: await page.locator('[data-choose="docx"]').getAttribute('aria-current'),
+    };
+    expect
+      .soft(
+        afterPress,
+        "A9: a format card pressed during a build leaves the page on the build's format"
+      )
+      .toEqual({ button: wordButton, wordMarked: 'true' });
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
