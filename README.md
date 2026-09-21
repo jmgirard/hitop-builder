@@ -163,8 +163,8 @@ Keep it with the responses you collect. In R,
 reads it back into the module object the scoring functions take. It returns
 any recorded printed order on the module's `item_order` attribute.
 [`score_hitopsr()`](https://jmgirard.github.io/hitop/reference/score_hitopsr.html)
-reads that attribute under `layout = "printed"`, so columns left in a shuffled
-form's printed order score as they stand. The page's
+reads that attribute when it gets that module and `layout = "printed"`, so
+columns left in a shuffled form's printed order score as they stand. The page's
 second step says the same in an *A download here is one zip file holding
 three* notice above its download button. The `README.txt` inside every bundle
 says it again, to a reader who never saw the page. This one comes from a

@@ -543,8 +543,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
           file with <code>read_module()</code> and pass that module to
           <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
           Columns already in the original HiTOP-SR order take the default layout
-          instead. The wrong layout gives wrong scale scores, and nothing warns
-          you.</p>
+          instead. The wrong layout gives wrong scale scores and raises no error.</p>
           <!-- What the shuffled file does about recovering the original order
                depends on the numbering choice and on whether every scale is
                ticked, so this sentence is written by refreshShuffleNote(). -->
