@@ -373,11 +373,20 @@ function bundleReadmePassages() {
     'return { FORMATS, bundleReadme };',
   ].join('\n');
   const { FORMATS, bundleReadme } = new Function(code)();
-  return Object.keys(FORMATS).map((format) => ({
-    id: `readme:${format}`,
-    text: bundleReadme(format, `hitopsr-${FORMATS[format].name}-module`, '0.2.0'),
-    extraFacts: [],
-  }));
+  // One README per format, plus the shuffled Word README, the only one whose
+  // text depends on anything but the format and the stem.
+  return [
+    ...Object.keys(FORMATS).map((format) => ({
+      id: `readme:${format}`,
+      text: bundleReadme(format, `hitopsr-${FORMATS[format].name}-module`, '0.2.0'),
+      extraFacts: [],
+    })),
+    {
+      id: 'readme:docx-shuffled',
+      text: bundleReadme('docx', `hitopsr-${FORMATS.docx.name}-module-shuffled`, '0.2.0', true),
+      extraFacts: [],
+    },
+  ];
 }
 
 // ---- Part 4: README.md, by section ---------------------------------------
