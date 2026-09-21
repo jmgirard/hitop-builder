@@ -107,8 +107,8 @@ there that it is off until you select one.
 
    The page shows only the current format's settings, and nothing set under
    one format reaches another format's file. Tick *Shuffle the printed item
-   order*, and a warning appears below the settings line that a shuffled form
-   is not scored as it stands. The warning stays in view while the box is
+   order*, and a warning appears below the settings line that says how to
+   score a shuffled form. The warning stays in view while the box is
    ticked, whether the settings line is open or closed. After a card press
    while the page is idle, the status line says which format was chosen.
 
@@ -161,14 +161,14 @@ minimum the page requires. The minimum is `MIN_HITOP` in `index.html`, above.
 Keep it with the responses you collect. In R,
 [`read_module()`](https://jmgirard.github.io/hitop/reference/read_module.html)
 reads it back into the module object the scoring functions take. It returns
-any recorded printed order on the module's `item_order` attribute.
-[`score_hitopsr()`](https://jmgirard.github.io/hitop/reference/score_hitopsr.html)
-reads that attribute when it gets that module and `layout = "printed"`, so
-columns left in a shuffled form's printed order score as they stand. The page's
+any recorded printed order on the module's `item_order` attribute. The page's
 second step says the same in an *A download here is one zip file holding
 three* notice above its download button. The `README.txt` inside every bundle
-says it again, to a reader who never saw the page. This one comes from a
-REDCap bundle:
+says it again, to a reader who never saw the page.
+[`score_hitopsr()`](https://jmgirard.github.io/hitop/reference/score_hitopsr.html)
+reads that attribute when it gets that module and `layout = "printed"`, so
+columns left in a shuffled form's printed order score as they stand. This
+README comes from a REDCap bundle:
 
 ```
 hitopsr-redcap-module.zip, built by the HiTOP-SR Module Builder

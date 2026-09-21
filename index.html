@@ -537,9 +537,9 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
              shuffled form needs layout = "printed" to score must stay in view
              for as long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p>Scoring a shuffled form takes one more step. Data entered
-          straight off the form has its columns in the order the form printed
-          them, not in the instrument's own order. In R, read the .json scoring
+          <p>Scoring a shuffled form takes one more step. If you enter the
+          data in the order the form printed the items, the columns are in
+          printed order, not in the instrument's own order. In R, read the .json scoring
           file with <code>read_module()</code> and pass that module to
           <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
           Columns already in the original HiTOP-SR order take the default layout
