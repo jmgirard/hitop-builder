@@ -1262,11 +1262,8 @@ async function download() {
   const spec = FORMATS[format];
   const chosen = selected();
   if (!chosen.length) return;
-  building = true;
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
-  buttons.forEach((b) => (b.disabled = true));
-  status(`Building the ${spec.ext.toUpperCase()} file…`);
 
   // Every build lands in one directory that is emptied first, and every file
   // in it is written under the name it will carry inside the bundle: the zip
@@ -1274,6 +1271,11 @@ async function download() {
   // fixed here, on the R side, not at the save.
   const bundleDir = '/tmp/bundle';
   try {
+    // Set inside the try, so the finally below clears it whatever throws.
+    building = true;
+    buttons.forEach((b) => (b.disabled = true));
+    status(`Building the ${spec.ext.toUpperCase()} file…`);
+
     // The paper form is the only format taking a page size, and the only one
     // offered a shuffle or a numbering choice: on the two online exports an
     // item number names a collected data column, so reordering or renumbering

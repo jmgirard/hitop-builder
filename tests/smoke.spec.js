@@ -173,15 +173,21 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // read once, not polled: a poll could pass on a later state. The
     // build takes seconds, so the tick lands while it runs. A build that ends
     // first leaves the button on and fails A8, which is a false red, never a
-    // false green.
+    // false green. download() turns the button off itself, so a tick that
+    // never reached refreshTally() would also leave it off. The tally, which
+    // refreshTally() writes, is read in the same assertion to rule that out.
     await page.locator('#stepbar button[data-goto="0"]').click();
     await rows.nth(1).locator('input[type=checkbox]').check();
+    const duringBuild = {
+      disabled: await page.locator('#downloadBtn').isDisabled(),
+      tallyCountsTwo: (await page.locator('#tally').textContent()).startsWith('2 of '),
+    };
     expect
       .soft(
-        await page.locator('#downloadBtn').isDisabled(),
+        duringBuild,
         'A8: the download button stays disabled when a scale is ticked during a build'
       )
-      .toBe(true);
+      .toEqual({ disabled: true, tallyCountsTwo: true });
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
