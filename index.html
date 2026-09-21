@@ -697,6 +697,13 @@ const INSTALL_TIMEOUT_MS = 120000;
 // Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
+// True while download() runs. Every build writes into the one /tmp/bundle
+// directory and ends in one save, so a second build that starts before the
+// first ends can put its files into the first one's bundle. refreshTally()
+// reads this flag so that a selection change during a build leaves the button
+// off, and download() returns at once while it is set.
+let building = false;
+
 // Stops the page where it stands and says why. The controls are hidden rather
 // than merely disabled: nothing behind them can produce a file, and a visitor
 // reading a greyed-out form has to work out for themselves that it will never
@@ -923,7 +930,7 @@ function selectionSentence() {
 function refreshTally() {
   el('tally').textContent = selectionSentence();
   for (const b of document.querySelectorAll('.downloads button')) {
-    b.disabled = bootAbandoned || selected().length === 0;
+    b.disabled = bootAbandoned || building || selected().length === 0;
   }
   // The shuffle notice and the later steps' recap line both read the selection,
   // and every path that changes the selection already comes through here.
@@ -1249,10 +1256,12 @@ async function installedIsOlderThan(installed, minimum) {
 }
 
 async function download() {
+  if (building) return;
   const format = currentFormat;
   const spec = FORMATS[format];
   const chosen = selected();
   if (!chosen.length) return;
+  building = true;
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
   buttons.forEach((b) => (b.disabled = true));
@@ -1377,6 +1386,7 @@ async function download() {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     status(`The ${spec.ext.toUpperCase()} build failed. The log below says why.`);
   } finally {
+    building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
   }
