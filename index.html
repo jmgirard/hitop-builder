@@ -537,10 +537,14 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
              shuffled form is not scored as it stands must stay in view for as
              long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p>A shuffled form is not scored as it stands. Responses come back in
-          the order the form printed them, not in the instrument's own order. Put
-          those columns into the original HiTOP-SR order before scoring. Otherwise
-          the scale scores come out wrong and nothing warns you.</p>
+          <p>Scoring a shuffled form takes one more step. Data entered
+          straight off the form has its columns in the order the form printed
+          them, not in the instrument's own order. In R, read the .json scoring
+          file with <code>read_module()</code> and pass that module to
+          <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
+          Columns already in the original HiTOP-SR order take the default layout
+          instead. The wrong layout gives wrong scale scores, and nothing warns
+          you.</p>
           <!-- What the shuffled file does about recovering the original order
                depends on the numbering choice and on whether every scale is
                ticked, so this sentence is written by refreshShuffleNote(). -->
@@ -1197,7 +1201,10 @@ function wrapIndented(text, indent = '  ', width = 78) {
   return lines;
 }
 
-function bundleReadme(format, stem, version) {
+// `shuffle` is true only for a Word form whose printed order was shuffled.
+// It adds the scoring advice for that form, and it leaves every other
+// bundle's README unchanged.
+function bundleReadme(format, stem, version, shuffle = false) {
   return [
     `${stem}.zip, built by the HiTOP-SR Module Builder`,
     `(https://jmgirard.github.io/hitop-builder/) with hitop ${version}.`,
@@ -1212,6 +1219,12 @@ function bundleReadme(format, stem, version) {
       'the order the items were printed in. When you score the data in R, ' +
       'the hitop package reads it back with read_module().'
     ),
+    ...(shuffle ? ['', ...wrapIndented(
+      'This form was shuffled. Data entered straight off it has its columns ' +
+      'in the printed order. Score those columns with score_hitopsr(), the ' +
+      'module that read_module() returns, and layout = "printed". Columns ' +
+      'already in the original HiTOP-SR order take the default layout instead.'
+    )] : []),
     '',
     'README.txt',
     '  This file.',
@@ -1346,7 +1359,7 @@ async function download() {
       'as.character(utils::packageVersion("hitop"))'
     );
     await webR.FS.writeFile(
-      readmePath, new TextEncoder().encode(bundleReadme(format, stem, version))
+      readmePath, new TextEncoder().encode(bundleReadme(format, stem, version, shuffle))
     );
     log(`> zip::zip(zipfile = "${stem}.zip", files = c(` +
         `"${questionnaireName(format, stem)}", "${stem}.json", "README.txt"), ` +
