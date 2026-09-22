@@ -16,6 +16,7 @@
 //   A7: the download button is present and enabled
 //   A8: the download button stays disabled when a scale is ticked during a build
 //   A9: a format card pressed during a build leaves the page on the build's format
+//   A10: the format cards wear the disabled look during a build
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -226,6 +227,60 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         button: wordButton,
         wordMarked: 'true',
         cardsDisabled: [true, true, true],
+        stillBuilding: true,
+      });
+
+    // Still during the build, the cards must look off as well as be off. The
+    // mouse is moved away from the cards first, and the read waits for the
+    // cards' 0.15s transitions to end, so it reads the settled look and not a
+    // frame on the way to it. The wait names A10, so a card that never
+    // settles fails A10 and not a bare timeout. Each card's background, border
+    // colour and two text colours are compared with the download button's,
+    // read in the same pass: the button is disabled during the build and
+    // wears the page's disabled pair, so the compare holds in either colour
+    // scheme without naming a colour here. A page that turns the button back
+    // on during the build (plant (i)) also fails A10 for that reason, since
+    // the button is no longer disabled. The same read takes the status line,
+    // as A9's does, so a build that ended before the read fails on the status
+    // and not only on the look.
+    await page.mouse.move(0, 0);
+    const cards = page.locator('[data-choose]');
+    await expect
+      .poll(
+        () =>
+          cards.evaluateAll((cs) =>
+            cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
+          ),
+        { message: 'A10: the format cards wear the disabled look during a build', timeout: 5000 }
+      )
+      .toBe(true);
+    const cardLook = await cards.evaluateAll((cs) => {
+      const b = getComputedStyle(document.getElementById('downloadBtn'));
+      const looks = cs.map((c) => {
+        const s = getComputedStyle(c);
+        return {
+          borderTopStyle: s.borderTopStyle,
+          boxShadow: s.boxShadow,
+          background: s.backgroundColor === b.backgroundColor,
+          borderColor: s.borderTopColor === b.borderTopColor,
+          name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
+          what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+        };
+      });
+      const status = document.getElementById('status').textContent;
+      return { looks, stillBuilding: status.startsWith('Building') };
+    });
+    expect
+      .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
+      .toEqual({
+        looks: Array(3).fill({
+          borderTopStyle: 'dashed',
+          boxShadow: 'none',
+          background: true,
+          borderColor: true,
+          name: true,
+          what: true,
+        }),
         stillBuilding: true,
       });
 

@@ -102,6 +102,23 @@ const PLANTS = [
     from: '    cards.forEach((b) => (b.disabled = true));\n',
     to: '',
   },
+  {
+    id: 'k',
+    what: 'the disabled look of the format cards removed',
+    // Only the two card rules are removed, so the cards are still turned off
+    // during a build and A9 still passes. Without them, the card rules put the
+    // card background, the current card's solid border and the muted
+    // description colour back over the page's disabled pair, which is what
+    // A10 reads.
+    from:
+      '  .formats button:disabled {\n' +
+      '    background: var(--surface-2); border-color: var(--line); border-style: dashed;\n' +
+      '    box-shadow: none;\n' +
+      '  }\n' +
+      '  .formats button:disabled .fmtname,\n' +
+      '  .formats button:disabled .fmtwhat { color: var(--disabled-fg); }\n',
+    to: '',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
