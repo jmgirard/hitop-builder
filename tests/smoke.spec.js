@@ -234,12 +234,15 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // mouse is moved away from the cards first, and the read waits for the
     // cards' 0.15s transitions to end, so it reads the settled look and not a
     // frame on the way to it. The wait names A10, so a card that never
-    // settles fails A10 and not a bare timeout. Each card's background is
-    // compared with the download button's, read in the same pass: the button
-    // is disabled during the build and wears the page's disabled pair, so the
-    // compare holds in either colour scheme without naming a colour here. A
-    // page that turns the button back on during the build (plant (i)) also
-    // fails A10 for that reason, since the button is no longer disabled.
+    // settles fails A10 and not a bare timeout. Each card's background, border
+    // colour and two text colours are compared with the download button's,
+    // read in the same pass: the button is disabled during the build and
+    // wears the page's disabled pair, so the compare holds in either colour
+    // scheme without naming a colour here. A page that turns the button back
+    // on during the build (plant (i)) also fails A10 for that reason, since
+    // the button is no longer disabled. The same read takes the status line,
+    // as A9's does, so a build that ended before the read fails on the status
+    // and not only on the look.
     await page.mouse.move(0, 0);
     const cards = page.locator('[data-choose]');
     await expect
@@ -252,15 +255,34 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       )
       .toBe(true);
     const cardLook = await cards.evaluateAll((cs) => {
-      const button = getComputedStyle(document.getElementById('downloadBtn')).backgroundColor;
-      return cs.map((c) => {
+      const b = getComputedStyle(document.getElementById('downloadBtn'));
+      const looks = cs.map((c) => {
         const s = getComputedStyle(c);
-        return { borderTopStyle: s.borderTopStyle, matchesButton: s.backgroundColor === button };
+        return {
+          borderTopStyle: s.borderTopStyle,
+          boxShadow: s.boxShadow,
+          background: s.backgroundColor === b.backgroundColor,
+          borderColor: s.borderTopColor === b.borderTopColor,
+          name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
+          what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+        };
       });
+      const status = document.getElementById('status').textContent;
+      return { looks, stillBuilding: status.startsWith('Building') };
     });
     expect
       .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
-      .toEqual(Array(3).fill({ borderTopStyle: 'dashed', matchesButton: true }));
+      .toEqual({
+        looks: Array(3).fill({
+          borderTopStyle: 'dashed',
+          boxShadow: 'none',
+          background: true,
+          borderColor: true,
+          name: true,
+          what: true,
+        }),
+        stillBuilding: true,
+      });
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));

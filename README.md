@@ -96,11 +96,11 @@ there that it is off until you select one.
    them with a `README.txt`, and saves that one bundle. The button and the
    three cards are off while a build is running. While it runs, all three
    cards look grey with a dashed border, and the current card keeps the check
-   in its corner. The bundle is one file
-   rather than two saves because a browser can quietly drop a second save
-   nobody asked for. A questionnaire that arrives without its scoring file
-   is not noticed until scoring day. The page keeps your scale selection, so
-   building a second format needs no re-ticking. A *Back to scales* button
+   in its corner. The bundle is one file rather than two saves because a
+   browser can quietly drop a second save nobody asked for. A questionnaire
+   that arrives without its scoring file is not noticed until scoring day.
+   The page keeps your scale selection, so building a second format needs no
+   re-ticking. A *Back to scales* button
    ends the step.
 
    - *Word settings* holds three groups: *Paper size*, *Item numbering* and

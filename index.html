@@ -269,8 +269,9 @@
   .formats .fmtwhat { color: var(--muted); font-size: var(--t-small); font-weight: 400; }
   /* The current format's card is filled and carries a check in its corner,
      so the row reads as a choice of one among three. During a build the
-     disabled rule below greys the fill and leaves the check. The check is drawn, not
-     a character, so no screen reader reads it out; aria-current says it. */
+     disabled rule below greys the fill and leaves the check. The check is
+     drawn, not a character, so no screen reader reads it out; aria-current
+     says it. */
   .formats button::after {
     content: ''; position: absolute; top: var(--s3); right: var(--s3);
     width: 1.1rem; height: 1.1rem; border-radius: 50%;
@@ -292,10 +293,11 @@
   }
   /* While a build runs, download() turns the cards off, and these two rules
      give every card the page's disabled pair and dashed border, the current
-     card included. Without it, the card rules above come after button:disabled
-     and put back the card background and the current card's blue fill and
-     solid border. The current card keeps the check in its corner, so the
-     row still shows which format is building. */
+     card included. Without the first, the card rules above come after
+     button:disabled and put back the card background and the current card's
+     blue fill and solid border. Without the second, .fmtwhat keeps its muted
+     colour. The current card keeps the check in its corner, so the row still
+     shows which format is building. */
   .formats button:disabled {
     background: var(--surface-2); border-color: var(--line); border-style: dashed;
     box-shadow: none;
