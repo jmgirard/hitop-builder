@@ -201,19 +201,33 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // either throw without naming A9, or press the card after the build ends
     // and fail A9 on a correct page. A forced click still lands as a real
     // mouse click, which a browser does not deliver to a disabled button. The
-    // state is read once, like A8's.
+    // state is read once, like A8's. The same read takes the cards' disabled
+    // state, so a page whose handler ignores the press with the cards left on
+    // also fails A9. It takes the status line too: download() writes
+    // "Building the DOCX file…" at the click and nothing else until the build
+    // ends, so a press that came after the end fails on the status and not
+    // only on the button.
     await page.locator('#stepbar button[data-goto="1"]').click();
     await page.locator('[data-choose="qualtrics"]').click({ force: true });
     const afterPress = {
       button: await page.locator('#downloadBtn').textContent(),
       wordMarked: await page.locator('[data-choose="docx"]').getAttribute('aria-current'),
+      cardsDisabled: await page
+        .locator('[data-choose]')
+        .evaluateAll((cards) => cards.map((b) => b.disabled)),
+      stillBuilding: (await page.locator('#status').textContent()).startsWith('Building'),
     };
     expect
       .soft(
         afterPress,
         "A9: a format card pressed during a build leaves the page on the build's format"
       )
-      .toEqual({ button: wordButton, wordMarked: 'true' });
+      .toEqual({
+        button: wordButton,
+        wordMarked: 'true',
+        cardsDisabled: [true, true, true],
+        stillBuilding: true,
+      });
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));

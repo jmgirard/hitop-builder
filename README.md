@@ -94,11 +94,12 @@ there that it is off until you select one.
    the Qualtrics file (.zip bundle)* or *Download the REDCap dictionary (.zip
    bundle)*. Pressing it builds the questionnaire and its scoring file, zips
    them with a `README.txt`, and saves that one bundle. The button and the
-   three cards are off while a build is running. The bundle is one file rather than two saves
-   because a browser can quietly drop a second save nobody asked for. A
-   questionnaire that arrives without its scoring file is not noticed until
-   scoring day. The page keeps your scale selection, so building a second
-   format needs no re-ticking. A *Back to scales* button ends the step.
+   three cards are off while a build is running. The bundle is one file
+   rather than two saves because a browser can quietly drop a second save
+   nobody asked for. A questionnaire that arrives without its scoring file
+   is not noticed until scoring day. The page keeps your scale selection, so
+   building a second format needs no re-ticking. A *Back to scales* button
+   ends the step.
 
    - *Word settings* holds three groups: *Paper size*, *Item numbering* and
      *Item order*.

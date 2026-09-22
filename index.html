@@ -1267,8 +1267,9 @@ async function download() {
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
   // The format cards are off for the whole build too. A card press rewrites
-  // the button text, the panel on show and the card mark, so a press during
-  // a build would leave the page naming one format while it builds another.
+  // the button text, the panel on show and the card mark, and closes the
+  // open settings panel, so a press during a build would leave the page
+  // naming one format while it builds another.
   const cards = Array.from(document.querySelectorAll('[data-choose]'));
 
   // Every build lands in one directory that is emptied first, and every file
@@ -1661,9 +1662,9 @@ async function main() {
   // stays on the card, so nothing else would announce the swap to a screen
   // reader; the status line, the page's one announcing region, says which
   // format the controls below now belong to. It does so only while the
-  // status begins with "Ready.", so a failure's message is never written
-  // over. A build's progress is never written over either: download() turns
-  // the cards off until the build ends, so no press lands during one.
+  // status begins with "Ready.", so neither a build's progress nor a
+  // failure's message is written over. During a build the press does not
+  // land at all: download() turns the cards off until the build ends.
   for (const b of document.querySelectorAll('[data-choose]')) {
     b.addEventListener('click', () => {
       setFormat(b.dataset.choose);
