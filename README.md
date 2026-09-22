@@ -94,7 +94,9 @@ there that it is off until you select one.
    the Qualtrics file (.zip bundle)* or *Download the REDCap dictionary (.zip
    bundle)*. Pressing it builds the questionnaire and its scoring file, zips
    them with a `README.txt`, and saves that one bundle. The button and the
-   three cards are off while a build is running. The bundle is one file
+   three cards are off while a build is running. While it runs, all three
+   cards look grey with a dashed border, and the current card keeps the check
+   in its corner. The bundle is one file
    rather than two saves because a browser can quietly drop a second save
    nobody asked for. A questionnaire that arrives without its scoring file
    is not noticed until scoring day. The page keeps your scale selection, so
@@ -394,7 +396,7 @@ Every tracked file:
 | `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
 | `tests/smoke.spec.js` | The smoke test: boot the page, check that each scale row has a name, download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
-| `tests/plants.mjs` | The plant matrix: eight planted defects, run to prove the smoke test goes red on each |
+| `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list, each run to prove the smoke test goes red on it |
 | `tests/prose.mjs` | The prose extraction: lists every string a visitor reads, for a linter, and the facts each passage carries |
 | `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
 | `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
