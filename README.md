@@ -100,9 +100,9 @@ there that it is off until you select one.
    button or card that had it at your press of the download button. This
    happens after a saved bundle and after a failure, and the page does not
    scroll. If another element has focus when the build ends, for example a
-   control you moved to during the build, it keeps focus. A click on plain
-   text or on the log takes no focus, so after one the focus still comes
-   back. If the control from your press is off or hidden when the build
+   control you moved to during the build, it keeps focus. A click on the log
+   or on text other than a step heading takes no focus, so after one the
+   focus still comes back. If the control from your press is off or hidden when the build
    ends, focus does not come back. The bundle is one file rather than two saves because a
    browser can quietly drop a second save nobody asked for. A questionnaire
    that arrives without its scoring file is not noticed until scoring day.
