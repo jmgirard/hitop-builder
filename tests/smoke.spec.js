@@ -15,6 +15,7 @@
 //   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
 //   A7: the download button is present and enabled
 //   A8: the download button stays disabled when a scale is ticked during a build
+//   A9: a format card pressed during a build leaves the page on the build's format
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -159,6 +160,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       page.locator('#downloadBtn'),
       'A7: the download button is present and enabled'
     ).toBeEnabled();
+    // The button's Word text, read before the build starts. A9 compares the
+    // text after a card press during the build against it.
+    const wordButton = await page.locator('#downloadBtn').textContent();
 
     // The page hands the bundle over by clicking an anchor carrying a
     // `download` attribute, which arrives here as Playwright's download event.
@@ -188,6 +192,42 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         'A8: the download button stays disabled when a scale is ticked during a build'
       )
       .toEqual({ disabled: true, tallyCountsTwo: true });
+
+    // Back on the second step, still during the build, the Qualtrics card is
+    // pressed. download() turns the cards off, so the press must change
+    // nothing: the button keeps its Word text and the Word card keeps its
+    // mark. The press is forced because Playwright would otherwise wait, up to
+    // its action timeout, for the disabled card to turn on. It would then
+    // either throw without naming A9, or press the card after the build ends
+    // and fail A9 on a correct page. A forced click still lands as a real
+    // mouse click, which a browser does not deliver to a disabled button. The
+    // state is read once, like A8's. The same read takes the cards' disabled
+    // state, so a page whose handler ignores the press with the cards left on
+    // also fails A9. It takes the status line too: download() writes
+    // "Building the DOCX file…" at the click and nothing else until the build
+    // ends, so a press that came after the end fails on the status and not
+    // only on the button.
+    await page.locator('#stepbar button[data-goto="1"]').click();
+    await page.locator('[data-choose="qualtrics"]').click({ force: true });
+    const afterPress = {
+      button: await page.locator('#downloadBtn').textContent(),
+      wordMarked: await page.locator('[data-choose="docx"]').getAttribute('aria-current'),
+      cardsDisabled: await page
+        .locator('[data-choose]')
+        .evaluateAll((cards) => cards.map((b) => b.disabled)),
+      stillBuilding: (await page.locator('#status').textContent()).startsWith('Building'),
+    };
+    expect
+      .soft(
+        afterPress,
+        "A9: a format card pressed during a build leaves the page on the build's format"
+      )
+      .toEqual({
+        button: wordButton,
+        wordMarked: 'true',
+        cardsDisabled: [true, true, true],
+        stillBuilding: true,
+      });
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));

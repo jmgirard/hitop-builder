@@ -93,12 +93,13 @@ there that it is off until you select one.
    questionnaire it builds: *Download the Word form (.zip bundle)*, *Download
    the Qualtrics file (.zip bundle)* or *Download the REDCap dictionary (.zip
    bundle)*. Pressing it builds the questionnaire and its scoring file, zips
-   them with a `README.txt`, and saves that one bundle. The button is off
-   while a build is running. The bundle is one file rather than two saves
-   because a browser can quietly drop a second save nobody asked for. A
-   questionnaire that arrives without its scoring file is not noticed until
-   scoring day. The page keeps your scale selection, so building a second
-   format needs no re-ticking. A *Back to scales* button ends the step.
+   them with a `README.txt`, and saves that one bundle. The button and the
+   three cards are off while a build is running. The bundle is one file
+   rather than two saves because a browser can quietly drop a second save
+   nobody asked for. A questionnaire that arrives without its scoring file
+   is not noticed until scoring day. The page keeps your scale selection, so
+   building a second format needs no re-ticking. A *Back to scales* button
+   ends the step.
 
    - *Word settings* holds three groups: *Paper size*, *Item numbering* and
      *Item order*.
@@ -109,8 +110,9 @@ there that it is off until you select one.
    one format reaches another format's file. Tick *Shuffle the printed item
    order*, and a warning appears below the settings line that says how to
    score a shuffled form. The warning stays in view while the box is
-   ticked, whether the settings line is open or closed. After a card press
-   while the page is idle, the status line says which format was chosen.
+   ticked, whether the settings line is open or closed. After a card press,
+   the status line says which format was chosen. If the status line shows a
+   failed build's message, a card press leaves that message in place.
 
 The second step opens with the same tally the first step ends on, followed by
 a *Change the selection* button back to the scale list. So it is not a blind

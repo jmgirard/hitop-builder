@@ -486,7 +486,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     <p class="hint">Pick the file you need. Its settings start at their defaults
     and sit folded below the cards. If you need to change a setting,
     open the panel. To build another format from the same scales, pick another
-    card.</p>
+    card. The cards are off while a build runs.</p>
     <div class="formats" role="group" aria-label="Format">
       <button type="button" data-choose="docx">
         <span class="fmtname">Word (.docx)</span>
@@ -702,7 +702,9 @@ let bootAbandoned = false;
 // directory and ends in one save, so a second build that starts before the
 // first ends can put its files into the first one's bundle. refreshTally()
 // reads this flag so that a selection change during a build leaves the button
-// off, and download() returns at once while it is set.
+// off, and download() returns at once while it is set. download() also turns
+// the three format cards off until the build ends, so a card press cannot
+// switch the page to another format while it builds this one.
 let building = false;
 
 // Stops the page where it stands and says why. The controls are hidden rather
@@ -1264,6 +1266,11 @@ async function download() {
   if (!chosen.length) return;
 
   const buttons = Array.from(document.querySelectorAll('.downloads button'));
+  // The format cards are off for the whole build too. A card press rewrites
+  // the button text, the panel on show and the card mark, and closes the
+  // open settings panel, so a press during a build would leave the page
+  // naming one format while it builds another.
+  const cards = Array.from(document.querySelectorAll('[data-choose]'));
 
   // Every build lands in one directory that is emptied first, and every file
   // in it is written under the name it will carry inside the bundle: the zip
@@ -1274,6 +1281,7 @@ async function download() {
     // Set inside the try, so the finally below clears it whatever throws.
     building = true;
     buttons.forEach((b) => (b.disabled = true));
+    cards.forEach((b) => (b.disabled = true));
     status(`Building the ${spec.ext.toUpperCase()} file…`);
 
     // The paper form is the only format taking a page size, and the only one
@@ -1398,6 +1406,7 @@ async function download() {
   } finally {
     building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
+    cards.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
   }
 }
@@ -1652,9 +1661,10 @@ async function main() {
   // the settings and button below the cards switch to that format. Focus
   // stays on the card, so nothing else would announce the swap to a screen
   // reader; the status line, the page's one announcing region, says which
-  // format the controls below now belong to. It does so only while the page
-  // is idle, so a build's progress or a failure's message is never written
-  // over.
+  // format the controls below now belong to. It does so only while the
+  // status begins with "Ready.", so neither a build's progress nor a
+  // failure's message is written over. During a build the press does not
+  // land at all: download() turns the cards off until the build ends.
   for (const b of document.querySelectorAll('[data-choose]')) {
     b.addEventListener('click', () => {
       setFormat(b.dataset.choose);
