@@ -237,7 +237,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // settles fails A10 and not a bare timeout. Each card's background is
     // compared with the download button's, read in the same pass: the button
     // is disabled during the build and wears the page's disabled pair, so the
-    // compare holds in either colour scheme without naming a colour here.
+    // compare holds in either colour scheme without naming a colour here. A
+    // page that turns the button back on during the build (plant (i)) also
+    // fails A10 for that reason, since the button is no longer disabled.
     await page.mouse.move(0, 0);
     const cards = page.locator('[data-choose]');
     await expect
