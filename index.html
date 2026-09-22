@@ -1286,10 +1286,12 @@ async function download() {
   // open settings panel, so a press during a build would leave the page
   // naming one format while it builds another.
   const cards = Array.from(document.querySelectorAll('[data-choose]'));
-  // Turning a focused control off drops focus to the body, so the control
-  // that has focus now is kept and given focus back when the build ends (see
-  // the finally below). It is the download button after a click that focuses
-  // it, or a format card that a keyboard visitor left focused.
+  // Turning a focused control off drops focus to the body (seen in Chromium),
+  // so the control that has focus now is kept and given focus back when the
+  // build ends (see the finally below). It is the download button when the
+  // press focused it. In a browser whose mouse click does not focus a button
+  // (reported for Safari, not checked here), it can be a format card that a
+  // keyboard visitor left focused.
   const focusAtClick = document.activeElement;
 
   // Every build lands in one directory that is emptied first, and every file

@@ -286,8 +286,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       });
 
     // The click above focused the download button, and download() then
-    // disabled it, which drops focus to the body. The step bar presses since
-    // then left focus on the second step's heading, so it is blurred here.
+    // disabled it, which drops focus to the body. The step bar press since
+    // then (showStep() focuses the second step's heading) and the forced card
+    // press can leave focus off the body, so it is blurred here.
     // This stands in for a focus lost to the disabled button, which is what
     // a visitor who clicks and then waits has at the end of the build.
     await page.evaluate(() => document.activeElement?.blur());
