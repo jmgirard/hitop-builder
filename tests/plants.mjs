@@ -119,6 +119,15 @@ const PLANTS = [
       '  .formats button:disabled .fmtwhat { color: var(--disabled-fg); }\n',
     to: '',
   },
+  {
+    id: 'l',
+    what: 'the focus return at the end of a build removed',
+    // Only the focus() call is removed, so the build, the save and the
+    // controls' state at the end are the same as before. What changes is that
+    // focus stays on the body after the build, which is what A11 reads.
+    from: '      focusAtClick.focus({ preventScroll: true });\n',
+    to: '',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
