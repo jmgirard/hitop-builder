@@ -1433,8 +1433,9 @@ async function download() {
     // Focus comes back to the control that had it at the click, whether the
     // build saved a bundle or failed. It comes back only while focus is still
     // on the body, so focus that is on another element when the build ends,
-    // such as a control the visitor moved to, stays there. It also comes back only to a control that is on and on show: a
-    // control that the build's end leaves off or hidden, such as the download
+    // such as a control the visitor moved to, stays there. It also comes
+    // back only to a control that is on and on show: a control that the
+    // build's end leaves off or hidden, such as the download
     // button with every scale unticked or on a step that is not on show,
     // cannot take focus, and focus stays on the body. The page does not
     // scroll to the control, so a visitor reading the log stays where they
