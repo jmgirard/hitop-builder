@@ -1286,6 +1286,14 @@ async function download() {
   // open settings panel, so a press during a build would leave the page
   // naming one format while it builds another.
   const cards = Array.from(document.querySelectorAll('[data-choose]'));
+  // Turning a focused control off drops focus to the body (seen in Chromium),
+  // so the element that has focus now is kept and given focus back when the
+  // build ends (see the finally below). It is the download button when the
+  // press focused it. In a browser whose mouse click does not focus a button
+  // (reported for Safari and Firefox on macOS, not checked here), it is the
+  // element that had focus before the press, such as a format card that a
+  // keyboard visitor left focused.
+  const focusAtClick = document.activeElement;
 
   // Every build lands in one directory that is emptied first, and every file
   // in it is written under the name it will carry inside the bundle: the zip
@@ -1423,6 +1431,25 @@ async function download() {
     buttons.forEach((b) => (b.disabled = bootAbandoned));
     cards.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
+    // Focus comes back to the control that had it at the click, whether the
+    // build saved a bundle or failed. It comes back only if focus is on the
+    // body when the build ends, so focus that is on another element then,
+    // such as a control the visitor moved to, stays there. It also comes
+    // back only to a control that is on and on show: a control that the
+    // build's end leaves off or hidden, such as the download
+    // button with every scale unticked or on a step that is not on show,
+    // cannot take focus, and focus stays on the body. The page does not
+    // scroll to the control, so a visitor reading the log stays where they
+    // are.
+    const now = document.activeElement;
+    if (
+      (!now || now === document.body) &&
+      focusAtClick && focusAtClick !== document.body &&
+      focusAtClick.isConnected && !focusAtClick.disabled &&
+      focusAtClick.getClientRects().length > 0
+    ) {
+      focusAtClick.focus({ preventScroll: true });
+    }
   }
 }
 

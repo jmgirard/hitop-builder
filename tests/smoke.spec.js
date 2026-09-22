@@ -17,6 +17,7 @@
 //   A8: the download button stays disabled when a scale is ticked during a build
 //   A9: a format card pressed during a build leaves the page on the build's format
 //   A10: the format cards wear the disabled look during a build
+//   A11: focus comes back to the download button when the build ends
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -284,6 +285,14 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         stillBuilding: true,
       });
 
+    // The click above focused the download button, and download() then
+    // disabled it, which drops focus to the body. The step bar presses since
+    // then (showStep() focuses the second step's heading) and the forced card
+    // press can leave focus off the body, so it is blurred here.
+    // This stands in for a focus lost to the disabled button, which is what
+    // a visitor who clicks and then waits has at the end of the build.
+    await page.evaluate(() => document.activeElement?.blur());
+
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
 
@@ -309,6 +318,17 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         `A6: the bundle's .docx entry is longer than ${MIN_DOCX_BYTES} bytes`
       )
       .toBeGreaterThan(MIN_DOCX_BYTES);
+
+    // The save comes before download() turns the controls back on, so the
+    // read is polled rather than taken once. The button is enabled and on
+    // show at the end of the build: two scales are ticked and the second step
+    // is the one on show.
+    await expect
+      .poll(() => page.evaluate(() => document.activeElement?.id ?? ''), {
+        message: 'A11: focus comes back to the download button when the build ends',
+        timeout: 5000,
+      })
+      .toBe('downloadBtn');
   } finally {
     if (server) await server.close();
   }
