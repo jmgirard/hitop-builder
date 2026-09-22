@@ -196,10 +196,12 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // Back on the second step, still during the build, the Qualtrics card is
     // pressed. download() turns the cards off, so the press must change
     // nothing: the button keeps its Word text and the Word card keeps its
-    // mark. The press is forced because Playwright would otherwise wait for
-    // the disabled card to turn on, and time out without naming A9. A forced
-    // click still lands as a real mouse click, which a browser does not
-    // deliver to a disabled button. The state is read once, like A8's.
+    // mark. The press is forced because Playwright would otherwise wait, up to
+    // its action timeout, for the disabled card to turn on. It would then
+    // either throw without naming A9, or press the card after the build ends
+    // and fail A9 on a correct page. A forced click still lands as a real
+    // mouse click, which a browser does not deliver to a disabled button. The
+    // state is read once, like A8's.
     await page.locator('#stepbar button[data-goto="1"]').click();
     await page.locator('[data-choose="qualtrics"]').click({ force: true });
     const afterPress = {

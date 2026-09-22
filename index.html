@@ -1660,10 +1660,10 @@ async function main() {
   // the settings and button below the cards switch to that format. Focus
   // stays on the card, so nothing else would announce the swap to a screen
   // reader; the status line, the page's one announcing region, says which
-  // format the controls below now belong to. It does so only while the status
-  // reads "Ready.", so a failure's message is never written over. A build's
-  // progress is never written over either: download() turns the cards off
-  // until the build ends, so no press lands during one.
+  // format the controls below now belong to. It does so only while the
+  // status begins with "Ready.", so a failure's message is never written
+  // over. A build's progress is never written over either: download() turns
+  // the cards off until the build ends, so no press lands during one.
   for (const b of document.querySelectorAll('[data-choose]')) {
     b.addEventListener('click', () => {
       setFormat(b.dataset.choose);
