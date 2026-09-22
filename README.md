@@ -96,7 +96,12 @@ there that it is off until you select one.
    them with a `README.txt`, and saves that one bundle. The button and the
    three cards are off while a build is running. While it runs, all three
    cards look grey with a dashed border, and the current card keeps the check
-   in its corner. The bundle is one file rather than two saves because a
+   in its corner. When a build ends, keyboard focus goes back to the
+   button or card that had it at your press of the download button. This
+   happens after a saved bundle and after a failure, and the page does not
+   scroll. If you moved focus during the build, it stays where you put it. If
+   that control is off or hidden when the build ends, focus does not come
+   back. The bundle is one file rather than two saves because a
    browser can quietly drop a second save nobody asked for. A questionnaire
    that arrives without its scoring file is not noticed until scoring day.
    The page keeps your scale selection, so building a second format needs no
