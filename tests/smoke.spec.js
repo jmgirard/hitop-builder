@@ -16,6 +16,7 @@
 //   A7: the download button is present and enabled
 //   A8: the download button stays disabled when a scale is ticked during a build
 //   A9: a format card pressed during a build leaves the page on the build's format
+//   A10: the format cards wear the disabled look during a build
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -228,6 +229,36 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         cardsDisabled: [true, true, true],
         stillBuilding: true,
       });
+
+    // Still during the build, the cards must look off as well as be off. The
+    // mouse is moved away from the cards first, and the read waits for the
+    // cards' 0.15s transitions to end, so it reads the settled look and not a
+    // frame on the way to it. The wait names A10, so a card that never
+    // settles fails A10 and not a bare timeout. Each card's background is
+    // compared with the download button's, read in the same pass: the button
+    // is disabled during the build and wears the page's disabled pair, so the
+    // compare holds in either colour scheme without naming a colour here.
+    await page.mouse.move(0, 0);
+    const cards = page.locator('[data-choose]');
+    await expect
+      .poll(
+        () =>
+          cards.evaluateAll((cs) =>
+            cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
+          ),
+        { message: 'A10: the format cards wear the disabled look during a build', timeout: 5000 }
+      )
+      .toBe(true);
+    const cardLook = await cards.evaluateAll((cs) => {
+      const button = getComputedStyle(document.getElementById('downloadBtn')).backgroundColor;
+      return cs.map((c) => {
+        const s = getComputedStyle(c);
+        return { borderTopStyle: s.borderTopStyle, matchesButton: s.backgroundColor === button };
+      });
+    });
+    expect
+      .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
+      .toEqual(Array(3).fill({ borderTopStyle: 'dashed', matchesButton: true }));
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
