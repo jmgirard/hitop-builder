@@ -289,6 +289,12 @@
     border: solid var(--accent-fg); border-width: 0 2px 2px 0;
     transform: rotate(45deg);
   }
+  .formats button:disabled {
+    background: var(--surface-2); border-color: var(--line); border-style: dashed;
+    box-shadow: none;
+  }
+  .formats button:disabled .fmtname,
+  .formats button:disabled .fmtwhat { color: var(--disabled-fg); }
   .fmtpanel[hidden] { display: none; }
 
   /* ---- Settings disclosure ------------------------------------------- */
