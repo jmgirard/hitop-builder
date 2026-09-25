@@ -166,8 +166,8 @@ const SAVED_STATUS = 'Ready. The scoring file is saved. The link to the link bui
 // saved file's text is read back, so the test compares what the browser was
 // handed, and the status text is returned, so a caller can read which
 // "Ready." the save ended on. The wait takes either, so a save ending on the
-// wrong one fails the read that names it (A19) rather than stopping the run
-// here.
+// wrong one fails a later status read (A19 for the first save, A18 for the
+// save read as `second`) rather than stopping the run here.
 async function saveOnline(page, downloads, label) {
   const before = downloads.length;
   await page.locator('#downloadBtn').click();
@@ -181,8 +181,8 @@ async function saveOnline(page, downloads, label) {
 }
 
 // What the test reads of the page around the link, in one call: the count of
-// link-builder anchors in the whole document, found by their text as
-// readAnchor() finds them; whether the paragraph that holds the link carries
+// link-builder anchors in the whole document, found by their exact text
+// (readAnchor() finds the same link by its accessible name); whether the paragraph that holds the link carries
 // the hidden attribute (null with no such paragraph, which no expectation
 // below accepts); and the status text. One call, so the three are read from
 // one state of the page.
@@ -338,9 +338,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     // A tick change removes the anchor and returns the status to "Ready.".
     // The second scale is unticked, which leaves the first alone: the one
-    // scale the Word build below starts from. A second online save from it
-    // puts exactly one anchor back, carrying the second file, whose items
-    // are the first scale's.
+    // scale the Word build below starts from. A later online save from it
+    // (read as `second` below) puts exactly one anchor back, carrying that
+    // save's file, whose items are the first scale's.
     await page.locator('#stepbar button[data-goto="0"]').click();
     await rows.filter({ has: page.locator('.nm', { hasText: new RegExp(`^${ONLINE_SCALES[1]}$`) }) })
       .locator('input[type=checkbox]').uncheck();
@@ -356,9 +356,9 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // in the same call, and a tick that landed after the build ended reads
     // the button as on and fails here as a false red, never a false green,
     // since the tick's own removal would leave no link either way. The
-    // second scale is unticked again once the build ends, so the second
-    // save below starts from the one scale, and its link is the one the Word
-    // build further down starts with.
+    // second scale is unticked again once the build ends, so the save below
+    // (read as `second`) starts from the one scale, and its link is the one
+    // A18's Word card press removes.
     const midBefore = downloads.length;
     await page.locator('#downloadBtn').click();
     const atTick = await page.evaluate(() => {

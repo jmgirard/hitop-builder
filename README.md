@@ -254,8 +254,9 @@ module, in the encoding hitop-form's own link builder uses. That builder
 fills its instrument and module fields from it. You add the study name and
 where the responses go. The link carries the module of one saved file. If
 you tick or untick a scale, press another format's card, or start another
-build, the page removes the link. The status line then returns to *Ready.*
-Pressing the online card again keeps it. A later online save puts a new one
+build, the page removes the link. After a tick the status line returns to
+*Ready.* After a card press it names the chosen format. Pressing the online
+card again keeps the link. A later online save puts a new one
 in its place. Verified 2026-09-25
 on a two-scale module against the deployed link builder. The saved file's
 `scales` and `items` were those two scales' and their eight item numbers.

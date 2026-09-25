@@ -848,7 +848,8 @@ function showLinkBuilder(module) {
 }
 
 // Takes the link out of the document. Called on every selection change, on
-// a press of another format's card, and at the start of every build: the
+// a press of another format's card, at the start of every build, and by
+// showLinkBuilder() before it puts a new link in: the
 // link carries the module of one saved file, and a tick, a format change or
 // a new build makes that file no longer the one the page is set up for.
 // The status line says the link is under the button after the save that
