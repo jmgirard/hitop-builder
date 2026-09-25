@@ -370,13 +370,15 @@ function bundleReadmePassages() {
     pick(/function wrapIndented[\s\S]*?\n\}/),
     pick(/function questionnaireName[\s\S]*?\n\}/),
     pick(/function bundleReadme[\s\S]*?\n\}/),
-    'return { FORMATS, bundleReadme };',
+    'return { FORMATS, BUNDLE_WHAT, bundleReadme };',
   ].join('\n');
-  const { FORMATS, bundleReadme } = new Function(code)();
-  // One README per format, plus the shuffled Word README, the only one whose
-  // text depends on anything but the format and the stem.
+  const { FORMATS, BUNDLE_WHAT, bundleReadme } = new Function(code)();
+  // One README per bundled format, plus the shuffled Word README, the only
+  // one whose text depends on anything but the format and the stem. The
+  // online card saves a bare .json and no bundle, so it has no README and no
+  // BUNDLE_WHAT entry, and the entry is what says a format is bundled.
   return [
-    ...Object.keys(FORMATS).map((format) => ({
+    ...Object.keys(FORMATS).filter((format) => format in BUNDLE_WHAT).map((format) => ({
       id: `readme:${format}`,
       text: bundleReadme(format, `hitopsr-${FORMATS[format].name}-module`, '0.2.0'),
       extraFacts: [],
