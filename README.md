@@ -235,8 +235,9 @@ alone. The page calls `write_module()` on the module that `hitop_module()`
 builds from the scales you ticked. If every box is ticked, the module holds
 every scale. The file is saved as `hitopsr-online.json` for every scale and
 as `hitopsr-online-module.json` for a selection. It holds the same fields as
-the scoring file in a bundle, without `itemOrder` or `columns`. The online
-form has no printed order and names its own columns. No bundle and no
+the scoring file in a bundle, without `itemOrder` or `columns`. No form was
+printed, so there is no printed order to record, and the online form names
+its own columns. No bundle and no
 `README.txt` are made. Keep the file with the responses you collect, as with
 any other scoring file.
 

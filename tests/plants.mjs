@@ -149,9 +149,9 @@ const PLANTS = [
   {
     id: 'o',
     what: "the saved scoring file's items out of order",
-    // The file's items array is reversed in the text the browser is handed.
-    // The anchor is made from the same text, so its c still equals the file
-    // and only A13 reads the difference.
+    // The file's items array is reversed in the text the browser is handed,
+    // on both saves. The anchor is made from the same text, so its c still
+    // equals the file and A14 holds; A13 and A15 read the reversed items.
     from:
       '      const descBytes = await webR.FS.readFile(descPath);\n' +
       "      saveFile(descBytes, 'application/json'",

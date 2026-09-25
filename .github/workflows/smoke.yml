@@ -43,11 +43,12 @@ jobs:
           node-version: '20'
           cache: npm
       - run: npm ci
-      # The prose ledger refuses to run when index.html has a writer site
-      # (a .textContent or .setAttribute write) its WRITERS list does not
-      # classify, so a string that reaches the page by a route the extraction
-      # does not read is caught here, on every run, and not only when the
-      # ledger is run by hand.
+      # The prose ledger refuses to run when index.html has a writer site (a
+      # .textContent, .innerHTML or .setAttribute write) its WRITERS list does
+      # not classify, so a string written by one of those three that the
+      # extraction does not read is caught here, on every run, and not only
+      # when the ledger is run by hand. A write by another route (.href,
+      # .value, append()) is not counted.
       - run: npm run prose
       - run: npx playwright install --with-deps chromium
       # SMOKE_TARGET names the deployed page on the schedule and on a manual
