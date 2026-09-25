@@ -666,12 +666,13 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
       </div>
     </div>
-    <!-- Shown after an online save, and only until the selection changes or
-         another build starts. The link itself is made by showLinkBuilder()
-         from the template here: its text is static markup, and the script
-         fills in the href. It is removed from the document, not hidden, when
-         the selection it was made for no longer holds (see removeLinkBuilder()),
-         so a stale link is never left in the page. -->
+    <!-- Shown after an online save, and only until the selection changes,
+         another format's card is pressed, or another build starts. The link
+         itself is made by showLinkBuilder() from the template here: its text
+         is static markup, and the script fills in the href. It is removed
+         from the document, not hidden, when the selection or the format it
+         was made for no longer holds (see removeLinkBuilder()), so a stale
+         link is never left in the page. -->
     <p class="hint" id="onlineNext" hidden>The scoring file is saved.
     <span id="linkBuilderSlot"><template id="linkBuilderTpl"><a target="_blank" rel="noopener">Continue to the link builder</a></template></span>
     to make the study link. It opens in a new tab with your module filled in.</p>
@@ -846,13 +847,21 @@ function showLinkBuilder(module) {
   el('onlineNext').hidden = false;
 }
 
-// Takes the link out of the document. Called on every selection change and
-// at the start of every build: the link carries the module of one saved
-// file, and a tick or a new build makes that file no longer the one the
-// selection describes.
+// Takes the link out of the document. Called on every selection change, on
+// a press of another format's card, and at the start of every build: the
+// link carries the module of one saved file, and a tick, a format change or
+// a new build makes that file no longer the one the page is set up for.
+// The status line says the link is under the button after the save that
+// put it in, so a removal that takes a link out returns the status to
+// "Ready." rather than leave that claim standing. A removal that finds no
+// link leaves the status alone: the one at the start of a build is
+// followed by the build's own status, and the one a tick makes during a
+// build must not write over it.
 function removeLinkBuilder() {
-  for (const a of el('linkBuilderSlot').querySelectorAll('a')) a.remove();
+  const links = el('linkBuilderSlot').querySelectorAll('a');
+  for (const a of links) a.remove();
   el('onlineNext').hidden = true;
+  if (links.length) status('Ready.');
 }
 
 // The stem both files of one build share. Three things about the build are
@@ -945,7 +954,13 @@ const STEP_IDS = ['step1', 'step2'];
 // format makes. Every disclosure is closed here, the freshly shown one
 // included, so a card press always lands on the summary line and never on
 // settings left open from an earlier build.
+// A change of format takes out the link an online save left: the link
+// belongs with the online card, and the button under any other card builds
+// something else. The online card pressed again is not a change, so the
+// link stays, and so does the call made at start-up for the page's first
+// format.
 function setFormat(format) {
+  if (format !== currentFormat) removeLinkBuilder();
   currentFormat = format;
   for (const panel of document.querySelectorAll('.fmtpanel')) {
     panel.hidden = panel.dataset.panel !== format;
@@ -1455,10 +1470,15 @@ async function download() {
       // The boxes stay on during a build, and a tick made while R wrote the
       // file has already removed the last link and changed the selection; a
       // link put in here would sit beside a selection it does not describe.
+      // The status line, the page's one announced region, says where the
+      // link is when one is put in. It begins with "Ready." so that a card
+      // press after the save still announces the chosen format.
       if (selected().join() === chosen.join()) {
         showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
+        status('Ready. The scoring file is saved. The link to the link builder is under the button.');
+      } else {
+        status('Ready.');
       }
-      status('Ready.');
       return;
     }
 
