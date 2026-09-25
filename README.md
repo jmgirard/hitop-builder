@@ -2,10 +2,13 @@
 
 A single-page web app that builds HiTOP-SR modules, questionnaires that hold
 only the scales you choose. You download them ready to field in Word,
-Qualtrics, or REDCap. Each download is one zip bundle that holds three files:
-the questionnaire, a small `.json` file that records what it collects, and a
-`README.txt` that says what to do with each. The `.json` file is what scores
-the responses later.
+Qualtrics, or REDCap. Each of those downloads is one zip bundle that holds
+three files. They are the questionnaire, a small `.json` file that records
+what it collects, and a `README.txt` that says what to do with each. The
+`.json` file is what scores the responses later. A fourth choice, the online
+form, saves that `.json` file alone. It then links to the study link builder
+of [hitop-form](https://jmgirard.github.io/hitop-form/) with the module
+filled in.
 
 Live app: <https://jmgirard.github.io/hitop-builder/>
 
@@ -34,7 +37,9 @@ the package's own `available_scales()` to list the scales. It calls
 `generate_redcap_hitopsr()` to write each file. It passes each one the
 `descriptor` argument that writes the scoring file beside it. It then zips the
 two with a `README.txt` into one bundle, through the package's own `{zip}`
-dependency, and saves that bundle.
+dependency, and saves that bundle. For the online form it calls
+`write_module()` on the module that `hitop_module()` builds from your scales,
+and saves that one file.
 
 The page always installs whatever version r-universe currently serves. That
 service builds only its current version, and the install call takes no
@@ -79,22 +84,29 @@ there that it is off until you select one.
    every other scale fact on the page. A version that does not supply them
    shows no popup. A *Continue to the format and download* button ends the
    step.
-2. *Choose a format and download.* Three cards, *Word (.docx)*, *Qualtrics
-   (.txt)* and *REDCap (.zip)*, each carry a line that says what that file is
-   for. The page starts on Word. Pressing a card marks it as the current
-   format and switches everything under the cards to that format, without
-   leaving the step. Under the cards sits one folded settings line for the
-   current format: *Word settings*, *Qualtrics settings* or *REDCap
-   settings*. Its summary names the values in force, *US Letter · numbered 1
-   to n · original order* to begin with. It is closed at first paint and
-   closes again on every card press. Open it to change a setting,
-   and the summary follows the change. Below it are an *A download here is
-   one zip file holding three* notice and one download button named for the
-   questionnaire it builds: *Download the Word form (.zip bundle)*, *Download
-   the Qualtrics file (.zip bundle)* or *Download the REDCap dictionary (.zip
-   bundle)*. Pressing it builds the questionnaire and its scoring file, zips
-   them with a `README.txt`, and saves that one bundle. The button and the
-   three cards are off while a build is running. While it runs, all three
+2. *Choose a format and download.* There are four cards: *Word (.docx)*,
+   *Qualtrics (.txt)*, *REDCap (.zip)* and *Online form*. Each carries a line
+   that says what that file is for. The page starts on Word. Pressing a card marks it
+   as the current format and switches everything under the cards to that
+   format, without leaving the step. Under the first three cards sits one
+   folded settings line for the current format: *Word settings*, *Qualtrics
+   settings* or *REDCap settings*. Its summary names the values in force,
+   *US Letter · numbered 1 to n · original order* to begin with. It is closed
+   at first paint and closes again on every card press. Open it to change a
+   setting, and the summary follows the change. The online card has no
+   settings line. Below it are an *A download here is one zip file holding
+   three* notice and one download button named for the questionnaire it
+   builds: *Download the Word form (.zip bundle)*, *Download the Qualtrics
+   file (.zip bundle)* or *Download the REDCap dictionary (.zip bundle)*.
+   Pressing it builds the questionnaire and its scoring file, zips them with
+   a `README.txt`, and saves that one bundle. With the online card chosen,
+   the notice reads *A download here is one small .json scoring file, not a
+   zip bundle*. The button then reads *Download the scoring file (.json)*.
+   Pressing it saves that one file, and a link to the hitop-form link
+   builder appears under the button.
+   [The online form](#the-online-form) below says what the file holds and
+   where the link goes. The button and the
+   four cards are off while a build is running. While it runs, all four
    cards look grey with a dashed border, and the current card keeps the check
    in its corner. When a build ends, keyboard focus goes back to the button
    or card that had it at your press of the download button, if no other
@@ -208,6 +220,41 @@ printed-order columns with the module from `read_module()` and
 `layout = "printed"`, and it says that columns in HiTOP-SR order take the
 default layout.
 
+## The online form
+
+The fourth card, *Online form*, is for a study that collects responses
+through [hitop-form](https://jmgirard.github.io/hitop-form/), the HiTOP
+Society instruments' online questionnaire page. That page shows the items
+itself, from the `hitop` package's own export of the instrument, so there is
+no questionnaire file to build. What it needs is the module: a study link
+whose `c` parameter carries the scoring file's contents shows only the
+scales the file lists.
+
+With the online card chosen, the download button saves the scoring file
+alone. The page calls `write_module()` on the module that `hitop_module()`
+builds from the scales you ticked. If every box is ticked, the module holds
+every scale. The file is saved as `hitopsr-online.json` for every scale and
+as `hitopsr-online-module.json` for a selection. It holds the same fields as
+the scoring file in a bundle, without `itemOrder` or `columns`. The online
+form has no printed order and names its own columns. No bundle and no
+`README.txt` are made. Keep the file with the responses you collect, as with
+any other scoring file.
+
+After the save, a paragraph under the button reads *The scoring file is
+saved. Continue to the link builder to make the study link. It opens in a
+new tab with your module filled in.* Its link opens
+`https://jmgirard.github.io/hitop-form/link.html` in a new tab. The address
+carries a `c` parameter that holds the instrument and the saved file's
+module, in the encoding hitop-form's own link builder uses. That builder
+fills its instrument and module fields from it. You add the study name and
+where the responses go. The link carries the module of one saved file. If
+you tick or untick a scale, or start another build, the page removes the
+link. A later online save puts a new one in its place. Verified 2026-09-25
+on a two-scale module against the deployed link builder. The saved file's
+`scales` and `items` were those two scales' and their eight item numbers.
+The link's `c` decoded to the file. The link builder opened with `hitopsr`
+and the module filled in.
+
 ## What the downloads are named
 
 A build's bundle and the two named files inside it share one stem, and that
@@ -242,9 +289,13 @@ scale](#ticking-every-scale) below says what else rides on that answer.
 | Qualtrics, some scales | `hitopsr-qualtrics-module.zip` | `hitopsr-qualtrics-module.txt` | `hitopsr-qualtrics-module.json` | `README.txt` |
 | REDCap, every scale | `hitopsr-redcap.zip` | `hitopsr-redcap-upload.zip` | `hitopsr-redcap.json` | `README.txt` |
 | REDCap, some scales | `hitopsr-redcap-module.zip` | `hitopsr-redcap-module-upload.zip` | `hitopsr-redcap-module.json` | `README.txt` |
+| Online form, every scale | none: the scoring file `hitopsr-online.json` is the download | none | `hitopsr-online.json` | none |
+| Online form, some scales | none: the scoring file `hitopsr-online-module.json` is the download | none | `hitopsr-online-module.json` | none |
 
-Verified 2026-09-11 by building all eight and reading the entry names out of
-the bundles the page asked the browser to save.
+Verified 2026-09-11 by building all eight bundles and reading the entry names
+out of the bundles the page asked the browser to save. The two online rows
+were verified 2026-09-25 by reading the name of the file the page asked the
+browser to save.
 
 Nothing else about a build reaches its name. The scoring file that travels
 beside the questionnaire records which scales you ticked. On a shuffled Word
@@ -399,11 +450,11 @@ Every tracked file:
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
-| `.github/workflows/smoke.yml` | Runs the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test: boot the page, check that each scale row has a name, download a Word bundle and read the form out of it |
+| `.github/workflows/smoke.yml` | Runs the prose extraction, then the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
+| `tests/smoke.spec.js` | The smoke test: boot the page, check that each scale row has a name, save the online form's scoring file and read its link, then download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list, each run to prove the smoke test goes red on it |
-| `tests/prose.mjs` | The prose extraction: lists every string a visitor reads, for a linter, and the facts each passage carries |
+| `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run: lists every string a visitor reads, for a linter, and the facts each passage carries, and refuses a page with a text-writing site its ledger does not classify |
 | `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
 | `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
 | `package.json`, `package-lock.json` | The pinned `@playwright/test` they run under |
