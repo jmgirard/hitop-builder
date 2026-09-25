@@ -7,7 +7,8 @@
   "scripts": {
     "smoke": "playwright test tests/smoke.spec.js",
     "runtime-probes": "playwright test tests/runtime-timeout.spec.js",
-    "plants": "node tests/plants.mjs"
+    "plants": "node tests/plants.mjs",
+    "prose": "node tests/prose.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.56.1"

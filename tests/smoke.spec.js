@@ -18,14 +18,23 @@
 //   A9: a format card pressed during a build leaves the page on the build's format
 //   A10: the format cards wear the disabled look during a build
 //   A11: focus comes back to the download button when the build ends
+//   A12: the second step shows four format cards and the fourth is "Online form"
+//   A13: the online card saves one .json, named for the build, whose scales and items are the two ticked scales'
+//   A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
+//   A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file
+//   A16: no link-builder anchor is in the document at the start or the end of a Word build that follows an online save
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
 // reported as failing every one it fails, not only whichever is checked first.
 //
-// A7 is asserted before the click rather than left to the click's own
-// failure, so a renamed or missing button is reported as a named assertion
-// the plant matrix can account for, not as a bare locator timeout.
+// A7 and A12 are asserted before the click rather than left to the click's own
+// failure, so a renamed or missing button or card is reported as a named
+// assertion the plant matrix can account for, not as a bare locator timeout.
+//
+// The online save comes before the Word build, on the same page: A16 is about
+// a Word build that follows an online save, and the second online save (A15)
+// leaves exactly the one ticked scale the Word build has always started from.
 
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -100,6 +109,65 @@ const MIN_DOCX_BYTES = 10000;
 const BOOT_MS = 240000;
 const BUILD_MS = 240000;
 
+// The two scales the online save is made from, by the names the page shows,
+// and the HiTOP-SR item numbers those two scales hold, listed by hand from
+// the hitop package's own tables (hitop_module("hitopsr", scales = these)
+// on 2026-09-25) rather than read off the file under test. The page must
+// save them in ascending order, which is the order write_module() writes and
+// the order hitop-form requires.
+const ONLINE_SCALES = ['Agoraphobia', 'Appetite Loss'];
+const ONLINE_ITEMS = [66, 109, 118, 144, 202, 260, 291, 389];
+// The items of the first of the two alone, for the second save.
+const ONLINE_ITEMS_FIRST = [66, 109, 118, 260, 291];
+
+// hitop-form's link builder, and the decoding of its `c` parameter: the
+// inverse of the page's base64url(), written here on its own so the test
+// reads nothing from the page.
+const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+function decodeC(c) {
+  const b64 = c.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
+  return JSON.parse(Buffer.from(b64 + pad, 'base64').toString('utf8'));
+}
+
+// What the test reads of the link-builder anchor, or null with none in the
+// document. Anchors are found by their text so a hidden or relocated one
+// still counts; the count is the whole document's.
+async function readAnchor(page) {
+  const anchors = page.getByRole('link', { name: 'Continue to the link builder', includeHidden: true });
+  const count = await anchors.count();
+  if (count === 0) return { count, anchor: null };
+  const a = anchors.first();
+  const href = (await a.getAttribute('href')) ?? '';
+  const [base, query] = href.split('?');
+  const c = new URLSearchParams(query ?? '').get('c');
+  let decoded = null;
+  try { decoded = c ? decodeC(c) : null; } catch { decoded = 'unreadable'; }
+  return {
+    count,
+    anchor: {
+      base,
+      target: await a.getAttribute('target'),
+      rel: await a.getAttribute('rel'),
+      decoded,
+    },
+  };
+}
+
+// Presses the download button and waits for the status to come back to
+// "Ready.", counting the download events in between. The saved file's text
+// is read back, so the test compares what the browser was handed.
+async function saveOnline(page, downloads, label) {
+  const before = downloads.length;
+  await page.locator('#downloadBtn').click();
+  await expect(page.locator('#status'), label).toHaveText('Ready.', { timeout: BUILD_MS });
+  const saved = downloads.slice(before);
+  const text = saved.length === 1 ? await readFile(await saved[0].path(), 'utf8') : '';
+  let parsed = null;
+  try { parsed = JSON.parse(text); } catch { parsed = null; }
+  return { count: saved.length, name: saved[0]?.suggestedFilename() ?? '', text, parsed };
+}
+
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
   let server = null;
   let url = TARGET;
@@ -150,12 +218,106 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       'A3: every rendered row carries a non-empty name'
     ).toEqual({ named: rowCount, blank: [] });
 
-    // One scale, then the second step, where the format cards and the
-    // download button live; the Word card is pressed rather than relied on
-    // as the page's starting format. Ticking before moving is what turns the
-    // download button on.
-    await rows.first().locator('input[type=checkbox]').check();
+    // Every download the page hands over from here on is counted, so a save
+    // that is one file can be told from one that is two, or none.
+    const downloads = [];
+    page.on('download', (d) => downloads.push(d));
+
+    // The online card first: two scales ticked by name, the second step, the
+    // fourth card. The cards are read before the press, so a missing card
+    // fails A12 by name rather than as a locator timeout.
+    for (const name of ONLINE_SCALES) {
+      await rows.filter({ has: page.locator('.nm', { hasText: new RegExp(`^${name}$`) }) })
+        .locator('input[type=checkbox]').check();
+    }
     await page.locator('#stepbar button[data-goto="1"]').click();
+    const cardNames = await page.locator('[data-choose] .fmtname').allTextContents();
+    expect(
+      { count: cardNames.length, fourth: cardNames[3] ?? null },
+      'A12: the second step shows four format cards and the fourth is "Online form"'
+    ).toEqual({ count: 4, fourth: 'Online form' });
+    await page.locator('[data-choose="online"]').click();
+
+    // The button is asserted before its first press here, as it is again
+    // before the Word build below, so a renamed or missing button fails A7 by
+    // name rather than as a bare locator timeout on the press.
+    await expect(
+      page.locator('#downloadBtn'),
+      'A7: the download button is present and enabled'
+    ).toBeEnabled();
+
+    // One press, one save: the file is named for an online module build and
+    // holds the two scales and their items, in ascending order.
+    const first = await saveOnline(page, downloads, 'A13: the online save returns the status to "Ready."');
+    expect
+      .soft(
+        {
+          downloads: first.count,
+          name: first.name,
+          scales: first.parsed?.scales ?? null,
+          items: first.parsed?.items ?? null,
+        },
+        "A13: the online card saves one .json, named for the build, whose scales and items are the two ticked scales'"
+      )
+      .toEqual({
+        downloads: 1,
+        name: 'hitopsr-online-module.json',
+        scales: ONLINE_SCALES,
+        items: ONLINE_ITEMS,
+      });
+
+    // The anchor under the button: one, opening a new tab with rel noopener,
+    // pointing at the link builder with a c that decodes to the instrument
+    // and the module the saved file holds.
+    const afterSave = await readAnchor(page);
+    expect
+      .soft(
+        afterSave,
+        'A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener'
+      )
+      .toEqual({
+        count: 1,
+        anchor: {
+          base: LINK_BUILDER,
+          target: '_blank',
+          rel: 'noopener',
+          decoded: { instrument: 'hitopsr', module: first.parsed },
+        },
+      });
+
+    // A tick change removes the anchor. The second scale is unticked, which
+    // leaves the first alone: the one scale the Word build below starts from.
+    // A second online save puts exactly one anchor back, carrying the second
+    // file, whose items are the first scale's.
+    await page.locator('#stepbar button[data-goto="0"]').click();
+    await rows.filter({ has: page.locator('.nm', { hasText: new RegExp(`^${ONLINE_SCALES[1]}$`) }) })
+      .locator('input[type=checkbox]').uncheck();
+    const afterTick = await readAnchor(page);
+    await page.locator('#stepbar button[data-goto="1"]').click();
+    const second = await saveOnline(page, downloads, 'A15: the second online save returns the status to "Ready."');
+    const afterSecond = await readAnchor(page);
+    expect
+      .soft(
+        {
+          afterTick: afterTick.count,
+          afterSecond: afterSecond.count,
+          secondDownloads: second.count,
+          secondItems: second.parsed?.items ?? null,
+          secondDecoded: afterSecond.anchor?.decoded ?? null,
+        },
+        'A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file'
+      )
+      .toEqual({
+        afterTick: 0,
+        afterSecond: 1,
+        secondDownloads: 1,
+        secondItems: ONLINE_ITEMS_FIRST,
+        secondDecoded: { instrument: 'hitopsr', module: second.parsed },
+      });
+
+    // The Word build, from the one scale still ticked; the Word card is
+    // pressed rather than relied on as the page's starting format.
+    await rows.first().locator('input[type=checkbox]').check();
     await page.locator('[data-choose="docx"]').click();
 
     await expect(
@@ -172,6 +334,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // page's network panel, which is why nothing here watches for them.
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
+
+    // The anchor the second online save left is gone at the start of the Word
+    // build, read here before the A8 tick below, which removes it on its own
+    // account. It is read again after the build ends, further down.
+    const anchorAtWordStart = (await readAnchor(page)).count;
 
     // Every selection change (a tick, an untick, Select all, Clear all) goes
     // through refreshTally(), the one site that can turn the button back on
@@ -227,7 +394,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       .toEqual({
         button: wordButton,
         wordMarked: 'true',
-        cardsDisabled: [true, true, true],
+        cardsDisabled: [true, true, true, true],
         stillBuilding: true,
       });
 
@@ -274,7 +441,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     expect
       .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
       .toEqual({
-        looks: Array(3).fill({
+        looks: Array(4).fill({
           borderTopStyle: 'dashed',
           boxShadow: 'none',
           background: true,
@@ -295,6 +462,15 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
+
+    // The Word build that followed the online save leaves no anchor: none at
+    // its start (read above) and none now that its bundle has arrived.
+    expect
+      .soft(
+        { atStart: anchorAtWordStart, atEnd: (await readAnchor(page)).count },
+        'A16: no link-builder anchor is in the document at the start or the end of a Word build that follows an online save'
+      )
+      .toEqual({ atStart: 0, atEnd: 0 });
 
     // One scale ticked is a module, and the page names a Word module's bundle
     // and its entries hitopsr-word-module; the README travels in every bundle.

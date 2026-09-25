@@ -128,6 +128,81 @@ const PLANTS = [
     from: '      focusAtClick.focus({ preventScroll: true });\n',
     to: '',
   },
+  {
+    id: 'm',
+    what: 'the online card absent',
+    // The whole card is removed, so the second step shows three cards and
+    // A12, read before the press, fails by name.
+    from:
+      '      <button type="button" data-choose="online">\n' +
+      '        <span class="fmtname">Online form</span>\n' +
+      '        <span class="fmtwhat">A scoring file for the online form, to paste into the study link builder.</span>\n' +
+      '      </button>\n',
+    to: '',
+  },
+  {
+    id: 'n',
+    what: 'the saved scoring file under a wrong name',
+    from: "saveFile(descBytes, 'application/json', `${stem}.json`);",
+    to: "saveFile(descBytes, 'application/json', `${stem}.txt`);",
+  },
+  {
+    id: 'o',
+    what: "the saved scoring file's items out of order",
+    // The file's items array is reversed in the text the browser is handed.
+    // The anchor is made from the same text, so its c still equals the file
+    // and only A13 reads the difference.
+    from:
+      '      const descBytes = await webR.FS.readFile(descPath);\n' +
+      "      saveFile(descBytes, 'application/json'",
+    to:
+      '      const descBytes = new TextEncoder().encode(\n' +
+      '        new TextDecoder().decode(await webR.FS.readFile(descPath)).replace(\n' +
+      '          /"items": \\[([^\\]]*)\\]/,\n' +
+      "          (m, s) => '\"items\": [' + s.split(', ').reverse().join(', ') + ']'\n" +
+      '        )\n' +
+      '      );\n' +
+      "      saveFile(descBytes, 'application/json'",
+  },
+  {
+    id: 'p',
+    what: "the anchor's c carrying a module that differs from the saved file",
+    from: 'showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));',
+    to: 'showLinkBuilder({ ...JSON.parse(new TextDecoder().decode(descBytes)), nItems: 0 });',
+  },
+  {
+    id: 'q',
+    what: "the anchor's c lacking instrument",
+    from: 'base64url(JSON.stringify({ instrument: INSTRUMENT, module }));',
+    to: 'base64url(JSON.stringify({ module }));',
+  },
+  {
+    id: 'r',
+    what: 'the anchor on a wrong base URL',
+    from: "const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';",
+    to: "const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/index.html';",
+  },
+  {
+    id: 's',
+    what: 'the anchor without target',
+    from: '<a target="_blank" rel="noopener">Continue to the link builder</a>',
+    to: '<a rel="noopener">Continue to the link builder</a>',
+  },
+  {
+    id: 't',
+    what: 'the anchor without rel',
+    from: '<a target="_blank" rel="noopener">Continue to the link builder</a>',
+    to: '<a target="_blank">Continue to the link builder</a>',
+  },
+  {
+    id: 'u',
+    what: 'an anchor left in the document after a Word build',
+    // Only the removal at the start of a build is dropped. The tick removal
+    // and the replacement on an online save still run, so A15 holds and only
+    // A16, read at the start of the Word build, sees the anchor.
+    from: '    removeLinkBuilder();\n    status(`Building the',
+    to: '    status(`Building the',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
