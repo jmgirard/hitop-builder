@@ -22,8 +22,10 @@
 //   A13: the online card saves one .json, named for the build, whose scales and items are the two ticked scales'
 //   A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
 //   A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file
-//   A16: no link-builder anchor is in the document at the start or the end of a Word build that follows an online save
+//   A16: no link-builder anchor is in the document while a second online save begun with the first save's link present runs
 //   A17: a tick during an online build leaves no link-builder anchor at the build's end
+//   A18: a press of the Word card after an online save removes the anchor and hides its paragraph, and the Online card pressed again keeps the anchor
+//   A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -33,9 +35,9 @@
 // failure, so a renamed or missing button or card is reported as a named
 // assertion the plant matrix can account for, not as a bare locator timeout.
 //
-// The online save comes before the Word build, on the same page: A16 is about
-// a Word build that follows an online save, and the second online save (A15)
-// leaves exactly the one ticked scale the Word build has always started from.
+// The online saves come before the Word build, on the same page: A18 presses
+// the Word card after an online save, and the online saves after A15 leave
+// exactly the one ticked scale the Word build has always started from.
 
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
@@ -155,18 +157,42 @@ async function readAnchor(page) {
   };
 }
 
-// Presses the download button and waits for the status to come back to
-// "Ready.", counting the download events in between. The saved file's text
-// is read back, so the test compares what the browser was handed.
+// The status an online save ends on when it puts the link in. A save that
+// puts no link in, and every other build, ends on the bare "Ready.".
+const SAVED_STATUS = 'Ready. The scoring file is saved. The link to the link builder is under the button.';
+
+// Presses the download button and waits for the status to come back to one
+// beginning with "Ready.", counting the download events in between. The
+// saved file's text is read back, so the test compares what the browser was
+// handed, and the status text is returned, so a caller can read which
+// "Ready." the save ended on. The wait takes either, so a save ending on the
+// wrong one fails the read that names it (A19) rather than stopping the run
+// here.
 async function saveOnline(page, downloads, label) {
   const before = downloads.length;
   await page.locator('#downloadBtn').click();
-  await expect(page.locator('#status'), label).toHaveText('Ready.', { timeout: BUILD_MS });
+  await expect(page.locator('#status'), label).toHaveText(/^Ready\./, { timeout: BUILD_MS });
+  const status = await page.locator('#status').textContent();
   const saved = downloads.slice(before);
   const text = saved.length === 1 ? await readFile(await saved[0].path(), 'utf8') : '';
   let parsed = null;
   try { parsed = JSON.parse(text); } catch { parsed = null; }
-  return { count: saved.length, name: saved[0]?.suggestedFilename() ?? '', text, parsed };
+  return { count: saved.length, name: saved[0]?.suggestedFilename() ?? '', text, parsed, status };
+}
+
+// What the test reads of the page around the link, in one call: the count of
+// link-builder anchors in the whole document, found by their text as
+// readAnchor() finds them; whether the paragraph that holds the link carries
+// the hidden attribute (null with no such paragraph, which no expectation
+// below accepts); and the status text. One call, so the three are read from
+// one state of the page.
+function readLinkState(page) {
+  return page.evaluate(() => ({
+    anchors: [...document.querySelectorAll('a')]
+      .filter((a) => a.textContent.trim() === 'Continue to the link builder').length,
+    hidden: document.getElementById('onlineNext')?.hasAttribute('hidden') ?? null,
+    status: document.getElementById('status').textContent,
+  }));
 }
 
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
@@ -286,14 +312,39 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         },
       });
 
-    // A tick change removes the anchor. The second scale is unticked, which
-    // leaves the first alone: the one scale the Word build below starts from.
-    // A second online save puts exactly one anchor back, carrying the second
-    // file, whose items are the first scale's.
+    // A second online save, pressed with the first save's link still in the
+    // document. download() takes the link out before anything else, so no
+    // anchor is in the document while the build runs. The count is read in
+    // one call right after the press, with the button's state, as A17's
+    // tick is: a read that landed after the build ended reads the button as
+    // on and fails here as a false red, never a false green. The same read
+    // is taken before the press, where it shows the count finds the anchor.
+    // The wait takes any "Ready.", as saveOnline() does.
+    const beforeSecondPress = await readLinkState(page);
+    await page.locator('#downloadBtn').click();
+    const atSecondPress = await page.evaluate(() => ({
+      anchors: [...document.querySelectorAll('a')]
+        .filter((a) => a.textContent.trim() === 'Continue to the link builder').length,
+      building: document.getElementById('downloadBtn').disabled,
+    }));
+    await expect(page.locator('#status'), 'A16: the second online save returns the status to a "Ready."')
+      .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    expect
+      .soft(
+        { anchorsBeforePress: beforeSecondPress.anchors, ...atSecondPress },
+        "A16: no link-builder anchor is in the document while a second online save begun with the first save's link present runs"
+      )
+      .toEqual({ anchorsBeforePress: 1, anchors: 0, building: true });
+
+    // A tick change removes the anchor and returns the status to "Ready.".
+    // The second scale is unticked, which leaves the first alone: the one
+    // scale the Word build below starts from. A second online save from it
+    // puts exactly one anchor back, carrying the second file, whose items
+    // are the first scale's.
     await page.locator('#stepbar button[data-goto="0"]').click();
     await rows.filter({ has: page.locator('.nm', { hasText: new RegExp(`^${ONLINE_SCALES[1]}$`) }) })
       .locator('input[type=checkbox]').uncheck();
-    const afterTick = await readAnchor(page);
+    const afterTick = { ...(await readAnchor(page)), status: await page.locator('#status').textContent() };
     await page.locator('#stepbar button[data-goto="1"]').click();
 
     // An online save from the one scale, with a second scale ticked
@@ -316,8 +367,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       box.dispatchEvent(new Event('change', { bubbles: true }));
       return { buildingAtTick: document.getElementById('downloadBtn').disabled };
     });
+    // The wait is on the bare "Ready.": the save put no link in, so the
+    // status must not name one. The text is read again for A19.
     await expect(page.locator('#status'), 'A17: the mid-tick online save returns the status to "Ready."')
       .toHaveText('Ready.', { timeout: BUILD_MS });
+    const statusAfterMidTick = await page.locator('#status').textContent();
     expect
       .soft(
         {
@@ -355,6 +409,44 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         secondDecoded: { instrument: 'hitopsr', module: second.parsed },
       });
 
+    // The status line, the page's one announced region, is what tells a
+    // visitor the link is there. Three reads: after the first save, which put
+    // a link in; after the mid-tick save, which put none in; and after the
+    // untick that took one out.
+    expect
+      .soft(
+        { afterFirstSave: first.status, afterMidTickSave: statusAfterMidTick, afterUntick: afterTick.status },
+        'A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link'
+      )
+      .toEqual({ afterFirstSave: SAVED_STATUS, afterMidTickSave: 'Ready.', afterUntick: 'Ready.' });
+
+    // A press of another format's card takes the link out and hides its
+    // paragraph: the link belongs with the online card. The Word card stands
+    // for the three, which share setFormat(). The read before the press
+    // shows the count and the paragraph are found. After the press, the
+    // removal has returned the status to "Ready." and the card handler has
+    // written the chosen format after it. The online card is then pressed
+    // again, a save made from it, and the online card pressed once more: a
+    // press that changes nothing keeps the link.
+    const beforeWordPress = await readLinkState(page);
+    await page.locator('[data-choose="docx"]').click();
+    const afterWordPress = await readLinkState(page);
+    await page.locator('[data-choose="online"]').click();
+    const third = await saveOnline(page, downloads, 'A18: the online save after the Word card press returns the status to a "Ready."');
+    await page.locator('[data-choose="online"]').click();
+    const afterOnlineAgain = await readLinkState(page);
+    expect
+      .soft(
+        { beforeWordPress, afterWordPress, thirdDownloads: third.count, afterOnlineAgain },
+        'A18: a press of the Word card after an online save removes the anchor and hides its paragraph, and the Online card pressed again keeps the anchor'
+      )
+      .toEqual({
+        beforeWordPress: { anchors: 1, hidden: false, status: SAVED_STATUS },
+        afterWordPress: { anchors: 0, hidden: true, status: 'Ready. Word form chosen.' },
+        thirdDownloads: 1,
+        afterOnlineAgain: { anchors: 1, hidden: false, status: 'Ready. Online form chosen.' },
+      });
+
     // The Word build, from the one scale still ticked; the Word card is
     // pressed rather than relied on as the page's starting format.
     await rows.first().locator('input[type=checkbox]').check();
@@ -374,11 +466,6 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // page's network panel, which is why nothing here watches for them.
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
-
-    // The anchor the second online save left is gone at the start of the Word
-    // build, read here before the A8 tick below, which removes it on its own
-    // account. It is read again after the build ends, further down.
-    const anchorAtWordStart = (await readAnchor(page)).count;
 
     // Every selection change (a tick, an untick, Select all, Clear all) goes
     // through refreshTally(), the one site that can turn the button back on
@@ -502,15 +589,6 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
-
-    // The Word build that followed the online save leaves no anchor: none at
-    // its start (read above) and none now that its bundle has arrived.
-    expect
-      .soft(
-        { atStart: anchorAtWordStart, atEnd: (await readAnchor(page)).count },
-        'A16: no link-builder anchor is in the document at the start or the end of a Word build that follows an online save'
-      )
-      .toEqual({ atStart: 0, atEnd: 0 });
 
     // One scale ticked is a module, and the page names a Word module's bundle
     // and its entries hitopsr-word-module; the README travels in every bundle.
