@@ -23,6 +23,7 @@
 //   A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
 //   A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file
 //   A16: no link-builder anchor is in the document at the start or the end of a Word build that follows an online save
+//   A17: a tick during an online build leaves no link-builder anchor at the build's end
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -294,6 +295,45 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       .locator('input[type=checkbox]').uncheck();
     const afterTick = await readAnchor(page);
     await page.locator('#stepbar button[data-goto="1"]').click();
+
+    // An online save from the one scale, with a second scale ticked
+    // while R writes the file. The boxes stay on during a build, and the
+    // file saved is the one-scale module, so a link put back at the end
+    // would carry it beside a two-scale selection: the page must end with
+    // no link. The tick is made in the page rather than by a click on the
+    // first step, so it lands within the build; the button's state is read
+    // in the same call, and a tick that landed after the build ended reads
+    // the button as on and fails here as a false red, never a false green,
+    // since the tick's own removal would leave no link either way. The
+    // second scale is unticked again once the build ends, so the second
+    // save below starts from the one scale, and its link is the one the Word
+    // build further down starts with.
+    const midBefore = downloads.length;
+    await page.locator('#downloadBtn').click();
+    const atTick = await page.evaluate(() => {
+      const box = document.querySelectorAll('#scales input')[1];
+      box.checked = true;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+      return { buildingAtTick: document.getElementById('downloadBtn').disabled };
+    });
+    await expect(page.locator('#status'), 'A17: the mid-tick online save returns the status to "Ready."')
+      .toHaveText('Ready.', { timeout: BUILD_MS });
+    expect
+      .soft(
+        {
+          buildingAtTick: atTick.buildingAtTick,
+          downloads: downloads.length - midBefore,
+          anchors: (await readAnchor(page)).count,
+        },
+        "A17: a tick during an online build leaves no link-builder anchor at the build's end"
+      )
+      .toEqual({ buildingAtTick: true, downloads: 1, anchors: 0 });
+    await page.evaluate(() => {
+      const box = document.querySelectorAll('#scales input')[1];
+      box.checked = false;
+      box.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
     const second = await saveOnline(page, downloads, 'A15: the second online save returns the status to "Ready."');
     const afterSecond = await readAnchor(page);
     expect

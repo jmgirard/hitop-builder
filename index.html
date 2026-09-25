@@ -715,8 +715,9 @@ const INSTRUMENT = 'hitopsr';
 // only its current build and webR.installPackages takes no version, so the
 // page cannot ask for a particular one; refusing an older one is what it can
 // do instead. Every surface the page calls -- available_scales(),
-// hitop_module(), scale_definitions(), and the three generate_*_hitopsr()
-// functions with their `descriptor` argument -- is present at this version.
+// hitop_module(), write_module(), scale_definitions(), and the three
+// generate_*_hitopsr() functions with their `descriptor` argument -- is
+// present at this version.
 // Raise it when a `hitop` release changes one of those; the release walk in
 // the package repo's cairn/PROFILE.md carries that step.
 const MIN_HITOP = '0.2.0';
@@ -867,7 +868,8 @@ function removeLinkBuilder() {
 // neither the name nor the descriptor: only the questionnaire itself keeps
 // them.
 //
-// `shuffle` is false on both online formats, which offer no shuffle control.
+// `shuffle` is false on the Qualtrics and REDCap formats, which offer no
+// shuffle control, and on the online form, which prints nothing.
 function downloadStem(format, whole, shuffle) {
   return `${INSTRUMENT}-${FORMATS[format].name}` +
     `${whole ? '' : '-module'}${shuffle ? '-shuffled' : ''}`;
@@ -962,7 +964,7 @@ function setFormat(format) {
 }
 
 // The mark on a format card says which format the settings and the button
-// below it belong to. The cards act as a choice among three, so the page's
+// below it belong to. The cards act as a choice among four, so the page's
 // starting format is marked as soon as the controls are shown: the panel on
 // show is already Word's, and an unmarked card row would leave that unsaid.
 function markFormatChoice(format) {
@@ -1413,7 +1415,7 @@ async function download() {
     status(`Building the ${spec.ext.toUpperCase()} file…`);
 
     // The paper form is the only format taking a page size, and the only one
-    // offered a shuffle or a numbering choice: on the two online exports an
+    // offered a shuffle or a numbering choice: on the Qualtrics and REDCap exports an
     // item number names a collected data column, so reordering or renumbering
     // them would rename variables in dictionaries already in the field.
     // `randomize` and `renumber` are passed to the DOCX call and to nothing
@@ -1448,7 +1450,14 @@ async function download() {
       const descBytes = await webR.FS.readFile(descPath);
       saveFile(descBytes, 'application/json', `${stem}.json`);
       log(`  saved ${stem}.json (${descBytes.length} bytes).`);
-      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
+      // The link carries the module of the file just saved, so it is put in
+      // only while the selection is still the one that file was built from.
+      // The boxes stay on during a build, and a tick made while R wrote the
+      // file has already removed the last link and changed the selection; a
+      // link put in here would sit beside a selection it does not describe.
+      if (selected().join() === chosen.join()) {
+        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
+      }
       status('Ready.');
       return;
     }
@@ -1463,8 +1472,8 @@ async function download() {
     // The visitor can change a control while the build waits on R, and a
     // value read after that point would mix two sets of settings in one
     // bundle. Each naming value goes only into the format that has the
-    // argument: the Word call takes none of them, and neither online format
-    // takes the other's.
+    // argument: the Word call takes none of them, and neither the Qualtrics
+    // nor the REDCap call takes the other's.
     const papersize =
       document.querySelector('input[name=papersize]:checked').value;
     const block = format === 'qualtrics' ? namingValue('blockName') : '';

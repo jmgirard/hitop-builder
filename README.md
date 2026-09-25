@@ -451,11 +451,11 @@ Every tracked file:
 |---|---|
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
-| `.github/workflows/smoke.yml` | Runs the prose extraction, then the smoke test on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
+| `.github/workflows/smoke.yml` | Runs the prose extraction on this checkout on every run, then the smoke test: on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
 | `tests/smoke.spec.js` | The smoke test: boot the page, check that each scale row has a name, save the online form's scoring file and read its link, then download a Word bundle and read the form out of it |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list, each run to prove the smoke test goes red on it |
-| `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run: lists every string a visitor reads, for a linter, and the facts each passage carries, and refuses a page with a text-writing site its ledger does not classify |
+| `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run: lists every string a visitor reads, for a linter, and the facts each passage carries, and refuses a page whose count of `.textContent`, `.innerHTML` and `.setAttribute` writes differs from its ledger |
 | `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
 | `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
 | `package.json`, `package-lock.json` | The pinned `@playwright/test` they run under |

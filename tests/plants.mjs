@@ -203,6 +203,29 @@ const PLANTS = [
     from: '    removeLinkBuilder();\n    status(`Building the',
     to: '    status(`Building the',
   },
+  {
+    id: 'v',
+    what: 'the link put in at the end of an online build whatever the selection',
+    // The guard that compares the selection at the end of the build with
+    // the one the file was built from is dropped, so a tick during the
+    // build is followed by a link for the old selection. Only A17 ticks
+    // during an online build, so only A17 sees it.
+    from:
+      '      if (selected().join() === chosen.join()) {\n' +
+      '        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
+      '      }\n',
+    to: '      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n',
+  },
+  {
+    id: 'w',
+    what: 'the link left in place on a selection change',
+    // The removal in selectionChanged() is dropped. A15's untick then finds
+    // the first save's link still there. The removal at the start of a
+    // build and the guard at the end of an online build still run, so A16
+    // and A17 hold.
+    from: 'function selectionChanged() {\n  removeLinkBuilder();\n  refreshTally();',
+    to: 'function selectionChanged() {\n  refreshTally();',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself
