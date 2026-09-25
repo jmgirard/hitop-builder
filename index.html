@@ -268,7 +268,7 @@
   .formats .fmtname { font-weight: 600; }
   .formats .fmtwhat { color: var(--muted); font-size: var(--t-small); font-weight: 400; }
   /* The current format's card is filled and carries a check in its corner,
-     so the row reads as a choice of one among three. During a build the
+     so the row reads as a choice of one among four. During a build the
      disabled rule below greys the fill and leaves the check. The check is
      drawn, not a character, so no screen reader reads it out; aria-current
      says it. */
@@ -442,7 +442,8 @@
 <h1>HiTOP-SR Module Builder</h1>
 <p class="lede">Choose the HiTOP-SR scales you need. Download a questionnaire
 that carries only those items, as a Word form to print, a Qualtrics import
-file, or a REDCap data dictionary.</p>
+file, or a REDCap data dictionary. Or save the scoring file alone and carry
+it into a study link for the online form.</p>
 
 <p class="lede">Everything runs in your own browser. To do that, the page
 fetches R from <code>webr.r-wasm.org</code>. It fetches the
@@ -488,7 +489,7 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     </div>
   </section>
 
-  <!-- One screen for the format and its download. The three cards choose a
+  <!-- One screen for the format and its download. The four cards choose a
        format in place; the chosen format's settings sit folded under them,
        and the one download button builds that format. The panels are all in
        the markup and only the chosen one is shown, so nothing a hidden panel
@@ -514,6 +515,10 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       <button type="button" data-choose="redcap">
         <span class="fmtname">REDCap (.zip)</span>
         <span class="fmtwhat">A data dictionary to import into a REDCap project.</span>
+      </button>
+      <button type="button" data-choose="online">
+        <span class="fmtname">Online form</span>
+        <span class="fmtwhat">A scoring file for the online form, to paste into the study link builder.</span>
       </button>
     </div>
     <!-- Each format's settings live in one disclosure, closed on first paint
@@ -606,8 +611,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
         </details>
       </div>
     </div>
-    <!-- Shown for all three formats, because every download this page makes
-         carries a scoring file: it is the only record of which scales a form
+    <!-- Shown for the three bundled formats, because every bundle this page
+         makes carries a scoring file: it is the only record of which scales a form
          collects, and on a shuffled Word form of the order it printed them
          in. It sits above the button rather than in the small print under it,
          so it is read before the file arrives rather than after. -->
@@ -632,11 +637,44 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
     its scoring file in this browser, zips them with the README, and saves that
     one bundle. It is on while at least one scale is ticked and no build is
     running.</p>
+    <!-- The online form's notice and hint. The online form needs no
+         questionnaire file: the hitop-form page shows the items from the
+         package's own export, and the study link carries the module. So this
+         card saves the scoring file alone, one .json and no bundle, and the
+         two blocks above are swapped for these by setFormat(). -->
+    <div class="notice" id="onlineNote" hidden>
+      <p>A download here is one small <code>.json</code> scoring file, not a
+      zip bundle. The button below writes it and saves it. The online form
+      needs no questionnaire file: the hitop-form page shows the items itself,
+      and the study link carries this file's module. The file lists the scales
+      you chose. It takes its name from the build that made it:
+      <code>hitopsr-online.json</code> with every scale ticked, and
+      <code>hitopsr-online-module.json</code> for a selection. Two builds that
+      differ only in which scales you ticked share a name. If you keep both,
+      rename one of them.</p>
+      <p>Keep the <code>.json</code> file with the responses you collect. When
+      you score the data, the <code>hitop</code> package reads it back with
+      <code>read_module()</code>. After the save, a link under the button opens
+      the hitop-form link builder in a new tab with this file's module filled
+      in, so the study link you make there shows only the scales you chose.</p>
+    </div>
+    <p class="hint" id="onlineHint" hidden>The button writes the scoring file
+    in this browser and saves it. It is on while at least one scale is ticked
+    and no build is running.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
       </div>
     </div>
+    <!-- Shown after an online save, and only until the selection changes or
+         another build starts. The link itself is made by showLinkBuilder()
+         from the template here: its text is static markup, and the script
+         fills in the href. It is removed from the document, not hidden, when
+         the selection it was made for no longer holds (see removeLinkBuilder()),
+         so a stale link is never left in the page. -->
+    <p class="hint" id="onlineNext" hidden>The scoring file is saved.
+    <span id="linkBuilderSlot"><template id="linkBuilderTpl"><a target="_blank" rel="noopener">Continue to the link builder</a></template></span>
+    to make the study link. It opens in a new tab with your module filled in.</p>
     <div class="stepnav">
       <button type="button" data-goto="0">Back to scales</button>
     </div>
@@ -718,7 +756,7 @@ let bootAbandoned = false;
 // first ends can put its files into the first one's bundle. refreshTally()
 // reads this flag so that a selection change during a build leaves the button
 // off, and download() returns at once while it is set. download() also turns
-// the three format cards off until the build ends, so a card press cannot
+// the format cards off until the build ends, so a card press cannot
 // switch the page to another format while it builds this one.
 let building = false;
 
@@ -768,7 +806,53 @@ const FORMATS = {
     label: 'REDCap dictionary',
     button: 'Download the REDCap dictionary (.zip bundle)',
   },
+  // The online form has no questionnaire file and no bundle: download()
+  // writes the scoring file with write_module() and saves that one .json
+  // (see the online branch there), so `ext` is the saved file's own.
+  online: {
+    fn: 'write_module', ext: 'json', name: 'online',
+    label: 'Online form',
+    button: 'Download the scoring file (.json)',
+  },
 };
+
+// hitop-form's link builder, and the encoding its `c` parameter takes (form.js
+// encodeConfig()): the JSON text as UTF-8 bytes, base64 with `-` and `_` in
+// place of `+` and `/` and no `=` padding. Written here rather than imported,
+// because this page loads nothing from hitop-form.
+const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+
+function base64url(text) {
+  const bytes = new TextEncoder().encode(text);
+  let bin = '';
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+// Puts the "Continue to the link builder" link under the download button
+// after an online save. The link is cloned from the template in the markup,
+// so its text and its target and rel attributes are static, and only the href
+// is made here: the link builder's address with a `c` that carries the
+// instrument and the module the saved file holds, which is what link.html's
+// prefill reads. Any link already there is removed first, so the document
+// never holds two.
+function showLinkBuilder(module) {
+  removeLinkBuilder();
+  const a = el('linkBuilderTpl').content.firstElementChild.cloneNode(true);
+  a.href = `${LINK_BUILDER}?c=` +
+    base64url(JSON.stringify({ instrument: INSTRUMENT, module }));
+  el('linkBuilderSlot').append(a);
+  el('onlineNext').hidden = false;
+}
+
+// Takes the link out of the document. Called on every selection change and
+// at the start of every build: the link carries the module of one saved
+// file, and a tick or a new build makes that file no longer the one the
+// selection describes.
+function removeLinkBuilder() {
+  for (const a of el('linkBuilderSlot').querySelectorAll('a')) a.remove();
+  el('onlineNext').hidden = true;
+}
 
 // The stem both files of one build share. Three things about the build are
 // recoverable from it -- which format wrote it, whether it covers the whole
@@ -865,6 +949,14 @@ function setFormat(format) {
     panel.hidden = panel.dataset.panel !== format;
   }
   for (const d of document.querySelectorAll('.fmtpanel details')) d.open = false;
+  // The online card has no settings panel, so no panel is on show under it.
+  // Its notice and hint say a single .json is saved, where the other three
+  // cards' say a bundle is; the two pairs are swapped here.
+  const online = format === 'online';
+  el('descriptorNote').hidden = online;
+  el('downloadHint').hidden = online;
+  el('onlineNote').hidden = !online;
+  el('onlineHint').hidden = !online;
   markFormatChoice(format);
   el('downloadBtn').textContent = FORMATS[format].button;
 }
@@ -978,7 +1070,7 @@ function renderScales() {
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.value = s.camelCase;
-    input.addEventListener('change', refreshTally);
+    input.addEventListener('change', selectionChanged);
     const name = document.createElement('span');
     name.className = 'nm';
     name.textContent = s.Scale;
@@ -1095,6 +1187,16 @@ function selectVisible() {
   for (const label of document.querySelectorAll('#scales label')) {
     if (label.style.display !== 'none') label.querySelector('input').checked = true;
   }
+  selectionChanged();
+}
+
+// Every change the visitor makes to the selection -- a tick, an untick,
+// Select all, Clear all -- comes through here. It is not refreshTally(),
+// which download() also calls when a build ends: the link-builder link is
+// removed on a selection change and must survive the end of the online build
+// that made it.
+function selectionChanged() {
+  removeLinkBuilder();
   refreshTally();
 }
 
@@ -1133,7 +1235,7 @@ function crosswalkSentence() {
 
 function clearAll() {
   for (const input of document.querySelectorAll('#scales input')) input.checked = false;
-  refreshTally();
+  selectionChanged();
 }
 
 // Say which scales "select all" will take, so its scope is never a surprise.
@@ -1305,6 +1407,9 @@ async function download() {
     building = true;
     buttons.forEach((b) => (b.disabled = true));
     cards.forEach((b) => (b.disabled = true));
+    // A build of any format makes the last online save's link stale: an
+    // online build replaces it at its end, and any other build leaves none.
+    removeLinkBuilder();
     status(`Building the ${spec.ext.toUpperCase()} file…`);
 
     // The paper form is the only format taking a page size, and the only one
@@ -1320,6 +1425,34 @@ async function download() {
     // questionnaire and the scoring file inside it take the same stem, so a
     // bundle a visitor extracts still reads as one build.
     const stem = downloadStem(format, whole, shuffle);
+
+    // The online form: no questionnaire, no README, no bundle. The scoring
+    // file is written by write_module() from the ticked scales, every scale
+    // included when every box is ticked, since the study link carries the
+    // module either way, and it is saved as the one download. The link to
+    // the link builder is made from the file's own text, so what the link
+    // carries is what was saved. The finally below runs on the return.
+    if (format === 'online') {
+      const descPath = `/tmp/${stem}.json`;
+      await webR.objs.globalEnv.bind('selected_scales', chosen);
+      await webR.objs.globalEnv.bind('desc_path', descPath);
+      log(`> write_module(hitop_module("${INSTRUMENT}", ` +
+          `scales = <${chosen.length} scales>), file = "${stem}.json")`);
+      await webR.evalRVoid(`
+        unlink(desc_path)
+        hitop::write_module(
+          hitop::hitop_module("${INSTRUMENT}", scales = selected_scales),
+          file = desc_path
+        )
+      `, { captureStreams: false });
+      const descBytes = await webR.FS.readFile(descPath);
+      saveFile(descBytes, 'application/json', `${stem}.json`);
+      log(`  saved ${stem}.json (${descBytes.length} bytes).`);
+      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
+      status('Ready.');
+      return;
+    }
+
     const path = `${bundleDir}/${questionnaireName(format, stem)}`;
     const descPath = `${bundleDir}/${stem}.json`;
     const readmePath = `${bundleDir}/README.txt`;
