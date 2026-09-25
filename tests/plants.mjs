@@ -150,18 +150,17 @@ const PLANTS = [
     id: 'o',
     what: "the saved scoring file's items out of order",
     // The file's items array is reversed in the text the browser is handed,
-    // on both saves. The anchor is made from the same text, so its c still
-    // equals the file and A14 holds; A13 and A15 read the reversed items.
+    // on every save: the text is parsed, its items reversed, and the module
+    // serialised again, so the plant reads no layout of write_module()'s
+    // output. The anchor is made from the same text, so its c still equals
+    // the file and A14 holds; A13 and A15 read the reversed items.
     from:
       '      const descBytes = await webR.FS.readFile(descPath);\n' +
       "      saveFile(descBytes, 'application/json'",
     to:
-      '      const descBytes = new TextEncoder().encode(\n' +
-      '        new TextDecoder().decode(await webR.FS.readFile(descPath)).replace(\n' +
-      '          /"items": \\[([^\\]]*)\\]/,\n' +
-      "          (m, s) => '\"items\": [' + s.split(', ').reverse().join(', ') + ']'\n" +
-      '        )\n' +
-      '      );\n' +
+      '      const descModule = JSON.parse(new TextDecoder().decode(await webR.FS.readFile(descPath)));\n' +
+      '      descModule.items.reverse();\n' +
+      '      const descBytes = new TextEncoder().encode(JSON.stringify(descModule));\n' +
       "      saveFile(descBytes, 'application/json'",
   },
   {
@@ -196,10 +195,12 @@ const PLANTS = [
   },
   {
     id: 'u',
-    what: 'an anchor left in the document after a Word build',
-    // Only the removal at the start of a build is dropped. The tick removal
-    // and the replacement on an online save still run, so A15 holds and only
-    // A16, read at the start of the Word build, sees the anchor.
+    what: 'an anchor left in the document while a build runs',
+    // Only the removal at the start of a build is dropped. The tick removal,
+    // the card-press removal and the replacement on an online save still
+    // run, so A15, A17 and A18 hold, and only A16, read right after the
+    // press that starts a second online save with a link present, sees the
+    // anchor.
     from: '    removeLinkBuilder();\n    status(`Building the',
     to: '    status(`Building the',
   },
@@ -208,23 +209,65 @@ const PLANTS = [
     what: 'the link put in at the end of an online build whatever the selection',
     // The guard that compares the selection at the end of the build with
     // the one the file was built from is dropped, so a tick during the
-    // build is followed by a link for the old selection. Only A17 ticks
-    // during an online build, so only A17 sees it.
+    // build is followed by a link for the old selection and the status
+    // naming it. Only A17 ticks during an online build, so only A17 sees it.
     from:
       '      if (selected().join() === chosen.join()) {\n' +
       '        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
+      "        status('Ready. The scoring file is saved. The link to the link builder is under the button.');\n" +
+      '      } else {\n' +
+      "        status('Ready.');\n" +
       '      }\n',
-    to: '      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n',
+    to:
+      '      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
+      "      status('Ready. The scoring file is saved. The link to the link builder is under the button.');\n",
   },
   {
     id: 'w',
     what: 'the link left in place on a selection change',
     // The removal in selectionChanged() is dropped. A15's untick then finds
-    // the first save's link still there. The removal at the start of a
-    // build and the guard at the end of an online build still run, so A16
-    // and A17 hold.
+    // the link from the A16 save still there, and A19 reads the status still
+    // naming it. The removal at the start of a build, the card-press removal
+    // and the guard at the end of an online build still run, so A16, A17 and
+    // A18 hold.
     from: 'function selectionChanged() {\n  removeLinkBuilder();\n  refreshTally();',
     to: 'function selectionChanged() {\n  refreshTally();',
+  },
+  {
+    id: 'x',
+    what: 'the link left in place on a press of another format\'s card',
+    // The removal in setFormat() is dropped. A18's Word card press then
+    // finds the link still there and its paragraph still shown. The other
+    // removals still run, so A15, A16 and A17 hold.
+    from: '  if (format !== currentFormat) removeLinkBuilder();\n  currentFormat = format;',
+    to: '  currentFormat = format;',
+  },
+  {
+    id: 'x2',
+    what: 'the link removed on every card press, the online card pressed again included',
+    // The guard on the removal in setFormat() is dropped. A18's second
+    // press of the online card, after a save, then finds no link. The Word
+    // card press still removes it, so the first half of A18 holds.
+    from: '  if (format !== currentFormat) removeLinkBuilder();',
+    to: '  removeLinkBuilder();',
+  },
+  {
+    id: 'y',
+    what: 'the status after an online save silent about the saved file and the link',
+    // The saved-file status is replaced with the bare "Ready.". A19's read
+    // after the first save sees it; A18's read before the Word card press
+    // does too.
+    from: "        status('Ready. The scoring file is saved. The link to the link builder is under the button.');",
+    to: "        status('Ready.');",
+  },
+  {
+    id: 'z',
+    what: 'the status left naming the link after a tick removed it',
+    // The reset in removeLinkBuilder() is dropped. A19's read after the
+    // untick then sees the saved-file status still standing. The card
+    // handler writes its own "Ready." after a press, so A18 holds.
+    from: "  if (links.length) status('Ready.');\n",
+    to: '',
   },
 ];
 
