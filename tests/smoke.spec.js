@@ -1,7 +1,7 @@
 // The smoke test: one headless run of the builder page, from a cold boot to a
-// Word form on disk. It drives the page the way a visitor does -- it reads no
-// page internals and stubs nothing -- so a green run means the deployed
-// article really does hand over a document.
+// Word form on disk. It drives the page the way a visitor does -- it reads
+// only the page's document, no script state, and stubs nothing -- so a green
+// run means the deployed article really does hand over a document.
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
@@ -167,10 +167,16 @@ const SAVED_STATUS = 'Ready. The scoring file is saved. The link to the link bui
 // handed, and the status text is returned, so a caller can read which
 // "Ready." the save ended on. The wait takes either, so a save ending on the
 // wrong one fails a later status read (A19 for the first save, A18 for the
-// save read as `second`) rather than stopping the run here.
+// save read as `second`) rather than stopping the run here. The status
+// before the press also begins with "Ready.", so the save's download event
+// is awaited first: the status is then read after the build that produced
+// the file, whether or not download() wrote its progress line before the
+// click resolved.
 async function saveOnline(page, downloads, label) {
   const before = downloads.length;
+  const saved1 = page.waitForEvent('download', { timeout: BUILD_MS });
   await page.locator('#downloadBtn').click();
+  await saved1;
   await expect(page.locator('#status'), label).toHaveText(/^Ready\./, { timeout: BUILD_MS });
   const status = await page.locator('#status').textContent();
   const saved = downloads.slice(before);
@@ -184,10 +190,12 @@ async function saveOnline(page, downloads, label) {
 // link-builder anchors in the whole document, found by their exact text
 // (readAnchor() finds the same link by its accessible name); whether the paragraph that holds the link carries
 // the hidden attribute (null with no such paragraph, which no expectation
-// below accepts); and the status text. One call, so the three are read from
-// one state of the page.
+// below accepts); the status text; and whether the download button is off,
+// which it is for the length of a build. One call, so the four are read
+// from one state of the page.
 function readLinkState(page) {
   return page.evaluate(() => ({
+    building: document.getElementById('downloadBtn').disabled,
     anchors: [...document.querySelectorAll('a')]
       .filter((a) => a.textContent.trim() === 'Continue to the link builder').length,
     hidden: document.getElementById('onlineNext')?.hasAttribute('hidden') ?? null,
@@ -313,25 +321,25 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       });
 
     // A second online save, pressed with the first save's link still in the
-    // document. download() takes the link out before anything else, so no
-    // anchor is in the document while the build runs. The count is read in
-    // one call right after the press, with the button's state, as A17's
-    // tick is: a read that landed after the build ended reads the button as
-    // on and fails here as a false red, never a false green. The same read
-    // is taken before the press, where it shows the count finds the anchor.
-    // The wait takes any "Ready.", as saveOnline() does.
+    // document. download() takes the link out synchronously, before its
+    // first await, right after it turns the controls off, so no anchor is in
+    // the document while the build runs. The count is read in one call
+    // right after the press, with the button's state, as A17's tick is: a
+    // read that landed after the build ended reads the button as on and
+    // fails here as a false red, never a false green. The same read is
+    // taken before the press, where it shows the count finds the anchor.
+    // The save's download is awaited and then any "Ready.", as
+    // saveOnline() does.
     const beforeSecondPress = await readLinkState(page);
+    const secondSaved = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
-    const atSecondPress = await page.evaluate(() => ({
-      anchors: [...document.querySelectorAll('a')]
-        .filter((a) => a.textContent.trim() === 'Continue to the link builder').length,
-      building: document.getElementById('downloadBtn').disabled,
-    }));
+    const atSecondPress = await readLinkState(page);
+    await secondSaved;
     await expect(page.locator('#status'), 'A16: the second online save returns the status to a "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
     expect
       .soft(
-        { anchorsBeforePress: beforeSecondPress.anchors, ...atSecondPress },
+        { anchorsBeforePress: beforeSecondPress.anchors, anchors: atSecondPress.anchors, building: atSecondPress.building },
         "A16: no link-builder anchor is in the document while a second online save begun with the first save's link present runs"
       )
       .toEqual({ anchorsBeforePress: 1, anchors: 0, building: true });
@@ -367,10 +375,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       box.dispatchEvent(new Event('change', { bubbles: true }));
       return { buildingAtTick: document.getElementById('downloadBtn').disabled };
     });
-    // The wait is on the bare "Ready.": the save put no link in, so the
-    // status must not name one. The text is read again for A19.
-    await expect(page.locator('#status'), 'A17: the mid-tick online save returns the status to "Ready."')
-      .toHaveText('Ready.', { timeout: BUILD_MS });
+    // The wait takes any "Ready.", so a save that wrongly put a link in
+    // fails A17's anchor read and A19's read of this status rather than
+    // stopping the run on a timeout here. The text is read for A19.
+    await expect(page.locator('#status'), 'A17: the mid-tick online save returns the status to a "Ready."')
+      .toHaveText(/^Ready\./, { timeout: BUILD_MS });
     const statusAfterMidTick = await page.locator('#status').textContent();
     expect
       .soft(
@@ -441,10 +450,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         'A18: a press of the Word card after an online save removes the anchor and hides its paragraph, and the Online card pressed again keeps the anchor'
       )
       .toEqual({
-        beforeWordPress: { anchors: 1, hidden: false, status: SAVED_STATUS },
-        afterWordPress: { anchors: 0, hidden: true, status: 'Ready. Word form chosen.' },
+        beforeWordPress: { building: false, anchors: 1, hidden: false, status: SAVED_STATUS },
+        afterWordPress: { building: false, anchors: 0, hidden: true, status: 'Ready. Word form chosen.' },
         thirdDownloads: 1,
-        afterOnlineAgain: { anchors: 1, hidden: false, status: 'Ready. Online form chosen.' },
+        afterOnlineAgain: { building: false, anchors: 1, hidden: false, status: 'Ready. Online form chosen.' },
       });
 
     // The Word build, from the one scale still ticked; the Word card is

@@ -150,7 +150,7 @@ const PLANTS = [
     id: 'o',
     what: "the saved scoring file's items out of order",
     // The file's items array is reversed in the text the browser is handed,
-    // on every save: the text is parsed, its items reversed, and the module
+    // on every online save: the text is parsed, its items reversed, and the module
     // serialised again, so the plant reads no layout of write_module()'s
     // output. The anchor is made from the same text, so its c still equals
     // the file and A14 holds; A13 and A15 read the reversed items.
@@ -210,7 +210,8 @@ const PLANTS = [
     // The guard that compares the selection at the end of the build with
     // the one the file was built from is dropped, so a tick during the
     // build is followed by a link for the old selection and the status
-    // naming it. Only A17 ticks during an online build, so only A17 sees it.
+    // naming it. Only A17 ticks during an online build, so A17's anchor read
+    // sees the link and A19's read of that save's status sees the text.
     from:
       '      if (selected().join() === chosen.join()) {\n' +
       '        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +

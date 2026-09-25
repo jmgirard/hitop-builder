@@ -1427,6 +1427,9 @@ async function download() {
     cards.forEach((b) => (b.disabled = true));
     // A build of any format makes the last online save's link stale: an
     // online build replaces it at its end, and any other build leaves none.
+    // The card press that chose another format has already taken the link
+    // out (see setFormat()), so this call finds one only when an online
+    // build follows an online save.
     removeLinkBuilder();
     status(`Building the ${spec.ext.toUpperCase()} file…`);
 

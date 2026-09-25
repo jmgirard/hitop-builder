@@ -252,16 +252,17 @@ to the link builder is under the button.* Its link opens
 carries a `c` parameter that holds the instrument and the saved file's
 module, in the encoding hitop-form's own link builder uses. That builder
 fills its instrument and module fields from it. You add the study name and
-where the responses go. The link carries the module of one saved file. If
-you tick or untick a scale, press another format's card, or start another
-build, the page removes the link. After a tick the status line returns to
-*Ready.* After a card press it names the chosen format. Pressing the online
-card again keeps the link. A later online save puts a new one
-in its place. Verified 2026-09-25
-on a two-scale module against the deployed link builder. The saved file's
-`scales` and `items` were those two scales' and their eight item numbers.
-The link's `c` decoded to the file. The link builder opened with `hitopsr`
-and the module filled in.
+where the responses go. Verified 2026-09-25 on a two-scale module against
+the deployed link builder. The saved file's `scales` and `items` were those
+two scales' and their eight item numbers. The link's `c` decoded to the
+file. The link builder opened with `hitopsr` and the module filled in.
+
+The link carries the module of one saved file. If you tick or untick a
+scale, press another format's card, or start another build, the page
+removes the link. After a tick the status line returns to *Ready.* After a
+card press it names the chosen format. Pressing the online card again keeps
+the link, and the status line then names the online form. A later online
+save puts a new one in its place. The smoke test checks each of these.
 
 ## What the downloads are named
 
@@ -401,7 +402,7 @@ module.
 With the answer true and every box ticked, the Word form is headed
 `HiTOP-SR (v1.0)` rather than `HiTOP-SR Module (v1.0)`. The downloads drop
 the `-module` part of their names: `hitopsr-word.docx` rather than
-`hitopsr-word-module.docx`, and so on for the other two formats. This changes
+`hitopsr-word-module.docx`, and so on for the other formats. This changes
 nothing in the Qualtrics and REDCap files themselves. Verified 2026-08-23
 against the files the page produced beforehand: the Qualtrics `.txt` was
 byte-identical and the REDCap `instrument.csv` identical.
