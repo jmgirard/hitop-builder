@@ -234,7 +234,9 @@ With the online card chosen, the download button saves the scoring file
 alone. The page calls `write_module()` on the module that `hitop_module()`
 builds from the scales you ticked. If every box is ticked, the module holds
 every scale. The file is saved as `hitopsr-online.json` for every scale and
-as `hitopsr-online-module.json` for a selection. It holds the same fields as
+as `hitopsr-online-module.json` for a selection. The every-scale name rests
+on the same probe as the other formats' names, the one [Ticking every
+scale](#ticking-every-scale) describes. It holds the same fields as
 the scoring file in a bundle, without `itemOrder` or `columns`. No form was
 printed, so there is no printed order to record, and the online form names
 its own columns. No bundle and no
@@ -243,14 +245,18 @@ any other scoring file.
 
 After the save, a paragraph under the button reads *The scoring file is
 saved. Continue to the link builder to make the study link. It opens in a
-new tab with your module filled in.* Its link opens
+new tab with your module filled in.* The status line, the one region a
+screen reader announces, reads *Ready. The scoring file is saved. The link
+to the link builder is under the button.* Its link opens
 `https://jmgirard.github.io/hitop-form/link.html` in a new tab. The address
 carries a `c` parameter that holds the instrument and the saved file's
 module, in the encoding hitop-form's own link builder uses. That builder
 fills its instrument and module fields from it. You add the study name and
 where the responses go. The link carries the module of one saved file. If
-you tick or untick a scale, or start another build, the page removes the
-link. A later online save puts a new one in its place. Verified 2026-09-25
+you tick or untick a scale, press another format's card, or start another
+build, the page removes the link. The status line then returns to *Ready.*
+Pressing the online card again keeps it. A later online save puts a new one
+in its place. Verified 2026-09-25
 on a two-scale module against the deployed link builder. The saved file's
 `scales` and `items` were those two scales' and their eight item numbers.
 The link's `c` decoded to the file. The link builder opened with `hitopsr`
