@@ -1903,8 +1903,8 @@ async function main() {
     });
   }
   // Every control that moves between steps -- the bar's two buttons, the
-  // Next button at the foot of step 1, and the Back button and the link
-  // beside the tally on step 2 -- says where it goes in the same attribute, so
+  // Next button at the foot of step 1, and the Back button and the button
+  // drawn as a link beside the tally on step 2 -- says where it goes in the same attribute, so
   // there is one handler.
   for (const b of document.querySelectorAll('[data-goto]')) {
     b.addEventListener('click', () => showStep(Number(b.dataset.goto)));

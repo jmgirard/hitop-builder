@@ -65,7 +65,8 @@ A tally under the list says how many scales and how many items you selected.
 
 ### Step 2: Choose a format and download
 
-The step opens with the same tally and a *Back: Choose scales* link. Four
+The step opens with the same tally and a *Back: Choose scales* button, drawn as
+a link. Four
 cards follow, one per format. Each card's title is the format's one name,
 which its download button, its status line and its `README.txt` also use:
 
