@@ -6,7 +6,8 @@
 //
 //   body     the text of every element in <body>, outside <script> and
 //            <style>, one passage per block element, with the `placeholder`
-//            and `aria-label` attributes as passages of their own
+//            and `aria-label` attributes as passages of their own. The run
+//            exits 1 if a text node of the body is in no passage.
 //   script   every string that reaches the page as text: the arguments of
 //            status(), log(), abandonBoot() and showFailure(), the strings inside the
 //            functions that write the tally, the recap, the settings
@@ -103,12 +104,17 @@ const BLOCK = new Set(['p', 'h1', 'h2', 'h3', 'li', 'div', 'section', 'nav', 'fo
   'label', 'legend', 'fieldset', 'summary', 'details', 'button', 'noscript', 'ol', 'ul',
   'input', 'span:block']);
 
+// The open blocks are kept on a stack. When a block closes inside another,
+// the text that follows in the outer block starts a passage of its own, tagged
+// with the outer block's name and a `+`: the link after a paragraph in a
+// <section>, or a label's words after its <input>.
 function bodyPassages(html) {
   let body = html.slice(html.indexOf('<body'));
   body = body.replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<style\b[\s\S]*?<\/style>/gi, '');
   body = body.replace(/<!--[\s\S]*?-->/g, '');
   const passages = [];
   let current = null;
+  const stack = [];
   const attrs = []; // placeholder and aria-label values, emitted after the text
 
   function open(tag, attrText) {
@@ -121,6 +127,7 @@ function bodyPassages(html) {
     }
     if (BLOCK.has(tag)) {
       flush();
+      stack.push(tag);
       current = { tag, id, text: '', attrFacts: facts };
     } else if (current) {
       current.attrFacts.push(...facts);
@@ -139,11 +146,18 @@ function bodyPassages(html) {
       current.pendingHref = null;
       return;
     }
-    if (BLOCK.has(tag)) flush();
+    if (BLOCK.has(tag)) {
+      flush();
+      const at = stack.lastIndexOf(tag);
+      if (at >= 0) stack.length = at;
+      const outer = stack.at(-1);
+      if (outer) current = { tag: `${outer}+`, id: '', text: '', attrFacts: [] };
+    }
   }
   function text(t) {
-    if (!current) return;
     const decoded = decodeEntities(t);
+    if (squash(decoded)) seen.push(squash(decoded));
+    if (!current) return;
     if (current.inCode) current.text += ' `' + squash(decoded) + '` ';
     else current.text += decoded;
   }
@@ -171,8 +185,16 @@ function bodyPassages(html) {
     }
   }
   flush();
-  return passages.concat(attrs.map((a) => ({ id: a.id, text: a.text, extraFacts: [] })));
+  const all = passages.concat(attrs.map((a) => ({ id: a.id, text: a.text, extraFacts: [] })));
+  missingBodyText.push(...seen.filter((s) => !all.some((p) => squash(p.text).includes(s))));
+  return all;
 }
+
+// Every text node of the body, and the ones no body passage holds. The run
+// exits 1 when any is missing, so a markup shape the parser drops is reported
+// rather than left out of the linted text.
+const seen = [];
+const missingBodyText = [];
 
 // ---- Part 2: the script ------------------------------------------------
 
@@ -486,6 +508,14 @@ const counts = {};
 for (const p of passages) { const k = p.id.split(/[:@\[]/)[0]; counts[k] = (counts[k] ?? 0) + 1; }
 console.log(`writer sites: ${writerCount} in the source, ${WRITERS.length} in the ledger`);
 console.log(`passages: ${passages.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')})`);
+
+if (missingBodyText.length) {
+  console.log(`body text: ${missingBodyText.length} of ${seen.length} text nodes in no passage`);
+  for (const s of missingBodyText) console.log(`  ${JSON.stringify(s)}`);
+  process.exitCode = 1;
+} else {
+  console.log(`body text: all ${seen.length} text nodes in a passage`);
+}
 
 const retired = retiredHits(passages);
 if (retired.length) {
