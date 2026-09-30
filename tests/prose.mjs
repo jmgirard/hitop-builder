@@ -5,6 +5,8 @@
 // is under "Excluded on purpose" below, in the WRITERS rows marked
 // "excluded" and in PINNED. scriptPassages() also drops a passage that is
 // only code, and the ledger counts no `.value`, `.href` or `.download` write.
+// literalsIn() drops one-character strings, such as the " · " separator in
+// the settings summaries.
 //
 // The domain has four parts, in the order they are emitted:
 //
