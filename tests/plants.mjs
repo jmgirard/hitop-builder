@@ -238,7 +238,7 @@ const PLANTS = [
     id: 'x',
     what: 'the link left in place on a press of another format\'s card',
     // The removal in setFormat() is dropped. A18's Word card press then
-    // finds the link still there and its paragraph still shown. The other
+    // finds the panel and its link still there. The other
     // removals still run, so A15, A16 and A17 hold.
     from: '  if (format !== currentFormat) removeNextStep();\n  currentFormat = format;',
     to: '  currentFormat = format;',

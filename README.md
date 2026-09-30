@@ -4,7 +4,8 @@ A web page that builds HiTOP-SR modules: questionnaires that hold only the
 scales you choose. You download a module as a Word form, a Qualtrics file or a
 REDCap dictionary. Each of those downloads is one zip file. It holds the
 questionnaire, a module file that records the scales it collects, and a
-`README.txt`. The module file is what scores the responses later. A fourth
+`README.txt`. The `hitop` package later scores the responses with the module
+file. A fourth
 choice, the Online form, saves the module file alone. The page then leads you
 to the [Study Link Builder](https://jmgirard.github.io/hitop-form/link.html)
 of hitop-form with your module filled in.
@@ -22,10 +23,13 @@ on your own machine, after you collect the responses. Its
 [Building HiTOP-SR Modules](https://jmgirard.github.io/hitop/articles/modules-hitopsr.html)
 article says how.
 
-Nothing you select or build leaves your browser. There is no server-side R
-process and no backend of any kind. The page is static files on GitHub Pages,
-and the R code runs inside the browser tab. The first load downloads R and the
-package, which takes about twenty seconds. The browser caches them afterwards.
+Nothing you select or build leaves your browser, with one exception. The link
+to the Study Link Builder carries your module (the scale names and item
+numbers) in its address, so opening it sends them to GitHub Pages. There is no
+server-side R process and no backend of any kind. The page is static files on
+GitHub Pages, and the R code runs inside the browser tab. The first load
+downloads R and then the package, about twenty seconds each. The browser
+caches them afterwards.
 
 ### The two steps
 
@@ -188,8 +192,10 @@ were ticked share a name, so if you keep both, rename one of them.
 
 A Word or Qualtrics `README.txt` differs from that one in three places. Its
 first line names that format. Its stem, which names the zip file and the
-module file, takes that format's name. Its questionnaire entry takes that
-format's extension, and its paragraph carries no upload instruction. A
+module file, takes that format's name. Its questionnaire entry is named for
+the stem and the format's extension, such as `hitopsr-word-module.docx`, with
+no `-upload`. That entry's paragraph describes that format's file and carries
+no upload instruction. A
 shuffled Word `README.txt` also adds one paragraph under the module file. It
 says to score printed-order columns with the module from `read_module()` and
 `layout = "printed"`, and that columns in HiTOP-SR order take the default
@@ -216,7 +222,7 @@ own columns. Keep the file with the responses you collect.
 After the save, a panel headed *Next: make the study link* appears under the
 button. It says that the Study Link Builder opens in a new tab with your module
 filled in. There you name the study and choose where the responses go. Its
-*Open the Study Link Builder* button opens
+*Open the Study Link Builder* link is drawn as a button. It opens
 `https://jmgirard.github.io/hitop-form/link.html` in a new tab. The address's
 `c` value holds the instrument and the saved file's module, in the encoding
 that the Study Link Builder reads. The status line, the one region a screen

@@ -33,12 +33,12 @@
 //   A21: once the page is ready, "Technical details" is still closed
 //   A22: a failed load opens "Technical details", and the status names it
 //   A23: every scale checkbox's accessible name is the scale's name and "<n> items", and the two known scales carry their own item counts
-//   A24: every scale row has a visible Definition button that opens and closes its definition by click and by keyboard, and a hover opens none
+//   A24: every scale row has a visible Definition button named for its scale, and on the first row a click and a key press open and close the definition and a hover opens none
 //   A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away
 //   A26: for each format, with its settings closed, the text from the cards to the download button holds at most 60 words
 //   A27: a mouse click on each step control leaves the new step's heading with no outline, and a keyboard press on it shows one
 //   A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name
-//   A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder button
+//   A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder link, drawn as a button
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -492,7 +492,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
           buttonNames: buttonNames.filter((n, i) => n === `Definition of ${names[i]}`).length,
           onHover, onClick, expanded, hasText: descText.length > 0, onSecondClick, onEnter, onSpace,
         },
-        'A24: every scale row has a visible Definition button that opens and closes its definition by click and by keyboard, and a hover opens none'
+        'A24: every scale row has a visible Definition button named for its scale, and on the first row a click and a key press open and close the definition and a hover opens none'
       )
       .toEqual({
         buttons: rowCount,
@@ -630,7 +630,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
           heading: ((await panel.locator('h3').first().textContent().catch(() => null)) ?? '').trim() || null,
           buttonShown: await panel.getByRole('link', { name: PANEL_LINK }).isVisible(),
         },
-        'A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder button'
+        'A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder link, drawn as a button'
       )
       .toEqual({ panels: 1, heading: PANEL_HEADING, buttonShown: true });
 
@@ -848,7 +848,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // state is read once, like A8's. The same read takes the cards' disabled
     // state, so a page whose handler ignores the press with the cards left on
     // also fails A9. It takes the status line too: download() writes
-    // "Building the DOCX file…" at the click and nothing else until the build
+    // "Building the Word form…" at the click and nothing else until the build
     // ends, so a press that came after the end fails on the status and not
     // only on the button.
     await page.locator('#stepbar button[data-goto="1"]').click();
