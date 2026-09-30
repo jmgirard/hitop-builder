@@ -51,15 +51,15 @@ browsers apply their own version of that rule.
 
 A *Filter scales…* box narrows the list of scales. A filter that matches no
 scale shows *No scales match the filter.* in place of the list. The line sits
-in a `role="status"` live region, so a screen reader can announce it. *Select
-all*
-selects every scale the filter shows, and its label says how many while a
-filter is in use. *Clear all* clears every scale, shown or not.
+in a `role="status"` live region, so a screen reader can announce it.
+*Select all* selects every scale the filter shows, and its label says how
+many while a filter is in use. *Clear all* clears every scale, shown or not.
 
 Each row holds a checkbox, the scale's name and its item count, such as
 *5 items*. The checkbox's accessible name holds the name and the count, as
-Chromium computes it. Other browsers are not tested. A *Definition* button on each row shows the scale's brief
-clinician-facing definition as a line under the row. A second press hides it.
+Chromium computes it. Other browsers are not tested. A *Definition* button on
+each row shows the scale's brief clinician-facing definition as a line under
+the row. A second press hides it.
 Nothing opens on hover. A screen reader also reads the definition with the
 checkbox. The names, counts and definitions come from the installed `hitop`
 package. A package version that has no definitions shows no *Definition*
@@ -70,8 +70,7 @@ A tally under the list says how many scales and how many items you selected.
 ### Step 2: Choose a format and download
 
 The step opens with the same tally and a *Back: Choose scales* button, drawn as
-a link. Four
-cards follow, one per format. Each card's title is the format's one name,
+a link. Four cards follow, one per format. Each card's title is the format's one name,
 which its download button, its status line and its `README.txt` also use:
 
 | Card | What it builds | Download button |
@@ -103,8 +102,8 @@ three zip formats, the note lists the questionnaire, a module file and a
 `README.txt`. It adds that `read_module()` reads the module file at scoring
 time. For the REDCap dictionary, a second line says to upload the inner
 `-upload.zip` file as it is. For the Online form, the note says that the
-download is one module file. It also says that saves from different scales
-share a file name. If you keep both, rename one.
+download is one module file. It also says that two saves that each skip some
+scales share a file name. If you keep both, rename one.
 
 The download button builds the current format in this browser. While it runs,
 the status line reads *Building the Word form…* (or the format's own name), or
@@ -195,8 +194,8 @@ README.txt
 
 The zip file takes its name from the build that made it: the format, every
 scale or a selection of them, and shuffled or not. A build that differs in any
-of those three gets another name. Two builds that differ only in which scales
-were ticked share a name, so if you keep both, rename one of them.
+of those three gets another name. Two builds that each tick a different
+selection of scales share a name, so if you keep both, rename one of them.
 ```
 
 A Word or Qualtrics `README.txt` differs from that one in four places. Its
@@ -204,11 +203,10 @@ first line names that format. Its stem, which names the zip file and the
 module file, takes that format's name. Its questionnaire entry is named for
 the stem and the format's extension, such as `hitopsr-word-module.docx`, with
 no `-upload`. That entry's paragraph describes that format's file and carries
-no upload instruction. A
-shuffled Word `README.txt` also adds one paragraph under the module file. It
-says to score printed-order columns with the module from `read_module()` and
-`layout = "printed"`, and that columns in HiTOP-SR order take the default
-layout.
+no upload instruction. A shuffled Word `README.txt` also adds one paragraph
+under the module file. It says to score printed-order columns with the module
+from `read_module()` and `layout = "printed"`, and that columns in HiTOP-SR
+order take the default layout.
 
 ### The Online form
 
@@ -491,7 +489,7 @@ Every tracked file:
 | `tests/smoke.spec.js` | The smoke test, whose assertions its header lists. One test boots the page and reads its head and *Technical details* while R loads, with the `webr.mjs` request held. It then checks the scale rows, their names, *Definition* buttons and filter line. It checks the step controls' names and focus outlines, and each format's text and names. It saves the Online form's module file and reads the next-step panel. It builds a Word, a Qualtrics and a REDCap zip file and reads them. Last, it makes `URL.createObjectURL` throw and reads the failed build that follows. A second test refuses the `webr.mjs` request and reads the failed load |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list. Each is run to prove that the smoke test goes red on it. The matrix also checks that every smoke assertion goes red on at least one |
-| `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run. For a linter, it lists the page's body text with its `placeholder` and `aria-label` attributes. It adds the script's text at the sites its header names, and each zip file's README.txt. It also lists the facts each passage carries. It does not list every string a visitor reads. Its header names what it leaves out, such as the package's scale names and definitions and two "Ready." statuses. It refuses a page whose count of `.textContent`, `.innerHTML` and `.setAttribute` writes differs from its ledger. It also refuses a passage that holds a name the `hitop` package retired from its web pages. And it refuses a page body with a text node that no passage holds |
+| `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run. For a linter, it lists the page's body text with its `placeholder` and `aria-label` attributes. It adds the script's text at the sites its header names, and each zip file's README.txt. It also lists the facts each passage carries. It does not list every string a visitor reads. Its header names what it leaves out, such as the package's scale names and definitions and two "Ready." statuses. It refuses a page whose count of `.textContent`, `.innerHTML` and `.setAttribute` writes differs from its ledger. It also refuses a passage that holds a name the `hitop` package retired from its web pages. And it refuses a page body with no text node, or with a text node whose text appears in no body passage |
 | `tests/serve.mjs` | The local static server both specs use, which also holds `/hang/` requests open and never answers them |
 | `playwright.config.js` | The timeouts, single worker and one CI retry those runs use |
 | `package.json`, `package-lock.json` | The pinned `@playwright/test` they run under |

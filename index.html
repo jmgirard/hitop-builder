@@ -473,8 +473,9 @@
      "Technical details" at the foot of the page. -->
 <p class="lede">Choose the HiTOP-SR scales you need. Then download a
 questionnaire that holds only their items, as a Word form, a Qualtrics file
-or a REDCap dictionary. Or save a module file for the Online form. The page
-downloads R and the hitop package, then runs in this browser.</p>
+or a REDCap dictionary. Or save a module file for the Online form. It
+downloads R and the hitop package, named under Technical details, then runs
+here.</p>
 
 <noscript>
   <div class="notice">
@@ -680,9 +681,10 @@ downloads R and the hitop package, then runs in this browser.</p>
          selection changes, another format's card is pressed, or another
          build starts. showNextStep() clones the panel from the template
          here: its text is static markup, and the script fills in the href
-         of its link, which is drawn as a button. It is removed from the document, not hidden, when the
-         selection or the format it was made for no longer holds (see
-         removeNextStep()), so a stale link is never left in the page. -->
+         of its link, which is drawn as a button. It is removed from the
+         document, not hidden, when the selection or the format it was made
+         for no longer holds (see removeNextStep()), so a stale link is never
+         left in the page. -->
     <div id="nextStepSlot"><template id="nextStepTpl"><section class="nextstep" aria-labelledby="nextStepHeading">
       <h3 id="nextStepHeading">Next: make the study link</h3>
       <p>The module file is saved. The Study Link Builder opens in a new tab
@@ -1399,8 +1401,8 @@ function bundleReadme(format, stem, version, shuffle = false) {
     ...wrapIndented(
       'The zip file takes its name from the build that made it: the format, ' +
       'every scale or a selection of them, and shuffled or not. A build that ' +
-      'differs in any of those three gets another name. Two builds that ' +
-      'differ only in which scales were ticked share a name, so if you keep ' +
+      'differs in any of those three gets another name. Two builds that each ' +
+      'tick a different selection of scales share a name, so if you keep ' +
       'both, rename one of them.',
       ''
     ),

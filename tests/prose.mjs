@@ -13,17 +13,19 @@
 //   body     the text of every element in <body>, outside <script> and
 //            <style>, one passage per block element, with the `placeholder`
 //            and `aria-label` attributes as passages of their own. The run
-//            exits 1 if a text node of the body is in no passage.
+//            exits 1 if the body has no text node, or if a text node's text
+//            appears in no body passage. That is a substring test, so a node
+//            whose words appear in another passage still passes.
 //   script   the strings at these sites: the arguments of
-//            status(), log(), abandonBoot() and showFailure(), the strings inside the
-//            functions that write the tally, the recap, the settings
+//            status(), log(), abandonBoot() and showFailure(), the strings
+//            inside the functions that write the tally, the recap, the settings
 //            summaries, the "Select all" label, the crosswalk sentence, the
 //            words on a scale row (scaleRowText()), the build status
 //            (buildStatus()),
 //            FORMATS[].label and .button, the version line, and the message
 //            the <script nomodule> block writes
-//   readme   the README.txt the page puts in a bundle, one passage per format,
-//            produced by running the page's own bundleReadme() code
+//   readme   the README.txt the page puts in a zip file, one passage per
+//            format, produced by running the page's own bundleReadme() code
 //   md       README.md, one passage per section, for the facts pass only:
 //            the linter reads that file directly
 //
@@ -519,7 +521,11 @@ for (const p of passages) { const k = p.id.split(/[:@\[]/)[0]; counts[k] = (coun
 console.log(`writer sites: ${writerCount} in the source, ${WRITERS.length} in the ledger`);
 console.log(`passages: ${passages.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')})`);
 
-if (missingBodyText.length) {
+if (!seen.length) {
+  // A body that parses to no text node is a broken read, not a clean page.
+  console.log('body text: no text node found in the body');
+  process.exitCode = 1;
+} else if (missingBodyText.length) {
   console.log(`body text: ${missingBodyText.length} of ${seen.length} text nodes in no passage`);
   for (const s of missingBodyText) console.log(`  ${JSON.stringify(s)}`);
   process.exitCode = 1;
