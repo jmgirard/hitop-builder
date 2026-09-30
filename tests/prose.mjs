@@ -10,7 +10,8 @@
 //   script   every string that reaches the page as text: the arguments of
 //            status(), log(), abandonBoot() and showFailure(), the strings inside the
 //            functions that write the tally, the recap, the settings
-//            summaries, the "Select all" label and the crosswalk sentence,
+//            summaries, the "Select all" label, the crosswalk sentence and
+//            the words on a scale row (scaleRowText()),
 //            FORMATS[].label and .button, the version line, and the message
 //            the <script nomodule> block writes
 //   readme   the README.txt the page puts in a bundle, one passage per format,
@@ -189,10 +190,13 @@ const WRITERS = [
   { anchor: "el('tally').textContent = selectionSentence();", covered: 'selectionSentence()' },
   { anchor: "box.textContent = '';", covered: 'excluded: clears the list' },
   { anchor: 'name.textContent = s.Scale;', covered: 'excluded: a scale name from the package' },
-  { anchor: 'n.textContent = `${s.nItems}`;', covered: 'excluded: an item count from the package' },
-  { anchor: "desc.setAttribute('role', 'tooltip');", covered: 'excluded: an attribute value, not text' },
+  { anchor: 'n.textContent = text.count;', covered: 'scaleRowText()' },
   { anchor: 'desc.textContent = s.Brief;', covered: 'excluded: a scale definition from the package' },
   { anchor: "input.setAttribute('aria-describedby', desc.id);", covered: 'excluded: an attribute value, not text' },
+  { anchor: 'button.textContent = text.toggle;', covered: 'scaleRowText()' },
+  { anchor: "button.setAttribute('aria-label', text.toggleName);", covered: 'scaleRowText()' },
+  { anchor: "button.setAttribute('aria-controls', desc.id);", covered: 'excluded: an attribute value, not text' },
+  { anchor: "button.setAttribute('aria-expanded', open ? 'true' : 'false');", covered: 'excluded: an attribute value, not text' },
   { anchor: "el('shuffleCrosswalk').textContent = crosswalkSentence();", covered: 'crosswalkSentence()' },
   { anchor: "el('selectAll').textContent =", covered: 'refreshSelectAllLabel()' },
   { anchor: "el('pkgver').textContent = `(version ${version})`;", covered: 'the version line' },
@@ -353,7 +357,7 @@ function scriptPassages() {
     add(`FORMATS.${m[1]}@${moduleScript.slice(0, m.index).split('\n').length}`, renderStringExpr(m[2]));
   }
   add('pkgver', renderStringExpr(/el\('pkgver'\)\.textContent = (.*);/.exec(moduleScript)[1]));
-  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence']) {
+  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence', 'scaleRowText']) {
     literalsIn(functionBody(moduleScript, fn)).forEach((t, k) => add(`${fn}[${k}]`, t));
   }
   return passages;
