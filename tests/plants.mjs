@@ -136,19 +136,19 @@ const PLANTS = [
     from:
       '      <button type="button" data-choose="online">\n' +
       '        <span class="fmtname">Online form</span>\n' +
-      '        <span class="fmtwhat">A scoring file for the online form, to paste into the study link builder.</span>\n' +
+      '        <span class="fmtwhat">A module file for a study link in the Study Link Builder (.json).</span>\n' +
       '      </button>\n',
     to: '',
   },
   {
     id: 'n',
-    what: 'the saved scoring file under a wrong name',
+    what: 'the saved module file under a wrong name',
     from: "saveFile(descBytes, 'application/json', `${stem}.json`);",
     to: "saveFile(descBytes, 'application/json', `${stem}.txt`);",
   },
   {
     id: 'o',
-    what: "the saved scoring file's items out of order",
+    what: "the saved module file's items out of order",
     // The file's items array is reversed in the text the browser is handed,
     // on every online save: the text is parsed, its items reversed, and the module
     // serialised again, so the plant reads no layout of write_module()'s
@@ -166,8 +166,8 @@ const PLANTS = [
   {
     id: 'p',
     what: "the anchor's c carrying a module that differs from the saved file",
-    from: 'showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));',
-    to: 'showLinkBuilder({ ...JSON.parse(new TextDecoder().decode(descBytes)), nItems: 0 });',
+    from: 'showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));',
+    to: 'showNextStep({ ...JSON.parse(new TextDecoder().decode(descBytes)), nItems: 0 });',
   },
   {
     id: 'q',
@@ -178,20 +178,20 @@ const PLANTS = [
   {
     id: 'r',
     what: 'the anchor on a wrong base URL',
-    from: "const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';",
-    to: "const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/index.html';",
+    from: "const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';",
+    to: "const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/index.html';",
   },
   {
     id: 's',
     what: 'the anchor without target',
-    from: '<a target="_blank" rel="noopener">Continue to the link builder</a>',
-    to: '<a rel="noopener">Continue to the link builder</a>',
+    from: '<a class="button primary" target="_blank" rel="noopener">Open the Study Link Builder</a>',
+    to: '<a class="button primary" rel="noopener">Open the Study Link Builder</a>',
   },
   {
     id: 't',
     what: 'the anchor without rel',
-    from: '<a target="_blank" rel="noopener">Continue to the link builder</a>',
-    to: '<a target="_blank">Continue to the link builder</a>',
+    from: '<a class="button primary" target="_blank" rel="noopener">Open the Study Link Builder</a>',
+    to: '<a class="button primary" target="_blank">Open the Study Link Builder</a>',
   },
   {
     id: 'u',
@@ -201,8 +201,8 @@ const PLANTS = [
     // run, so A15, A17 and A18 hold, and only A16, read right after the
     // press that starts a second online save with a link present, sees the
     // anchor.
-    from: '    removeLinkBuilder();\n    status(`Building the',
-    to: '    status(`Building the',
+    from: '    removeNextStep();\n    status(buildStatus(format));',
+    to: '    status(buildStatus(format));',
   },
   {
     id: 'v',
@@ -214,14 +214,14 @@ const PLANTS = [
     // sees the link and A19's read of that save's status sees the text.
     from:
       '      if (selected().join() === chosen.join()) {\n' +
-      '        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
-      "        status('Ready. The scoring file is saved. The link to the link builder is under the button.');\n" +
+      '        showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
+      "        status('Ready. The module file is saved. \"Next: make the study link\" is under the button.');\n" +
       '      } else {\n' +
       "        status('Ready.');\n" +
       '      }\n',
     to:
-      '      showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
-      "      status('Ready. The scoring file is saved. The link to the link builder is under the button.');\n",
+      '      showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));\n' +
+      "      status('Ready. The module file is saved. \"Next: make the study link\" is under the button.');\n",
   },
   {
     id: 'w',
@@ -231,16 +231,16 @@ const PLANTS = [
     // naming it. The removal at the start of a build, the card-press removal
     // and the guard at the end of an online build still run, so A16, A17 and
     // A18 hold.
-    from: 'function selectionChanged() {\n  removeLinkBuilder();\n  refreshTally();',
+    from: 'function selectionChanged() {\n  removeNextStep();\n  refreshTally();',
     to: 'function selectionChanged() {\n  refreshTally();',
   },
   {
     id: 'x',
     what: 'the link left in place on a press of another format\'s card',
     // The removal in setFormat() is dropped. A18's Word card press then
-    // finds the link still there and its paragraph still shown. The other
+    // finds the panel and its link still there. The other
     // removals still run, so A15, A16 and A17 hold.
-    from: '  if (format !== currentFormat) removeLinkBuilder();\n  currentFormat = format;',
+    from: '  if (format !== currentFormat) removeNextStep();\n  currentFormat = format;',
     to: '  currentFormat = format;',
   },
   {
@@ -249,8 +249,8 @@ const PLANTS = [
     // The guard on the removal in setFormat() is dropped. A18's second
     // press of the online card, after a save, then finds no link. The Word
     // card press still removes it, so the first half of A18 holds.
-    from: '  if (format !== currentFormat) removeLinkBuilder();',
-    to: '  removeLinkBuilder();',
+    from: '  if (format !== currentFormat) removeNextStep();',
+    to: '  removeNextStep();',
   },
   {
     id: 'y',
@@ -258,17 +258,198 @@ const PLANTS = [
     // The saved-file status is replaced with the bare "Ready.". A19's read
     // after the first save sees it; A18's read before the Word card press
     // does too.
-    from: "        status('Ready. The scoring file is saved. The link to the link builder is under the button.');",
+    from: "        status('Ready. The module file is saved. \"Next: make the study link\" is under the button.');",
     to: "        status('Ready.');",
   },
   {
     id: 'z',
     what: 'the status left naming the link after a tick removed it',
-    // The reset in removeLinkBuilder() is dropped. A19's read after the
+    // The reset in removeNextStep() is dropped. A19's read after the
     // untick then sees the saved-file status still standing. The card
     // handler writes its own "Ready." after a press, so A18 holds.
-    from: "  if (links.length) status('Ready.');\n",
+    from: "  if (panels.length) status('Ready.');\n",
     to: '',
+  },
+  {
+    id: 'aa',
+    what: '"Technical details" open from the first paint',
+    // The open attribute is in the markup, so the section is open while R
+    // loads, which A20 reads, and still open at "Ready.", which A21 reads.
+    from: '<details id="techDetails" hidden>',
+    to: '<details id="techDetails" hidden open>',
+  },
+  {
+    id: 'ab',
+    what: 'the host list back in the head of the page',
+    // The host sentence is copied into the head, so the head holds more than
+    // 50 words and shows the hosts. A20 reads both.
+    from: '<p class="lede">Choose the HiTOP-SR scales you need.',
+    to:
+      '<p class="lede">The page fetches R from <code>webr.r-wasm.org</code>, the hitop ' +
+      'package from <code>jmgirard.r-universe.dev</code>, which hands the file to ' +
+      '<code>r2.ropensci.org</code>, and the other R packages from ' +
+      '<code>repo.r-wasm.org</code>.</p>\n<p class="lede">Choose the HiTOP-SR scales you need.',
+  },
+  {
+    id: 'ac',
+    what: '"Technical details" opened when the page is ready',
+    // Opened after the load, so A20's read during the load holds and only
+    // A21, read at "Ready.", sees it open.
+    from: "  el('controls').hidden = false;\n",
+    to: "  el('controls').hidden = false;\n  el('techDetails').open = true;\n",
+  },
+  {
+    id: 'ad',
+    what: 'a failure that leaves "Technical details" closed',
+    // showFailure() still writes the status that names the section, and no
+    // longer opens it. A22 reads the section closed.
+    from: "  el('techDetails').open = true;\n}",
+    to: '}',
+  },
+  {
+    id: 'ae',
+    what: 'the item count shown as a bare number',
+    // The count is still in the label, so the checkbox's name ends with the
+    // number and not with "items". A23 reads every name.
+    from: "    count: `${s.nItems} items`,",
+    to: "    count: `${s.nItems}`,",
+  },
+  {
+    id: 'af',
+    what: 'a Definition button whose click opens nothing',
+    // The button is on every row with its name, and its click only sets
+    // aria-expanded. A24 reads the definition still hidden after the click.
+    from: '        desc.hidden = !desc.hidden;\n        setExpanded(button, !desc.hidden);',
+    to: '        setExpanded(button, button.getAttribute(\'aria-expanded\') !== \'true\');',
+  },
+  {
+    id: 'ag',
+    what: 'the no-match line never shown',
+    // The list still empties under a filter that matches nothing, and the
+    // line stays hidden. A25 reads no line.
+    from: "  el('noMatch').hidden = !none;",
+    to: "  el('noMatch').hidden = true;",
+  },
+  {
+    id: 'ah',
+    what: 'a long note above the download button',
+    // The zip note regains the naming detail the page once carried, so the
+    // three zip formats' text runs past 60 words. A26 reads each format.
+    from: 'when you score them.</p>',
+    to:
+      'when you score them.</p>\n      <p>The zip file takes its name from the build ' +
+      'that made it: the format, every scale or a selection, and shuffled or ' +
+      'not. A build that differs from an earlier one in any of those three ' +
+      'never lands on top of it. Two builds that differ only in which scales ' +
+      'you ticked share a name.</p>',
+  },
+  {
+    id: 'ai',
+    what: 'the heading outline shown on any focus',
+    // The heading's ring is back on :focus, so a mouse click on a step
+    // control leaves an outline on the new step's heading. A27 reads it.
+    from:
+      '  .step > h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }\n' +
+      '  .step > h2:focus:not(:focus-visible) { outline: none; }',
+    to: '  .step > h2:focus { outline: 3px solid var(--focus); outline-offset: 4px; }',
+  },
+  {
+    id: 'aj',
+    what: 'the build status naming the file type, not the format',
+    // The status reads "Building the DOCX file…" and so on, as it once did.
+    // The card, the button and the README keep the name. A28 reads the
+    // status.
+    from: '  return `Building the ${name}…`;',
+    to: '  return `Building the ${FORMATS[format].ext.toUpperCase()} file…`;',
+  },
+  {
+    id: 'ak',
+    what: 'a step control that does not name its step',
+    // The Back button on the second step reads "Back to scales" again.
+    // A28 reads each step control.
+    from: '<button type="button" data-goto="0">Back: Choose scales</button>',
+    to: '<button type="button" data-goto="0">Back to scales</button>',
+  },
+  {
+    id: 'al',
+    what: 'the next-step panel without its heading',
+    // The panel's heading reads "Next step". The link and its address are
+    // unchanged, so A14 holds, and A29 reads the heading.
+    from: '<h3 id="nextStepHeading">Next: make the study link</h3>',
+    to: '<h3 id="nextStepHeading">Next step</h3>',
+  },
+  {
+    id: 'am',
+    what: 'the next-step panel left behind when its link is removed',
+    // removeNextStep() takes out the link and leaves the panel, its heading
+    // and its text. No link is left, so the anchor counts hold, and a later
+    // save adds a second panel. A15, A16, A17 and A18 count the panel
+    // headings.
+    from: '  for (const p of panels) p.remove();',
+    to: "  for (const p of panels) p.querySelector('a')?.remove();",
+  },
+  {
+    id: 'an',
+    what: '"Technical details" hidden once the page is ready',
+    // The section is closed as before, but hidden, so a visitor cannot open
+    // it. A21 reads it as not on show, and A30 reads it hidden after the
+    // failed build.
+    from: '  showStep(0, { focus: false });',
+    to: "  showStep(0, { focus: false });\n  el('techDetails').hidden = true;",
+  },
+  {
+    id: 'ao',
+    what: 'a failed build that leaves "Technical details" closed',
+    // The build's catch writes the status itself instead of calling
+    // showFailure(), as it did before, so the section stays closed and the
+    // status does not name it. A30 reads both.
+    from: '    showFailure(`The ${spec.label} build failed.`);',
+    to: '    status(`The ${spec.label} build failed.`);',
+  },
+  {
+    id: 'ap',
+    what: 'a Definition button that works on the first row only',
+    // Every other row's click does nothing. A test that drove the first row
+    // alone would pass. A24 drives every row.
+    from: '        desc.hidden = !desc.hidden;',
+    to: '        if (row !== box.firstElementChild) return;\n        desc.hidden = !desc.hidden;',
+  },
+  {
+    id: 'aq',
+    what: 'a hover that opens the definition after a delay',
+    // A pointer resting on a row's label opens its definition 300 ms later,
+    // as the hover popup this button replaced did. The button still works.
+    // A24 holds the hover on the first row for 600 ms.
+    from: '    row.append(label);',
+    to:
+      '    row.append(label);\n' +
+      "    label.addEventListener('pointerenter', () => setTimeout(() => {\n" +
+      "      const d = row.querySelector('.desc');\n" +
+      '      if (d) d.hidden = false;\n' +
+      '    }, 300));',
+  },
+  {
+    id: 'ar',
+    what: 'the README.txt title naming the file type, not the format',
+    // The title line reads "HiTOP-SR DOCX: ..." and so on. The card, the
+    // button and the status keep the name. A28 reads the README.txt titles.
+    from: '    `HiTOP-SR ${FORMATS[format].label}: ${stem}.zip`,',
+    to: '    `HiTOP-SR ${FORMATS[format].ext.toUpperCase()}: ${stem}.zip`,',
+  },
+  {
+    id: 'as',
+    what: 'the "No scales match" line outside any status region',
+    // The line still shows and hides as before. A25 reads its region.
+    from: '<div role="status"><p id="noMatch" hidden>',
+    to: '<div><p id="noMatch" hidden>',
+  },
+  {
+    id: 'at',
+    what: 'the Qualtrics and REDCap build statuses without the format name',
+    // The Word and Online form statuses keep the name. A28 reads the other
+    // two from every status their builds write.
+    from: 'function buildStatus(format) {',
+    to: "function buildStatus(format) {\n  if (format === 'qualtrics' || format === 'redcap') return 'Building…';",
   },
 ];
 

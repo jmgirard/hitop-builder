@@ -4,12 +4,15 @@ export default defineConfig({
   testDir: 'tests',
   // A cold webR boot -- R itself, then the hitop package -- is the bulk of
   // every run here, so both budgets sit well past Playwright's 30-second
-  // defaults. Ten minutes rather than the eight the smoke test's own two waits
-  // add up to (240s booting, 240s building): a per-test budget equal to the
-  // sum of the waits inside it leaves nothing for the navigation, the clicks
-  // and the checkbox, and a slow runner would die on a bare "Test timeout
-  // exceeded" with no assertion evaluated and nothing for the plant matrix to
-  // record. Two attempts still fit inside smoke.yml's 25-minute job budget.
+  // defaults. The smoke test's first test boots once and runs nine builds,
+  // and most builds wait twice, for the download and then for "Ready.": 17
+  // waits of up to 240s each, 68 minutes in all, which no per-test budget
+  // inside smoke.yml's 25-minute job can hold. Each wait is a ceiling for one
+  // stalled step, not a share of the whole. Ten minutes holds the boot at its
+  // ceiling and leaves six for the builds and the scale rows; the whole first
+  // test took 30s locally on 2026-09-30. Past ten minutes a run dies on a
+  // bare "Test timeout exceeded". Two attempts take up to 20 of the job's 25
+  // minutes, which leaves 5 for setup, the prose run and the second test.
   timeout: 10 * 60 * 1000,
   expect: { timeout: 60 * 1000 },
   // One retry in CI, so a single hiccup on webr.r-wasm.org or r-universe does

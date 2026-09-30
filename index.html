@@ -164,7 +164,8 @@
   /* ---- Scale list ---------------------------------------------------- */
   #scales {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(min(15rem, 100%), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(19rem, 100%), 1fr));
+    align-items: start;
     gap: 0 var(--s4);
     border: 1px solid var(--line);
     border-radius: var(--r1);
@@ -172,42 +173,39 @@
     padding: var(--s3);
     max-height: 26rem; overflow-y: auto;
   }
-  #scales label {
-    display: flex; gap: var(--s2); align-items: flex-start;
-    padding: .2rem var(--s1); border-radius: var(--r1);
+  #scales[hidden] { display: none; }
+  /* One row per scale: the label (checkbox, name, item count) and, when the
+     package gives definitions, a Definition button beside it. The button is
+     outside the label, so pressing it never ticks the box. */
+  #scales .row {
+    display: grid; grid-template-columns: 1fr auto; align-items: start;
+    gap: 0 var(--s2); padding: .2rem var(--s1); border-radius: var(--r1);
   }
-  #scales label:hover { background: var(--accent-weak); }
+  #scales .row:hover { background: var(--accent-weak); }
+  #scales label { display: flex; gap: var(--s2); align-items: flex-start; }
   #scales label input { margin-top: .3em; flex: none; }
   #scales .n {
     color: var(--muted); font-size: var(--t-micro);
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
     margin-left: auto; padding-left: var(--s2); padding-top: .15em;
   }
-  /* The scale definitions come from the installed package, one per row, and
-     each sits in the row it describes so `aria-describedby` can point a
-     screen reader straight at it. Visually it is a popup rather than a second
-     line: at 76 rows the list already scrolls, and the definitions run to
-     ~120 characters, which would roughly triple its height.
-     `position: fixed` is what keeps the popup out of `#scales`'s own
-     `overflow-y: auto` clip -- an absolutely positioned one would be cut off
-     on the last visible row. It is placed by script, so it carries no
-     top/left here. */
-  #scales .desc {
-    position: fixed; top: 0; left: 0; z-index: 20;
-    visibility: hidden;
-    max-width: min(24rem, calc(100vw - 2rem));
-    padding: var(--s2) var(--s3);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--r1);
-    background: var(--surface-2); color: var(--fg);
-    font-size: var(--t-micro); font-weight: 400;
-    box-shadow: 0 2px 8px rgb(0 0 0 / .18);
-    /* The popup sits under the row it describes and so overlaps the next one.
-       It must never swallow that row's hover or its click, and it is inside
-       the label, so a click on it would tick the wrong box. */
-    pointer-events: none;
+  #scales .defbtn {
+    padding: .05rem .4rem; font-size: var(--t-micro); font-weight: 500;
+    min-height: 1.5rem; background: var(--bg);
   }
-  #scales .desc.on { visibility: visible; }
+  #scales .defbtn[aria-expanded=true] { border-color: var(--accent); background: var(--accent-weak); }
+  /* The definition opens as a line under its row, inside the list. It comes
+     from the installed package, and the checkbox's aria-describedby points at
+     it, so a screen reader reads it with the box whether it is open or not. */
+  #scales .desc {
+    grid-column: 1 / -1;
+    margin: var(--s1) 0 var(--s2) calc(var(--s2) + 1.1rem);
+    color: var(--fg); font-size: var(--t-small);
+  }
+  #noMatch {
+    border: 1px solid var(--line); border-radius: var(--r1);
+    background: var(--surface); padding: var(--s3); color: var(--muted);
+  }
   #tally { margin: var(--s3) 0; font-variant-numeric: tabular-nums; color: var(--muted); }
 
   /* ---- Grouped settings ---------------------------------------------- */
@@ -246,6 +244,21 @@
     align-items: flex-start; margin-top: var(--s4);
   }
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+  /* The next step after an online save: a panel under the download button
+     whose one action is a link drawn as the page's primary button. */
+  .nextstep {
+    border: 1px solid var(--accent); border-radius: var(--r2);
+    background: var(--accent-weak); padding: var(--s4); margin-top: var(--s4);
+  }
+  .nextstep h3 { font-size: var(--t-body); margin: 0 0 var(--s2); }
+  .nextstep p { margin: 0 0 var(--s3); max-width: 40rem; }
+  a.button {
+    display: inline-block; padding: .6rem 1.1rem; border-radius: var(--r2);
+    border: 1px solid var(--accent); font-weight: 600; text-decoration: none;
+  }
+  a.button.primary { background: var(--accent); color: var(--accent-fg); }
+  a.button.primary:hover { filter: brightness(1.12); }
   #downloadBtn { padding: .7rem 1.2rem; font-size: 1.0625rem; border-radius: var(--r2); }
 
   /* ---- Format choice ------------------------------------------------- */
@@ -374,10 +387,13 @@
   }
 
   .step[hidden] { display: none; }
-  /* Entering a step moves focus to its heading, so the ring has to paint on a
-     heading as well as on a control: a programmatic focus does not match
-     :focus-visible. */
-  .step > h2:focus { outline: 3px solid var(--focus); outline-offset: 4px; }
+  /* Entering a step moves focus to its heading. The ring paints there only
+     when the browser counts that focus as visible: after a keyboard press on
+     the control that changed the step, and not after a mouse click, where a
+     ring on a heading reads as a stray box. The second rule removes any
+     outline a browser's own stylesheet adds on :focus. */
+  .step > h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+  .step > h2:focus:not(:focus-visible) { outline: none; }
 
   .recap {
     display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
@@ -395,6 +411,18 @@
     margin-top: var(--s6); padding-top: var(--s4);
     border-top: 1px solid var(--line);
   }
+
+  /* ---- Technical details --------------------------------------------- */
+  /* The host list and the log, closed unless a failure opens them. */
+  #techDetails { margin-top: var(--s6); }
+  #techDetails[hidden] { display: none; }
+  #techDetails > summary {
+    cursor: pointer; color: var(--muted); font-size: var(--t-small);
+    font-weight: 600; padding: var(--s2) 0;
+  }
+  #techDetails > summary:hover { color: var(--fg); }
+  #techDetails > p { color: var(--muted); font-size: var(--t-small); max-width: 44rem; }
+  #techDetails > h2 { margin-top: var(--s4); }
 
   /* ---- Log ----------------------------------------------------------- */
   #log {
@@ -440,17 +468,14 @@
 </nav>
 
 <h1>HiTOP-SR Module Builder</h1>
-<p class="lede">Choose the HiTOP-SR scales you need. Download a questionnaire
-that carries only those items, as a Word form to print, a Qualtrics import
-file, or a REDCap data dictionary. Or save the scoring file alone and carry
-it into a study link for the online form.</p>
-
-<p class="lede">Everything runs in your own browser. To do that, the page
-fetches R from <code>webr.r-wasm.org</code>. It fetches the
-<a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
-<span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
-hands the file itself to <code>r2.ropensci.org</code>. It fetches the other R
-packages it needs from <code>repo.r-wasm.org</code>.</p>
+<!-- At most 50 words from the <h1> to the status line: the smoke test counts
+     them. Where R and the package come from, and the log, are under
+     "Technical details" at the foot of the page. -->
+<p class="lede">Choose the HiTOP-SR scales you need. Then download a
+questionnaire that holds only their items, as a Word form, a Qualtrics file
+or a REDCap dictionary. Or save a module file for the Online form. It
+downloads R and the hitop package, named under Technical details, then runs
+here.</p>
 
 <noscript>
   <div class="notice">
@@ -466,7 +491,8 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
 <div id="controls" hidden>
   <!-- The numeral is decoration beside the step name: hiding it from the
        accessibility tree leaves each button named for its step and nothing
-       else, which is what its heading is called too. -->
+       else, which is what its heading is called too. Every other control
+       that changes the step holds the same name after "Next:" or "Back:". -->
   <nav id="stepbar" aria-label="Steps">
     <ol>
       <li><button type="button" data-goto="0"><span class="num" aria-hidden="true">1</span> <span>Choose scales</span></button></li>
@@ -483,9 +509,13 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
       <button type="button" id="clearAll">Clear all</button>
     </div>
     <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
+    <!-- A live region of its own, always in the page, so a screen reader
+         announces the line when a filter empties the list. The line is
+         hidden and shown inside it (see applyFilter()). -->
+    <div role="status"><p id="noMatch" hidden>No scales match the filter.</p></div>
     <p id="tally"></p>
     <div class="stepnav">
-      <button type="button" class="primary" data-goto="1">Continue to the format and download</button>
+      <button type="button" class="primary" data-goto="1">Next: Choose a format and download</button>
     </div>
   </section>
 
@@ -498,27 +528,27 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
   <section class="step" id="step2" hidden>
     <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
-      <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Pick the file you need. Its settings start at their defaults
-    and sit folded below the cards. If you need to change a setting,
-    open the panel. To build another format from the same scales, pick another
-    card. The cards are off while a build runs.</p>
+      <button type="button" class="linkish" data-goto="0">Back: Choose scales</button></p>
+    <p class="hint">Pick a format. You can build more than one from the same
+    scales.</p>
     <div class="formats" role="group" aria-label="Format">
+      <!-- Each card title is its format's FORMATS[].label, word for word:
+           the smoke test reads the two against one table. -->
       <button type="button" data-choose="docx">
-        <span class="fmtname">Word (.docx)</span>
-        <span class="fmtwhat">A questionnaire to print and fill in on paper.</span>
+        <span class="fmtname">Word form</span>
+        <span class="fmtwhat">A questionnaire to print and fill in on paper (.docx).</span>
       </button>
       <button type="button" data-choose="qualtrics">
-        <span class="fmtname">Qualtrics (.txt)</span>
-        <span class="fmtwhat">An advanced-format file to import as a Qualtrics survey.</span>
+        <span class="fmtname">Qualtrics file</span>
+        <span class="fmtwhat">An advanced-format file to import as a Qualtrics survey (.txt).</span>
       </button>
       <button type="button" data-choose="redcap">
-        <span class="fmtname">REDCap (.zip)</span>
-        <span class="fmtwhat">A data dictionary to import into a REDCap project.</span>
+        <span class="fmtname">REDCap dictionary</span>
+        <span class="fmtwhat">A data dictionary to import into a REDCap project (.zip).</span>
       </button>
       <button type="button" data-choose="online">
         <span class="fmtname">Online form</span>
-        <span class="fmtwhat">A scoring file for the online form, to paste into the study link builder.</span>
+        <span class="fmtwhat">A module file for a study link in the Study Link Builder (.json).</span>
       </button>
     </div>
     <!-- Each format's settings live in one disclosure, closed on first paint
@@ -558,20 +588,19 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
              shuffled form needs layout = "printed" to score must stay in view
              for as long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p>Scoring a shuffled form takes one more step. If you enter the
-          data in the order the form printed the items, the columns are in
-          printed order, not in the instrument's own order. In R, read the .json scoring
-          file with <code>read_module()</code> and pass that module to
+          <p>A shuffled form takes one more step to score. If you enter the
+          data in the printed order, its columns are in that order. Then, in
+          R, read the module file with <code>read_module()</code> and pass
+          that module to
           <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
-          Columns already in the original HiTOP-SR order take the default layout
-          instead. The wrong layout gives wrong scale scores and raises no error.</p>
+          Columns in the HiTOP-SR's own order take the default layout. The
+          wrong layout gives wrong scale scores and no error.</p>
           <!-- What the shuffled file does about recovering the original order
                depends on the numbering choice and on whether every scale is
                ticked, so this sentence is written by refreshShuffleNote(). -->
           <p id="shuffleCrosswalk"></p>
-          <p>Shuffling reaches this form only. The page never shuffles the
-          Qualtrics and REDCap files: there an item number names a collected
-          data column.</p>
+          <p>Only the Word form is shuffled. In the Qualtrics file and the
+          REDCap dictionary, an item number names a data column.</p>
         </div>
       </div>
 
@@ -611,85 +640,83 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
         </details>
       </div>
     </div>
-    <!-- Shown for the three bundled formats, because every bundle this page
-         makes carries a scoring file: it is the only record of which scales a form
-         collects, and on a shuffled Word form of the order it printed them
-         in. It sits above the button rather than in the small print under it,
-         so it is read before the file arrives rather than after. -->
-    <div class="notice" id="descriptorNote">
-      <p>A download here is one zip file holding three. The button below
-      builds the questionnaire and saves a <code>.zip</code> bundle. The bundle
-      holds the questionnaire, a small <code>.json</code> scoring file, and a
-      <code>README.txt</code> that says what each file is for. The scoring file
-      lists the scales you chose. On a shuffled Word form, it also records the
-      order the items were printed in. The bundle takes its name from the build
-      that made it: the format, every scale or a selection, and shuffled or not. A
-      build that differs from an earlier one in any of those three never lands
-      on top of it. Two builds that differ only in which scales you ticked share
-      a name. If you keep both, rename one of them.</p>
-      <p>Keep the <code>.json</code> file with the responses you collect. When
-      you score the data, the <code>hitop</code> package reads it back with
-      <code>read_module()</code>. A REDCap bundle holds a second zip inside it,
-      the data dictionary. Upload that inner zip to REDCap as it is, without
-      extracting it.</p>
+    <!-- At most 60 words from the cards to the download button, for each
+         format with its settings closed: the smoke test counts them. How the
+         zip file is named is in the README.txt inside the zip file (see
+         bundleReadme()). The REDCap line stays on the page, because the
+         file REDCap takes is the inner zip, not the download itself.
+         The zip note is shown for the three formats that make a zip file,
+         and its REDCap line for REDCap alone (see setFormat()). It sits
+         above the button, so it is read before the file arrives. -->
+    <div class="notice" id="zipNote">
+      <p>The download is one zip file. It holds the questionnaire, a module
+      file that lists your scales, and a <code>README.txt</code>. Keep the
+      module file with the responses. The <code>hitop</code> package reads it
+      with <code>read_module()</code> when you score them.</p>
+      <p id="redcapNote" hidden>For REDCap, upload the inner
+      <code>-upload.zip</code> file as it is.</p>
     </div>
-    <p class="hint" id="downloadHint">The button builds the questionnaire and
-    its scoring file in this browser, zips them with the README, and saves that
-    one bundle. It is on while at least one scale is ticked and no build is
-    running.</p>
-    <!-- The online form's notice and hint. The online form needs no
-         questionnaire file: the hitop-form page shows the items from the
-         package's own export, and the study link carries the module. So this
-         card saves the scoring file alone, one .json and no bundle, and the
-         two blocks above are swapped for these by setFormat(). -->
+    <!-- The Online form's note. The online form needs no questionnaire file:
+         the hitop-form page shows the items from the package's own export,
+         and the study link carries the module. So this card saves the module
+         file alone, and setFormat() swaps this note for the zip note. -->
     <div class="notice" id="onlineNote" hidden>
-      <p>A download here is one small <code>.json</code> scoring file, not a
-      zip bundle. The button below writes it and saves it. The online form
-      needs no questionnaire file: the hitop-form page shows the items itself,
-      and the study link carries this file's module. The file lists the scales
-      you chose. It takes its name from the build that made it:
-      <code>hitopsr-online.json</code> with every scale ticked, and
-      <code>hitopsr-online-module.json</code> for a selection. Two builds that
-      differ only in which scales you ticked share a name. If you keep both,
-      rename one of them.</p>
-      <p>Keep the <code>.json</code> file with the responses you collect. When
-      you score the data, the <code>hitop</code> package reads it back with
-      <code>read_module()</code>. After the save, a link under the button opens
-      the hitop-form link builder in a new tab with this file's module filled
-      in, so the study link you make there shows only the scales you chose.</p>
+      <p>The download is one module file that lists your scales. The Online
+      form shows the items itself, so there is no questionnaire to build. Keep
+      the module file with the responses. After the save, the next step is the
+      study link. Two saves that each skip some scales share a file name, so
+      rename one if you keep both.</p>
     </div>
-    <p class="hint" id="onlineHint" hidden>The button writes the scoring file
-    in this browser and saves it. It is on while at least one scale is ticked
-    and no build is running.</p>
     <div class="downloadrow">
       <div class="downloads">
-        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
+        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip)</button>
       </div>
     </div>
-    <!-- Shown after an online save, and only until the selection changes,
-         another format's card is pressed, or another build starts. The link
-         itself is made by showLinkBuilder() from the template here: its text
-         is static markup, and the script fills in the href. It is removed
-         from the document, not hidden, when the selection or the format it
-         was made for no longer holds (see removeLinkBuilder()), so a stale
-         link is never left in the page. -->
-    <p class="hint" id="onlineNext" hidden>The scoring file is saved.
-    <span id="linkBuilderSlot"><template id="linkBuilderTpl"><a target="_blank" rel="noopener">Continue to the link builder</a></template></span>
-    to make the study link. It opens in a new tab with your module filled in.</p>
+    <!-- Under the button, so it does not count toward the 60 words above.
+         Shown by refreshTally() while no scale is ticked, the one reason
+         outside a build that the button is off. -->
+    <p class="hint" id="noScaleHint" hidden>Choose at least one scale to turn
+    the button on.</p>
+    <!-- The next step after an online save, in the page only until the
+         selection changes, another format's card is pressed, or another
+         build starts. showNextStep() clones the panel from the template
+         here: its text is static markup, and the script fills in the href
+         of its link, which is drawn as a button. It is removed from the
+         document, not hidden, when the selection or the format it was made
+         for no longer holds (see removeNextStep()), so a stale link is never
+         left in the page. -->
+    <div id="nextStepSlot"><template id="nextStepTpl"><section class="nextstep" aria-labelledby="nextStepHeading">
+      <h3 id="nextStepHeading">Next: make the study link</h3>
+      <p>The module file is saved. The Study Link Builder opens in a new tab
+      with your module filled in. There you name the study and choose where
+      the responses go.</p>
+      <a class="button primary" target="_blank" rel="noopener">Open the Study Link Builder</a>
+    </section></template></div>
     <div class="stepnav">
-      <button type="button" data-goto="0">Back to scales</button>
+      <button type="button" data-goto="0">Back: Choose scales</button>
     </div>
   </section>
 </div>
 
-<div id="logSection" hidden>
+<!-- Closed while the page loads and once it is ready. A load or build
+     failure opens it (see showFailure()), and the failure's status line
+     names it. -->
+<details id="techDetails" hidden>
+  <summary>Technical details</summary>
+  <p>The page fetches R from
+  <code>webr.r-wasm.org</code>. It fetches the
+  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
+  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
+  hands the file itself to <code>r2.ropensci.org</code>. It fetches the other R
+  packages it needs from <code>repo.r-wasm.org</code>.</p>
   <h2>Log</h2>
   <!-- Deliberately NOT a live region: role="log" carries an implicit
        aria-live="polite", which made a screen reader narrate the whole webR
        install transcript and queue "Ready." behind it. The status line above
-       is the only announced region. -->
+       and the no-match line's region on the first step are the announced
+       regions. -->
   <pre id="log" aria-live="off"></pre>
-</div>
+</details>
 
 <footer>
   Built with <a href="https://docs.r-wasm.org/webr/latest/">webR</a>. Source:
@@ -755,7 +782,7 @@ let bootAbandoned = false;
 
 // True while download() runs. Every build writes into the one /tmp/bundle
 // directory and ends in one save, so a second build that starts before the
-// first ends can put its files into the first one's bundle. refreshTally()
+// first ends can put its files into the first one's zip file. refreshTally()
 // reads this flag so that a selection change during a build leaves the button
 // off, and download() returns at once while it is set. download() also turns
 // the format cards off until the build ends, so a card press cannot
@@ -768,7 +795,7 @@ let building = false;
 // come back.
 function abandonBoot(message) {
   bootAbandoned = true;
-  status(message);
+  showFailure(message);
   el('controls').hidden = true;
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = true;
@@ -784,45 +811,57 @@ function log(text) {
 }
 function status(text) { el('status').textContent = text; }
 
+// Every load or build failure comes through here. The log that says what went
+// wrong is under "Technical details", which stays closed while all goes well,
+// so a failure opens it and the status line says where to look.
+function showFailure(message) {
+  status(`${message} The log under "Technical details" below says more.`);
+  el('techDetails').open = true;
+}
+
 // Each format names the package function that writes it, the extension the
-// questionnaire carries inside the bundle, and the word it contributes to
-// the bundle's filename (see downloadStem). Nothing here describes the
+// questionnaire carries inside the zip file, and the word it contributes to
+// the zip file's name (see downloadStem). Nothing here describes the
 // instrument's content -- item numbers and scale names come from the package.
 //
 // `name` is the system the file is for rather than the key or the extension:
 // on the questionnaire the extension already says `.docx`, and a stem of
 // `hitopsr-docx` would say it twice.
+//
+// `label` is the format's one name on the page: its card title, its download
+// button, its build status, the status after a card press, and the title
+// line of the README.txt in its zip file all use it.
 const FORMATS = {
   docx: {
     fn: 'generate_docx_hitopsr', ext: 'docx', name: 'word',
     label: 'Word form',
-    button: 'Download the Word form (.zip bundle)',
+    button: 'Download the Word form (.zip)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', name: 'qualtrics',
     label: 'Qualtrics file',
-    button: 'Download the Qualtrics file (.zip bundle)',
+    button: 'Download the Qualtrics file (.zip)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', name: 'redcap',
     label: 'REDCap dictionary',
-    button: 'Download the REDCap dictionary (.zip bundle)',
+    button: 'Download the REDCap dictionary (.zip)',
   },
-  // The online form has no questionnaire file and no bundle: download()
-  // writes the scoring file with write_module() and saves that one .json
+  // The online form has no questionnaire file and no zip file: download()
+  // writes the module file with write_module() and saves that one .json
   // (see the online branch there), so `ext` is the saved file's own.
   online: {
     fn: 'write_module', ext: 'json', name: 'online',
     label: 'Online form',
-    button: 'Download the scoring file (.json)',
+    button: 'Download the module file for the Online form (.json)',
   },
 };
 
-// hitop-form's link builder, and the encoding its `c` parameter takes (form.js
-// encodeConfig()): the JSON text as UTF-8 bytes, base64 with `-` and `_` in
-// place of `+` and `/` and no `=` padding. Written here rather than imported,
-// because this page loads nothing from hitop-form.
-const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+// hitop-form's Study Link Builder, and the encoding its `c` parameter takes
+// (form.js encodeConfig()): the JSON text as UTF-8 bytes, base64 with `-` and
+// `_` in place of `+` and `/` and no `=` padding. Written here rather than
+// imported, because this page loads nothing from hitop-form.
+const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
 
 function base64url(text) {
   const bytes = new TextEncoder().encode(text);
@@ -831,38 +870,43 @@ function base64url(text) {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Puts the "Continue to the link builder" link under the download button
-// after an online save. The link is cloned from the template in the markup,
-// so its text and its target and rel attributes are static, and only the href
-// is made here: the link builder's address with a `c` that carries the
-// instrument and the module the saved file holds, which is what link.html's
-// prefill reads. Any link already there is removed first, so the document
-// never holds two.
-function showLinkBuilder(module) {
-  removeLinkBuilder();
-  const a = el('linkBuilderTpl').content.firstElementChild.cloneNode(true);
-  a.href = `${LINK_BUILDER}?c=` +
+// Puts the "Next: make the study link" panel under the download button after
+// an online save. The panel is cloned from the template in the markup, so its
+// text and its link's target and rel attributes are static, and only the
+// href is made here: the Study Link Builder's address with a `c` that carries
+// the instrument and the module the saved file holds, which is what
+// link.html's prefill reads. Any panel already there is removed first, so the
+// document never holds two.
+function showNextStep(module) {
+  removeNextStep();
+  const panel = el('nextStepTpl').content.firstElementChild.cloneNode(true);
+  panel.querySelector('a').href = `${STUDY_LINK_BUILDER}?c=` +
     base64url(JSON.stringify({ instrument: INSTRUMENT, module }));
-  el('linkBuilderSlot').append(a);
-  el('onlineNext').hidden = false;
+  el('nextStepSlot').append(panel);
 }
 
-// Takes the link out of the document. Called on every selection change, on
+// Takes the panel out of the document. Called on every selection change, on
 // a press of another format's card, at the start of every build, and by
-// showLinkBuilder() before it puts a new link in: the
-// link carries the module of one saved file, and a tick, a format change or
-// a new build makes that file no longer the one the page is set up for.
-// The status line says the link is under the button after the save that
-// put it in, so a removal that takes a link out returns the status to
-// "Ready." rather than leave that claim standing. A removal that finds no
-// link leaves the status alone: the one at the start of a build is
-// followed by the build's own status, and the one a tick makes during a
-// build must not write over it.
-function removeLinkBuilder() {
-  const links = el('linkBuilderSlot').querySelectorAll('a');
-  for (const a of links) a.remove();
-  el('onlineNext').hidden = true;
-  if (links.length) status('Ready.');
+// showNextStep() before it puts a new panel in: the panel's link carries the
+// module of one saved file, and a tick, a format change or a new build makes
+// that file no longer the one the page is set up for. The status line names
+// the panel after the save that put it in, so a removal that takes a panel
+// out returns the status to "Ready." rather than leave that claim standing.
+// A removal that finds no panel leaves the status alone: the one at the
+// start of a build is followed by the build's own status, and the one a tick
+// makes during a build must not write over it.
+function removeNextStep() {
+  const panels = el('nextStepSlot').querySelectorAll('.nextstep');
+  for (const p of panels) p.remove();
+  if (panels.length) status('Ready.');
+}
+
+// The status line while a build runs, in the format's one name. The Online
+// form's build writes a module file and nothing else, so it says so.
+function buildStatus(format) {
+  const name = FORMATS[format].label;
+  if (format === 'online') return `Writing the module file for the ${name}…`;
+  return `Building the ${name}…`;
 }
 
 // The stem both files of one build share. Three things about the build are
@@ -955,26 +999,25 @@ const STEP_IDS = ['step1', 'step2'];
 // format makes. Every disclosure is closed here, the freshly shown one
 // included, so a card press always lands on the summary line and never on
 // settings left open from an earlier build.
-// A change of format takes out the link an online save left: the link
+// A change of format takes out the panel an online save left: the panel
 // belongs with the online card, and the button under any other card builds
 // something else. The online card pressed again is not a change, so the
-// link stays, and so does the call made at start-up for the page's first
+// panel stays, and so does the call made at start-up for the page's first
 // format.
 function setFormat(format) {
-  if (format !== currentFormat) removeLinkBuilder();
+  if (format !== currentFormat) removeNextStep();
   currentFormat = format;
   for (const panel of document.querySelectorAll('.fmtpanel')) {
     panel.hidden = panel.dataset.panel !== format;
   }
   for (const d of document.querySelectorAll('.fmtpanel details')) d.open = false;
   // The online card has no settings panel, so no panel is on show under it.
-  // Its notice and hint say a single .json is saved, where the other three
-  // cards' say a bundle is; the two pairs are swapped here.
+  // Its note says a single module file is saved, where the other three
+  // cards' note says a zip file is; the two are swapped here.
   const online = format === 'online';
-  el('descriptorNote').hidden = online;
-  el('downloadHint').hidden = online;
+  el('zipNote').hidden = online;
   el('onlineNote').hidden = !online;
-  el('onlineHint').hidden = !online;
+  el('redcapNote').hidden = format !== 'redcap';
   markFormatChoice(format);
   el('downloadBtn').textContent = FORMATS[format].button;
 }
@@ -1033,7 +1076,9 @@ function showStep(index, { focus = true } = {}) {
   refreshRecap();
   // Focus lands on the step's own heading rather than its first control: it
   // names the step a keyboard or screen-reader visitor has just arrived at,
-  // and leaves the whole step ahead of them in tab order.
+  // and leaves the whole step ahead of them in tab order. Its ring shows
+  // after a keyboard press and not after a mouse click (see the
+  // `.step > h2` rules).
   if (focus) el(STEP_IDS[index]).querySelector('h2').focus();
 }
 
@@ -1060,6 +1105,7 @@ function refreshTally() {
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = bootAbandoned || building || selected().length === 0;
   }
+  el('noScaleHint').hidden = selected().length > 0;
   // The shuffle notice and the later steps' recap line both read the selection,
   // and every path that changes the selection already comes through here.
   refreshShuffleNote();
@@ -1067,7 +1113,7 @@ function refreshTally() {
 }
 
 // Whether the installed package gave us definitions to show. All-or-nothing
-// on purpose: a page that showed a popup on some rows and not others would
+// on purpose: a page that showed a Definition button on some rows and not others would
 // read as "this scale has no definition" rather than "this build has none".
 // An older hitop returns three columns and no `Brief` at all, which is the
 // case this exists for -- the package merges before the page does, so there is
@@ -1079,11 +1125,27 @@ function definitionsAvailable() {
   );
 }
 
+// The page's own words on a scale row. The scale's name, its item count and
+// its definition come from the package; only these words are the page's.
+// The count is in the label, so the checkbox's accessible name ends with it.
+// The button's accessible name starts with its visible word and adds the
+// scale, so 76 buttons are not all called "Definition" alone.
+function scaleRowText(s) {
+  return {
+    count: `${s.nItems} items`,
+    toggle: 'Definition',
+    toggleName: `Definition of ${s.Scale}`,
+  };
+}
+
 function renderScales() {
   const box = el('scales');
   box.textContent = '';
   const withDefs = definitionsAvailable();
   for (const s of scales) {
+    const text = scaleRowText(s);
+    const row = document.createElement('div');
+    row.className = 'row';
     const label = document.createElement('label');
     const input = document.createElement('input');
     input.type = 'checkbox';
@@ -1094,23 +1156,34 @@ function renderScales() {
     name.textContent = s.Scale;
     const n = document.createElement('span');
     n.className = 'n';
-    n.textContent = `${s.nItems}`;
+    n.textContent = text.count;
     label.append(input, name, n);
+    row.append(label);
     if (withDefs) {
-      // The description element is in the DOM whether or not it is on screen:
-      // that is what `aria-describedby` resolves against, so a screen-reader
-      // user hears the definition with the checkbox without any pointer or
-      // Escape handling being involved.
-      const desc = document.createElement('span');
+      // The definition is in the document whether it is open or not: that is
+      // what `aria-describedby` resolves against, so a screen-reader user
+      // hears it with the checkbox without opening it. The button opens and
+      // closes it, by click or by keyboard, and nothing opens it on hover.
+      const desc = document.createElement('p');
       desc.className = 'desc';
       desc.id = `desc-${s.camelCase}`;
-      desc.setAttribute('role', 'tooltip');
+      desc.hidden = true;
       desc.textContent = s.Brief;
       input.setAttribute('aria-describedby', desc.id);
-      label.append(desc);
-      wireDescription(label, input, desc);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'defbtn';
+      button.textContent = text.toggle;
+      button.setAttribute('aria-label', text.toggleName);
+      button.setAttribute('aria-controls', desc.id);
+      setExpanded(button, false);
+      button.addEventListener('click', () => {
+        desc.hidden = !desc.hidden;
+        setExpanded(button, !desc.hidden);
+      });
+      row.append(button, desc);
     }
-    box.append(label);
+    box.append(row);
   }
   // The browser can restore a filter value on a back-navigation or bfcache
   // restore without firing `input`, so apply it once here rather than waiting
@@ -1120,80 +1193,25 @@ function renderScales() {
   refreshTally();
 }
 
-// One popup at a time, and a short delay before it appears: without the delay,
-// running the pointer down a 76-row list flashes a popup per row.
-const HOVER_DELAY_MS = 300;
-let shownDesc = null;
-let hoverTimer = null;
-// Escape hides the popup and must keep it hidden while the pointer has not
-// left the row and focus has not moved -- otherwise Escape does nothing a
-// visitor can see, because the state that showed it is still true.
-let dismissedDesc = null;
-
-function hideDescription() {
-  if (shownDesc) shownDesc.classList.remove('on');
-  shownDesc = null;
-  clearTimeout(hoverTimer);
-  hoverTimer = null;
+function setExpanded(button, open) {
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
 }
 
-function showDescription(label, desc) {
-  if (desc === dismissedDesc) return;
-  hideDescription();
-  // Placed against the viewport, because the popup is `position: fixed` to
-  // escape the scrolling list's clip. Below the row where there is room,
-  // above it otherwise, and never off either side.
-  desc.classList.add('on');
-  const row = label.getBoundingClientRect();
-  const box = desc.getBoundingClientRect();
-  const margin = 8;
-  let top = row.bottom + 4;
-  if (top + box.height > window.innerHeight - margin) {
-    top = Math.max(margin, row.top - box.height - 4);
-  }
-  let left = row.left;
-  left = Math.min(left, window.innerWidth - box.width - margin);
-  desc.style.top = `${Math.round(top)}px`;
-  desc.style.left = `${Math.round(Math.max(margin, left))}px`;
-  shownDesc = desc;
-}
-
-function wireDescription(label, input, desc) {
-  label.addEventListener('pointerenter', () => {
-    clearTimeout(hoverTimer);
-    hoverTimer = setTimeout(() => showDescription(label, desc), HOVER_DELAY_MS);
-  });
-  label.addEventListener('pointerleave', () => {
-    clearTimeout(hoverTimer);
-    hoverTimer = null;
-    if (dismissedDesc === desc) dismissedDesc = null;
-    if (shownDesc === desc) hideDescription();
-  });
-  // Keyboard reaches the checkbox, never the row, so focus is what the popup
-  // hangs off for a Tab visitor.
-  input.addEventListener('focus', () => showDescription(label, desc));
-  input.addEventListener('blur', () => {
-    if (dismissedDesc === desc) dismissedDesc = null;
-    if (shownDesc === desc) hideDescription();
-  });
-}
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && shownDesc) {
-    dismissedDesc = shownDesc;
-    hideDescription();
-  }
-});
-// A fixed popup does not travel with the list it came from, so it goes away
-// rather than pointing at the wrong row.
-window.addEventListener('scroll', hideDescription, true);
-
+// A filter hides the rows whose names do not hold it. When it hides every
+// row, the empty list gives way to a line that says so, so the page never
+// shows an empty box with nothing said.
 function applyFilter() {
   const q = el('filter').value.trim().toLowerCase();
-  for (const label of document.querySelectorAll('#scales label')) {
-    const text = label.querySelector('.nm').textContent.toLowerCase();
-    label.style.display = !q || text.includes(q) ? '' : 'none';
+  let shown = 0;
+  for (const row of document.querySelectorAll('#scales .row')) {
+    const text = row.querySelector('.nm').textContent.toLowerCase();
+    const match = !q || text.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) shown++;
   }
+  const none = scales.length > 0 && shown === 0;
+  el('scales').hidden = none;
+  el('noMatch').hidden = !none;
   refreshSelectAllLabel();
 }
 
@@ -1202,19 +1220,19 @@ function applyFilter() {
 // that way: a filtered clear would leave hidden scales ticked, and they would
 // silently reach the download.
 function selectVisible() {
-  for (const label of document.querySelectorAll('#scales label')) {
-    if (label.style.display !== 'none') label.querySelector('input').checked = true;
+  for (const row of document.querySelectorAll('#scales .row')) {
+    if (row.style.display !== 'none') row.querySelector('input').checked = true;
   }
   selectionChanged();
 }
 
 // Every change the visitor makes to the selection -- a tick, an untick,
 // Select all, Clear all -- comes through here. It is not refreshTally(),
-// which download() also calls when a build ends: the link-builder link is
+// which download() also calls when a build ends: the next-step panel is
 // removed on a selection change and must survive the end of the online build
 // that made it.
 function selectionChanged() {
-  removeLinkBuilder();
+  removeNextStep();
   refreshTally();
 }
 
@@ -1243,12 +1261,12 @@ function crosswalkSentence() {
   if (wholeInstrument()) {
     return 'This form carries no crosswalk: for a shuffled whole instrument ' +
       'such a crosswalk runs to 405 pairs on a page a participant reads, so the package ' +
-      'prints none. Only the .json scoring file inside the bundle records ' +
+      'prints none. Only the module file inside the zip file records ' +
       'the printed order. Keep it, or the order is lost.';
   }
   return 'This form carries a crosswalk: each printed number beside the ' +
-    'original HiTOP-SR number it came from. The .json scoring file inside ' +
-    'the bundle records that order too.';
+    'original HiTOP-SR number it came from. The module file inside ' +
+    'the zip file records that order too.';
 }
 
 function clearAll() {
@@ -1258,8 +1276,8 @@ function clearAll() {
 
 // Say which scales "select all" will take, so its scope is never a surprise.
 function refreshSelectAllLabel() {
-  const shown = [...document.querySelectorAll('#scales label')]
-    .filter((l) => l.style.display !== 'none').length;
+  const shown = [...document.querySelectorAll('#scales .row')]
+    .filter((r) => r.style.display !== 'none').length;
   el('selectAll').textContent =
     shown === scales.length ? 'Select all' : `Select all ${shown} shown`;
   el('selectAll').disabled = shown === 0;
@@ -1291,7 +1309,7 @@ function namingValue(id) {
 
 // Hands one built file to the browser. Exactly one save happens per build:
 // a browser may drop the second of two saves it was not asked for, which is
-// why the questionnaire and its scoring file travel inside one bundle rather
+// why the questionnaire and its module file travel inside one zip file rather
 // than as two saves (see download()).
 function saveFile(bytes, mime, name) {
   const blob = new Blob([bytes], { type: mime });
@@ -1305,28 +1323,29 @@ function saveFile(bytes, mime, name) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-// The name the questionnaire takes inside the bundle. A REDCap build is
-// itself a zip, so inside the bundle it is called `-upload`: the outer file
+// The name the questionnaire takes inside the zip file. A REDCap build is
+// itself a zip, so inside the zip file it is called `-upload`: the outer file
 // is the download, and the inner one is what REDCap takes. The other two
 // formats keep the stem and their own extension.
 function questionnaireName(format, stem) {
   return format === 'redcap' ? `${stem}-upload.zip` : `${stem}.${FORMATS[format].ext}`;
 }
 
-// The README that travels inside every bundle. It is the one thing the
-// bundle says to a reader who never saw this page -- a colleague the files
-// were forwarded to -- so it names each entry and what to do with it. Only
-// the questionnaire paragraph differs by format, keyed on FORMATS like the
-// button label; the REDCap paragraph is the one place the bundle has to say
-// that the inner zip is uploaded as it is.
+// The README that travels inside every zip file. It is the one thing the
+// zip file says to a reader who never saw this page -- a colleague the files
+// were forwarded to -- so it names each entry and what to do with it. The
+// title line and the questionnaire paragraph differ by format, keyed on
+// FORMATS and BUNDLE_WHAT; the REDCap paragraph says that the inner zip is uploaded as
+// it is, which the page's REDCap line also says.
 const BUNDLE_WHAT = {
   docx: 'The questionnaire, and the file to field: a Word document to print ' +
     'and fill in on paper.',
   qualtrics: 'The questionnaire, and the file to field: an advanced-format ' +
     'file to import as a Qualtrics survey.',
   redcap: 'The questionnaire, and the file to field: a data dictionary to ' +
-    'import into a REDCap project. Upload this zip file to REDCap as it is, ' +
-    'without extracting it. The REDCap instrument upload takes the zip itself.',
+    'import into a REDCap project. Upload this file, the one that ends in ' +
+    '-upload.zip, to REDCap as it is, without extracting it. The REDCap ' +
+    'instrument upload takes this zip itself, not the zip file that holds it.',
 };
 
 // Breaks one paragraph into indented lines of at most 78 characters, so the
@@ -1347,18 +1366,24 @@ function wrapIndented(text, indent = '  ', width = 78) {
 
 // `shuffle` is true only for a Word form whose printed order was shuffled.
 // It adds the scoring advice for that form, and it leaves every other
-// bundle's README unchanged.
+// zip file's README unchanged. The title line names the format as the card,
+// the button and the build status do (FORMATS[].label). The last paragraph
+// says how the zip file is named, which the page itself no longer says.
 function bundleReadme(format, stem, version, shuffle = false) {
   return [
-    `${stem}.zip, built by the HiTOP-SR Module Builder`,
-    `(https://jmgirard.github.io/hitop-builder/) with hitop ${version}.`,
+    `HiTOP-SR ${FORMATS[format].label}: ${stem}.zip`,
+    ...wrapIndented(
+      'Built by the HiTOP-SR Module Builder ' +
+      `(https://jmgirard.github.io/hitop-builder/) with hitop ${version}.`,
+      ''
+    ),
     '',
     questionnaireName(format, stem),
     ...wrapIndented(BUNDLE_WHAT[format]),
     '',
     `${stem}.json`,
     ...wrapIndented(
-      'The scoring file. Keep it with the responses you collect: it records ' +
+      'The module file. Keep it with the responses you collect: it records ' +
       'which scales the questionnaire collects and, on a shuffled Word form, ' +
       'the order the items were printed in. When you score the data in R, ' +
       'the hitop package reads it back with read_module().'
@@ -1372,6 +1397,15 @@ function bundleReadme(format, stem, version, shuffle = false) {
     '',
     'README.txt',
     '  This file.',
+    '',
+    ...wrapIndented(
+      'The zip file takes its name from the build that made it: the format, ' +
+      'every scale or a selection of them, and shuffled or not. A build that ' +
+      'differs in any of those three gets another name. Two builds that each ' +
+      'tick a different selection of scales share a name, so if you keep ' +
+      'both, rename one of them.',
+      ''
+    ),
     '',
   ].join('\n');
 }
@@ -1416,7 +1450,7 @@ async function download() {
   const focusAtClick = document.activeElement;
 
   // Every build lands in one directory that is emptied first, and every file
-  // in it is written under the name it will carry inside the bundle: the zip
+  // in it is written under the name it will carry inside the zip file: the zip
   // call below stores each by its basename ("cherry-pick"), so the names are
   // fixed here, on the R side, not at the save.
   const bundleDir = '/tmp/bundle';
@@ -1425,13 +1459,13 @@ async function download() {
     building = true;
     buttons.forEach((b) => (b.disabled = true));
     cards.forEach((b) => (b.disabled = true));
-    // A build of any format makes the last online save's link stale: an
+    // A build of any format makes the last online save's panel stale: an
     // online build replaces it at its end, and any other build leaves none.
-    // The card press that chose another format has already taken the link
+    // The card press that chose another format has already taken the panel
     // out (see setFormat()), so this call finds one only when an online
     // build follows an online save.
-    removeLinkBuilder();
-    status(`Building the ${spec.ext.toUpperCase()} file…`);
+    removeNextStep();
+    status(buildStatus(format));
 
     // The paper form is the only format taking a page size, and the only one
     // offered a shuffle or a numbering choice: on the Qualtrics and REDCap exports an
@@ -1442,17 +1476,17 @@ async function download() {
     const shuffle = format === 'docx' && el('shuffle').checked;
     const renumber = numberingMode() === 'renumber';
     const whole = wholeInstrument();
-    // The stem says which build made the bundle (see downloadStem); the
-    // questionnaire and the scoring file inside it take the same stem, so a
-    // bundle a visitor extracts still reads as one build.
+    // The stem says which build made the zip file (see downloadStem); the
+    // questionnaire and the module file inside it take the same stem, so a
+    // zip file a visitor extracts still reads as one build.
     const stem = downloadStem(format, whole, shuffle);
 
-    // The online form: no questionnaire, no README, no bundle. The scoring
+    // The online form: no questionnaire, no README, no zip file. The module
     // file is written by write_module() from the ticked scales, every scale
     // included when every box is ticked, since the study link carries the
     // module either way, and it is saved as the one download. The link to
-    // the link builder is made from the file's own text, so what the link
-    // carries is what was saved. The finally below runs on the return.
+    // the Study Link Builder is made from the file's own text, so what the
+    // link carries is what was saved. The finally below runs on the return.
     if (format === 'online') {
       const descPath = `/tmp/${stem}.json`;
       await webR.objs.globalEnv.bind('selected_scales', chosen);
@@ -1469,17 +1503,18 @@ async function download() {
       const descBytes = await webR.FS.readFile(descPath);
       saveFile(descBytes, 'application/json', `${stem}.json`);
       log(`  saved ${stem}.json (${descBytes.length} bytes).`);
-      // The link carries the module of the file just saved, so it is put in
-      // only while the selection is still the one that file was built from.
-      // The boxes stay on during a build, and a tick made while R wrote the
-      // file has already removed the last link and changed the selection; a
-      // link put in here would sit beside a selection it does not describe.
-      // The status line, the page's one announced region, says where the
-      // link is when one is put in. It begins with "Ready." so that a card
-      // press after the save still announces the chosen format.
+      // The panel's link carries the module of the file just saved, so the
+      // panel is put in only while the selection is still the one that file
+      // was built from. The boxes stay on during a build, and a tick made
+      // while R wrote the file has already removed the last panel and changed
+      // the selection; a panel put in here would sit beside a selection it
+      // does not describe. The status line, the page's announced region
+      // for builds, names the panel when one is put in. It begins with
+      // "Ready." so that a card press after the save still announces the
+      // chosen format.
       if (selected().join() === chosen.join()) {
-        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
-        status('Ready. The scoring file is saved. The link to the link builder is under the button.');
+        showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));
+        status('Ready. The module file is saved. "Next: make the study link" is under the button.');
       } else {
         status('Ready.');
       }
@@ -1495,7 +1530,7 @@ async function download() {
     // before the first await.
     // The visitor can change a control while the build waits on R, and a
     // value read after that point would mix two sets of settings in one
-    // bundle. Each naming value goes only into the format that has the
+    // zip file. Each naming value goes only into the format that has the
     // argument: the Word call takes none of them, and neither the Qualtrics
     // nor the REDCap call takes the other's.
     const papersize =
@@ -1556,16 +1591,16 @@ async function download() {
       hitop::${spec.fn}(file = out_path, descriptor = desc_path${moduleArg}${extra})
     `, { captureStreams: false });
 
-    // Both files are read before the bundle is made, so a missing descriptor
-    // fails the whole build rather than handing over a form with nothing to
+    // Both files are read before the zip file is made, so a missing module
+    // file fails the whole build rather than handing over a form with nothing to
     // score it by.
     const bytes = await webR.FS.readFile(path);
     const descBytes = await webR.FS.readFile(descPath);
     log(`  wrote ${bytes.length} bytes to ${questionnaireName(format, stem)} ` +
         `and ${descBytes.length} bytes to ${stem}.json.`);
 
-    // The three files are zipped into one bundle, so the download is one
-    // save whichever format was built: the scoring file is the one a visitor
+    // The three files are zipped into one zip file, so the download is one
+    // save whichever format was built: the module file is the one a visitor
     // would not notice missing until scoring time, and a second save is the
     // one a browser may drop (see saveFile). {zip} implements the archive in
     // C with no child process, which is what lets it run here at all; the
@@ -1591,14 +1626,14 @@ async function download() {
     status('Ready.');
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
-    status(`The ${spec.ext.toUpperCase()} build failed. The log below says why.`);
+    showFailure(`The ${spec.label} build failed.`);
   } finally {
     building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
     cards.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
     // Focus comes back to the control that had it at the click, whether the
-    // build saved a bundle or failed. It comes back only if focus is on the
+    // build saved its file or failed. It comes back only if focus is on the
     // body when the build ends, so focus that is on another element then,
     // such as a control the visitor moved to, stays there. It also comes
     // back only to a control that is on and on show: a control that the
@@ -1623,7 +1658,7 @@ async function main() {
   // These say things that are only true once scripting runs, so the markup
   // keeps them hidden and the noscript block speaks instead.
   el('status').hidden = false;
-  el('logSection').hidden = false;
+  el('techDetails').hidden = false;
   status('Starting R in your browser…');
 
   // Raced rather than simply awaited, on the same reasoning as the install
@@ -1672,7 +1707,7 @@ async function main() {
     return;
   }
   if (runtimeOutcome === 'failed') {
-    abandonBoot('R did not start. The log below says why.');
+    abandonBoot('R did not start.');
     return;
   }
   if (runtimeOutcome === 'timed out') {
@@ -1868,7 +1903,8 @@ async function main() {
   // A card press selects its format in place: the step stays where it is and
   // the settings and button below the cards switch to that format. Focus
   // stays on the card, so nothing else would announce the swap to a screen
-  // reader; the status line, the page's one announcing region, says which
+  // reader; the status line, the announcing region for build and format
+  // news (the "No scales match" line has its own), says which
   // format the controls below now belong to. It does so only while the
   // status begins with "Ready.", so neither a build's progress nor a
   // failure's message is written over. During a build the press does not
@@ -1882,8 +1918,9 @@ async function main() {
     });
   }
   // Every control that moves between steps -- the bar's two buttons, the
-  // Back and Continue pair at the foot of each step, and the recap's change
-  // link -- says where it goes in the same attribute, so there is one handler.
+  // Next button at the foot of step 1, and the Back button and the button
+  // drawn as a link in the recap line at the top of step 2 -- says where it
+  // goes in the same attribute, so there is one handler.
   for (const b of document.querySelectorAll('[data-goto]')) {
     b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
   }
@@ -1901,7 +1938,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  status('R did not start. The log below says why.');
+  showFailure('R did not start.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>

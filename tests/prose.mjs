@@ -1,26 +1,41 @@
-// The prose extraction: every string a visitor can read, listed so a linter
-// can read it too, and the facts each passage carries, so a rewrite can be
-// shown to have kept them.
+// The prose extraction: the page's body text and the script's text at the
+// sites listed under "script" below, listed so a linter can read them too,
+// and the facts each passage carries, so a rewrite can be shown to have kept
+// them. It is not every string a visitor reads. What it leaves out on purpose
+// is under "Excluded on purpose" below, in the WRITERS rows marked
+// "excluded" and in PINNED. scriptPassages() also drops a passage that is
+// only code, and the ledger counts no `.value`, `.href` or `.download` write.
+// literalsIn() drops one-character strings, such as the " · " separator in
+// the settings summaries.
 //
 // The domain has four parts, in the order they are emitted:
 //
 //   body     the text of every element in <body>, outside <script> and
 //            <style>, one passage per block element, with the `placeholder`
-//            and `aria-label` attributes as passages of their own
-//   script   every string that reaches the page as text: the arguments of
-//            status(), log() and abandonBoot(), the strings inside the
-//            functions that write the tally, the recap, the settings
-//            summaries, the "Select all" label and the crosswalk sentence,
+//            and `aria-label` attributes as passages of their own. The run
+//            exits 1 if the body has no text node, or if a text node's text
+//            appears in no body passage. That is a substring test, so a node
+//            whose words appear in another passage still passes.
+//   script   the strings at these sites: the arguments of
+//            status(), log(), abandonBoot() and showFailure(), the strings
+//            inside the functions that write the tally, the recap, the settings
+//            summaries, the "Select all" label, the crosswalk sentence, the
+//            words on a scale row (scaleRowText()), the build status
+//            (buildStatus()),
 //            FORMATS[].label and .button, the version line, and the message
 //            the <script nomodule> block writes
-//   readme   the README.txt the page puts in a bundle, one passage per format,
-//            produced by running the page's own bundleReadme() code
+//   readme   the README.txt the page puts in a zip file, one passage per
+//            format, produced by running the page's own bundleReadme() code
 //   md       README.md, one passage per section, for the facts pass only:
 //            the linter reads that file directly
 //
 // Excluded on purpose: the scale names and definitions the page renders from
 // the package (`s.Scale`, `s.Brief`, `s.nItems`), and the two `Ready.` status
-// strings the smoke test pins. Each exclusion is listed in WRITERS below.
+// strings the smoke test pins. The scale text is listed in WRITERS below,
+// and the two statuses in PINNED.
+//
+// Every run also checks each passage for the names the hitop package retired
+// from its web pages (RETIRED below) and exits 1 on a hit.
 //
 // WRITERS is a ledger of every site in the script that writes text or an
 // attribute into the page. The script greps the source for such sites and
@@ -98,12 +113,17 @@ const BLOCK = new Set(['p', 'h1', 'h2', 'h3', 'li', 'div', 'section', 'nav', 'fo
   'label', 'legend', 'fieldset', 'summary', 'details', 'button', 'noscript', 'ol', 'ul',
   'input', 'span:block']);
 
+// The open blocks are kept on a stack. When a block closes inside another,
+// the text that follows in the outer block starts a passage of its own, tagged
+// with the outer block's name and a `+`: the link after a paragraph in a
+// <section>, or a label's words after its <input>.
 function bodyPassages(html) {
   let body = html.slice(html.indexOf('<body'));
   body = body.replace(/<script\b[\s\S]*?<\/script>/gi, '').replace(/<style\b[\s\S]*?<\/style>/gi, '');
   body = body.replace(/<!--[\s\S]*?-->/g, '');
   const passages = [];
   let current = null;
+  const stack = [];
   const attrs = []; // placeholder and aria-label values, emitted after the text
 
   function open(tag, attrText) {
@@ -116,6 +136,7 @@ function bodyPassages(html) {
     }
     if (BLOCK.has(tag)) {
       flush();
+      stack.push(tag);
       current = { tag, id, text: '', attrFacts: facts };
     } else if (current) {
       current.attrFacts.push(...facts);
@@ -134,11 +155,18 @@ function bodyPassages(html) {
       current.pendingHref = null;
       return;
     }
-    if (BLOCK.has(tag)) flush();
+    if (BLOCK.has(tag)) {
+      flush();
+      const at = stack.lastIndexOf(tag);
+      if (at >= 0) stack.length = at;
+      const outer = stack.at(-1);
+      if (outer) current = { tag: `${outer}+`, id: '', text: '', attrFacts: [] };
+    }
   }
   function text(t) {
-    if (!current) return;
     const decoded = decodeEntities(t);
+    if (squash(decoded)) seen.push(squash(decoded));
+    if (!current) return;
     if (current.inCode) current.text += ' `' + squash(decoded) + '` ';
     else current.text += decoded;
   }
@@ -166,8 +194,16 @@ function bodyPassages(html) {
     }
   }
   flush();
-  return passages.concat(attrs.map((a) => ({ id: a.id, text: a.text, extraFacts: [] })));
+  const all = passages.concat(attrs.map((a) => ({ id: a.id, text: a.text, extraFacts: [] })));
+  missingBodyText.push(...seen.filter((s) => !all.some((p) => squash(p.text).includes(s))));
+  return all;
 }
+
+// Every text node of the body, and the ones no body passage holds. The run
+// exits 1 when any is missing, so a markup shape the parser drops is reported
+// rather than left out of the linted text.
+const seen = [];
+const missingBodyText = [];
 
 // ---- Part 2: the script ------------------------------------------------
 
@@ -189,10 +225,13 @@ const WRITERS = [
   { anchor: "el('tally').textContent = selectionSentence();", covered: 'selectionSentence()' },
   { anchor: "box.textContent = '';", covered: 'excluded: clears the list' },
   { anchor: 'name.textContent = s.Scale;', covered: 'excluded: a scale name from the package' },
-  { anchor: 'n.textContent = `${s.nItems}`;', covered: 'excluded: an item count from the package' },
-  { anchor: "desc.setAttribute('role', 'tooltip');", covered: 'excluded: an attribute value, not text' },
+  { anchor: 'n.textContent = text.count;', covered: 'scaleRowText()' },
   { anchor: 'desc.textContent = s.Brief;', covered: 'excluded: a scale definition from the package' },
   { anchor: "input.setAttribute('aria-describedby', desc.id);", covered: 'excluded: an attribute value, not text' },
+  { anchor: 'button.textContent = text.toggle;', covered: 'scaleRowText()' },
+  { anchor: "button.setAttribute('aria-label', text.toggleName);", covered: 'scaleRowText()' },
+  { anchor: "button.setAttribute('aria-controls', desc.id);", covered: 'excluded: an attribute value, not text' },
+  { anchor: "button.setAttribute('aria-expanded', open ? 'true' : 'false');", covered: 'excluded: an attribute value, not text' },
   { anchor: "el('shuffleCrosswalk').textContent = crosswalkSentence();", covered: 'crosswalkSentence()' },
   { anchor: "el('selectAll').textContent =", covered: 'refreshSelectAllLabel()' },
   { anchor: "el('pkgver').textContent = `(version ${version})`;", covered: 'the version line' },
@@ -339,7 +378,7 @@ function scriptPassages() {
     passages.push({ id, text, extraFacts: [] });
   };
   add('nomodule', renderStringExpr(/textContent =([\s\S]*?);/.exec(nomoduleScript)[1]));
-  for (const c of callArgs(moduleScript, ['status', 'log', 'abandonBoot'])) {
+  for (const c of callArgs(moduleScript, ['status', 'log', 'abandonBoot', 'showFailure'])) {
     const text = renderStringExpr(c.arg);
     // A log line opening with "> " echoes the R call the page makes. It is
     // code, kept verbatim and read as one code token.
@@ -353,7 +392,7 @@ function scriptPassages() {
     add(`FORMATS.${m[1]}@${moduleScript.slice(0, m.index).split('\n').length}`, renderStringExpr(m[2]));
   }
   add('pkgver', renderStringExpr(/el\('pkgver'\)\.textContent = (.*);/.exec(moduleScript)[1]));
-  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence']) {
+  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence', 'scaleRowText', 'buildStatus']) {
     literalsIn(functionBody(moduleScript, fn)).forEach((t, k) => add(`${fn}[${k}]`, t));
   }
   return passages;
@@ -424,6 +463,49 @@ function facts(passage) {
   return out;
 }
 
+// ---- Retired names ---------------------------------------------------------
+
+// The terms the hitop package's decision D-083 retires from visitor text, as
+// that decision lists them: ten case-insensitive patterns and two fixed
+// strings. Every run checks the passages for them and exits 1 on a hit.
+// The one pattern about a template hole is read against the text with its
+// holes kept, since namesText() takes holes out for the other eleven.
+const HOLE_PARAMETER = /\$\{[^}]*\} parameter/i;
+const RETIRED = [
+  /\bdescriptor\b/i, /\bscoring file\b/i, /\bbundle\b/i, /\bendpoint\b/i,
+  /\bstores?\b/i, /\bcompressed\b/i, /\b(hitop-form )?form page\b/i,
+  /(?<!study )\blink builder\b/i, /\b[cz] parameter\b/i, HOLE_PARAMETER,
+  /\?c=/, /\?z=/,
+];
+
+// What a passage keeps for the check. URLs go everywhere. A template hole
+// (`${...}`) is code, not what the visitor reads, so it goes too. In a log
+// passage every code token goes: the log shows the R calls the page makes
+// and what R prints. In README.md, code spans and fenced blocks go, which
+// is D-083's code-identifier and R-code exception.
+function namesText(p, { keepHoles = false } = {}) {
+  // A README.md section's heading is its id, so it is checked with the body.
+  let t = p.id.startsWith('md:') ? `${p.id.slice(3)}\n${p.text}` : p.text;
+  t = t.replace(/```[\s\S]*?```/g, ' ');
+  t = t.replace(/\]\([^)]*\)/g, '] ');
+  t = t.replace(/https?:\/\/[^\s)>\]]+/g, ' ');
+  t = keepHoles ? t.replace(/`(\$\{[^}]*\})`/g, '$1') : t.replace(/`\$\{[^}]*\}`/g, ' ');
+  if (p.id.startsWith('log') || p.id.startsWith('md:')) t = t.replace(/`[^`\n]*`/g, ' ');
+  return t;
+}
+
+function retiredHits(passages) {
+  const hits = [];
+  for (const p of passages) {
+    for (const re of RETIRED) {
+      const t = namesText(p, { keepHoles: re === HOLE_PARAMETER });
+      const m = re.exec(t);
+      if (m) hits.push(`${p.id}: "${m[0]}" in ${JSON.stringify(squash(t).slice(Math.max(0, m.index - 40), m.index + 40))}`);
+    }
+  }
+  return hits;
+}
+
 // ---- Run -----------------------------------------------------------------
 
 const writerCount = checkWriters();
@@ -438,6 +520,27 @@ const counts = {};
 for (const p of passages) { const k = p.id.split(/[:@\[]/)[0]; counts[k] = (counts[k] ?? 0) + 1; }
 console.log(`writer sites: ${writerCount} in the source, ${WRITERS.length} in the ledger`);
 console.log(`passages: ${passages.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')})`);
+
+if (!seen.length) {
+  // A body that parses to no text node is a broken read, not a clean page.
+  console.log('body text: no text node found in the body');
+  process.exitCode = 1;
+} else if (missingBodyText.length) {
+  console.log(`body text: ${missingBodyText.length} of ${seen.length} text nodes in no passage`);
+  for (const s of missingBodyText) console.log(`  ${JSON.stringify(s)}`);
+  process.exitCode = 1;
+} else {
+  console.log(`body text: all ${seen.length} text nodes in a passage`);
+}
+
+const retired = retiredHits(passages);
+if (retired.length) {
+  console.log(`retired names: ${retired.length} hits`);
+  for (const h of retired) console.log(`  ${h}`);
+  process.exitCode = 1;
+} else {
+  console.log(`retired names: none in ${passages.length} passages`);
+}
 
 if (TEXT_OUT) {
   // The linted text is parts 1 to 3; README.md is linted as a file.
@@ -488,5 +591,7 @@ if (COMPARE) {
   }
   for (const id of mine.keys()) if (!theirs.has(id)) { console.log(`NEW ${id}`); bad++; }
   console.log(bad ? `${bad} passages differ from ${COMPARE}` : `every passage keeps the facts in ${COMPARE}`);
-  process.exit(bad ? 1 : 0);
+  // A retired-name hit above has set the exit code already, and a clean
+  // compare does not clear it.
+  process.exit(bad || process.exitCode ? 1 : 0);
 }
