@@ -396,6 +396,18 @@
     border-top: 1px solid var(--line);
   }
 
+  /* ---- Technical details --------------------------------------------- */
+  /* The host list and the log, closed unless a failure opens them. */
+  #techDetails { margin-top: var(--s6); }
+  #techDetails[hidden] { display: none; }
+  #techDetails > summary {
+    cursor: pointer; color: var(--muted); font-size: var(--t-small);
+    font-weight: 600; padding: var(--s2) 0;
+  }
+  #techDetails > summary:hover { color: var(--fg); }
+  #techDetails > p { color: var(--muted); font-size: var(--t-small); max-width: 44rem; }
+  #techDetails > h2 { margin-top: var(--s4); }
+
   /* ---- Log ----------------------------------------------------------- */
   #log {
     white-space: pre-wrap; word-break: break-word;
@@ -440,17 +452,13 @@
 </nav>
 
 <h1>HiTOP-SR Module Builder</h1>
-<p class="lede">Choose the HiTOP-SR scales you need. Download a questionnaire
-that carries only those items, as a Word form to print, a Qualtrics import
-file, or a REDCap data dictionary. Or save the scoring file alone and carry
-it into a study link for the online form.</p>
-
-<p class="lede">Everything runs in your own browser. To do that, the page
-fetches R from <code>webr.r-wasm.org</code>. It fetches the
-<a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
-<span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
-hands the file itself to <code>r2.ropensci.org</code>. It fetches the other R
-packages it needs from <code>repo.r-wasm.org</code>.</p>
+<!-- At most 50 words from the <h1> to the status line: the smoke test counts
+     them. Where R and the package come from, and the log, are under
+     "Technical details" at the foot of the page. -->
+<p class="lede">Choose the HiTOP-SR scales you need. Then download a
+questionnaire that holds only their items, as a Word form, a Qualtrics file
+or a REDCap dictionary. Or save a module file for the Online form. Everything
+runs in this browser.</p>
 
 <noscript>
   <div class="notice">
@@ -682,14 +690,24 @@ packages it needs from <code>repo.r-wasm.org</code>.</p>
   </section>
 </div>
 
-<div id="logSection" hidden>
+<!-- Closed while the page loads and once it is ready. A load or build
+     failure opens it (see showFailure()), and the failure's status line
+     names it. -->
+<details id="techDetails" hidden>
+  <summary>Technical details</summary>
+  <p>Everything runs in this browser. The page fetches R from
+  <code>webr.r-wasm.org</code>. It fetches the
+  <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
+  <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
+  hands the file itself to <code>r2.ropensci.org</code>. It fetches the other R
+  packages it needs from <code>repo.r-wasm.org</code>.</p>
   <h2>Log</h2>
   <!-- Deliberately NOT a live region: role="log" carries an implicit
        aria-live="polite", which made a screen reader narrate the whole webR
        install transcript and queue "Ready." behind it. The status line above
        is the only announced region. -->
   <pre id="log" aria-live="off"></pre>
-</div>
+</details>
 
 <footer>
   Built with <a href="https://docs.r-wasm.org/webr/latest/">webR</a>. Source:
@@ -768,7 +786,7 @@ let building = false;
 // come back.
 function abandonBoot(message) {
   bootAbandoned = true;
-  status(message);
+  showFailure(message);
   el('controls').hidden = true;
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = true;
@@ -783,6 +801,14 @@ function log(text) {
   logPane.scrollTop = logPane.scrollHeight;
 }
 function status(text) { el('status').textContent = text; }
+
+// Every load or build failure comes through here. The log that says what went
+// wrong is under "Technical details", which stays closed while all goes well,
+// so a failure opens it and the status line says where to look.
+function showFailure(message) {
+  status(`${message} The log under "Technical details" below says more.`);
+  el('techDetails').open = true;
+}
 
 // Each format names the package function that writes it, the extension the
 // questionnaire carries inside the bundle, and the word it contributes to
@@ -1591,7 +1617,7 @@ async function download() {
     status('Ready.');
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
-    status(`The ${spec.ext.toUpperCase()} build failed. The log below says why.`);
+    showFailure(`The ${spec.label} build failed.`);
   } finally {
     building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
@@ -1623,7 +1649,7 @@ async function main() {
   // These say things that are only true once scripting runs, so the markup
   // keeps them hidden and the noscript block speaks instead.
   el('status').hidden = false;
-  el('logSection').hidden = false;
+  el('techDetails').hidden = false;
   status('Starting R in your browser…');
 
   // Raced rather than simply awaited, on the same reasoning as the install
@@ -1672,7 +1698,7 @@ async function main() {
     return;
   }
   if (runtimeOutcome === 'failed') {
-    abandonBoot('R did not start. The log below says why.');
+    abandonBoot('R did not start.');
     return;
   }
   if (runtimeOutcome === 'timed out') {
@@ -1901,7 +1927,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  status('R did not start. The log below says why.');
+  showFailure('R did not start.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>

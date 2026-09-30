@@ -8,7 +8,7 @@
 //            <style>, one passage per block element, with the `placeholder`
 //            and `aria-label` attributes as passages of their own
 //   script   every string that reaches the page as text: the arguments of
-//            status(), log() and abandonBoot(), the strings inside the
+//            status(), log(), abandonBoot() and showFailure(), the strings inside the
 //            functions that write the tally, the recap, the settings
 //            summaries, the "Select all" label and the crosswalk sentence,
 //            FORMATS[].label and .button, the version line, and the message
@@ -339,7 +339,7 @@ function scriptPassages() {
     passages.push({ id, text, extraFacts: [] });
   };
   add('nomodule', renderStringExpr(/textContent =([\s\S]*?);/.exec(nomoduleScript)[1]));
-  for (const c of callArgs(moduleScript, ['status', 'log', 'abandonBoot'])) {
+  for (const c of callArgs(moduleScript, ['status', 'log', 'abandonBoot', 'showFailure'])) {
     const text = renderStringExpr(c.arg);
     // A log line opening with "> " echoes the R call the page makes. It is
     // code, kept verbatim and read as one code token.
