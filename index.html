@@ -641,8 +641,8 @@ runs in this browser.</p>
     <!-- At most 60 words from the cards to the download button, for each
          format with its settings closed: the smoke test counts them. How the
          zip file is named is in the README.txt inside the zip file (see
-         bundleReadme()). The REDCap line stays on the page, because a
-         researcher who uploads the outer zip file gets a refusal from REDCap.
+         bundleReadme()). The REDCap line stays on the page, because the
+         file REDCap takes is the inner zip, not the download itself.
          The zip note is shown for the three formats that make a zip file,
          and its REDCap line for REDCap alone (see setFormat()). It sits
          above the button, so it is read before the file arrives. -->
@@ -710,7 +710,8 @@ runs in this browser.</p>
   <!-- Deliberately NOT a live region: role="log" carries an implicit
        aria-live="polite", which made a screen reader narrate the whole webR
        install transcript and queue "Ready." behind it. The status line above
-       is the only announced region. -->
+       and the no-match line's region on the first step are the announced
+       regions. -->
   <pre id="log" aria-live="off"></pre>
 </details>
 
@@ -1504,9 +1505,10 @@ async function download() {
       // was built from. The boxes stay on during a build, and a tick made
       // while R wrote the file has already removed the last panel and changed
       // the selection; a panel put in here would sit beside a selection it
-      // does not describe. The status line, the page's one announced region,
-      // names the panel when one is put in. It begins with "Ready." so that a
-      // card press after the save still announces the chosen format.
+      // does not describe. The status line, the page's announced region
+      // for builds, names the panel when one is put in. It begins with
+      // "Ready." so that a card press after the save still announces the
+      // chosen format.
       if (selected().join() === chosen.join()) {
         showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));
         status('Ready. The module file is saved. "Next: make the study link" is under the button.');
@@ -1628,7 +1630,7 @@ async function download() {
     cards.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
     // Focus comes back to the control that had it at the click, whether the
-    // build saved a zip file or failed. It comes back only if focus is on the
+    // build saved its file or failed. It comes back only if focus is on the
     // body when the build ends, so focus that is on another element then,
     // such as a control the visitor moved to, stays there. It also comes
     // back only to a control that is on and on show: a control that the

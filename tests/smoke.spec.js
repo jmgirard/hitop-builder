@@ -773,7 +773,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         secondDecoded: { instrument: 'hitopsr', module: second.parsed },
       });
 
-    // The status line, the page's one announced region, is what tells a
+    // The status line, the page's announced region for builds, is what tells a
     // visitor the link is there. Three reads: after the first save, which put
     // a link in; after the mid-tick save, which put none in; and after the
     // untick that took one out.
