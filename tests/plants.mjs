@@ -383,7 +383,8 @@ const PLANTS = [
     what: 'the next-step panel left behind when its link is removed',
     // removeNextStep() takes out the link and leaves the panel, its heading
     // and its text. No link is left, so the anchor counts hold, and a later
-    // save adds a second panel. A15, A16 and A18 count the panel headings.
+    // save adds a second panel. A15, A16, A17 and A18 count the panel
+    // headings.
     from: '  for (const p of panels) p.remove();',
     to: "  for (const p of panels) p.querySelector('a')?.remove();",
   },
