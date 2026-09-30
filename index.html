@@ -244,6 +244,21 @@
     align-items: flex-start; margin-top: var(--s4);
   }
   .downloads { display: flex; flex-wrap: wrap; gap: var(--s2); }
+
+  /* The next step after an online save: a panel under the download button
+     whose one action is a link drawn as the page's primary button. */
+  .nextstep {
+    border: 1px solid var(--accent); border-radius: var(--r2);
+    background: var(--accent-weak); padding: var(--s4); margin-top: var(--s4);
+  }
+  .nextstep h3 { font-size: var(--t-body); margin: 0 0 var(--s2); }
+  .nextstep p { margin: 0 0 var(--s3); max-width: 40rem; }
+  a.button {
+    display: inline-block; padding: .6rem 1.1rem; border-radius: var(--r2);
+    border: 1px solid var(--accent); font-weight: 600; text-decoration: none;
+  }
+  a.button.primary { background: var(--accent); color: var(--accent-fg); }
+  a.button.primary:hover { filter: brightness(1.12); }
   #downloadBtn { padding: .7rem 1.2rem; font-size: 1.0625rem; border-radius: var(--r2); }
 
   /* ---- Format choice ------------------------------------------------- */
@@ -653,16 +668,20 @@ runs in this browser.</p>
          outside a build that the button is off. -->
     <p class="hint" id="noScaleHint" hidden>Choose at least one scale to turn
     the button on.</p>
-    <!-- Shown after an online save, and only until the selection changes,
-         another format's card is pressed, or another build starts. The link
-         itself is made by showLinkBuilder() from the template here: its text
-         is static markup, and the script fills in the href. It is removed
-         from the document, not hidden, when the selection or the format it
-         was made for no longer holds (see removeLinkBuilder()), so a stale
-         link is never left in the page. -->
-    <p class="hint" id="onlineNext" hidden>The scoring file is saved.
-    <span id="linkBuilderSlot"><template id="linkBuilderTpl"><a target="_blank" rel="noopener">Continue to the link builder</a></template></span>
-    to make the study link. It opens in a new tab with your module filled in.</p>
+    <!-- The next step after an online save, in the page only until the
+         selection changes, another format's card is pressed, or another
+         build starts. showNextStep() clones the panel from the template
+         here: its text is static markup, and the script fills in the
+         button's href. It is removed from the document, not hidden, when the
+         selection or the format it was made for no longer holds (see
+         removeNextStep()), so a stale link is never left in the page. -->
+    <div id="nextStepSlot"><template id="nextStepTpl"><section class="nextstep" aria-labelledby="nextStepHeading">
+      <h3 id="nextStepHeading">Next: make the study link</h3>
+      <p>The module file is saved. The Study Link Builder opens in a new tab
+      with your module filled in. There you name the study and choose where
+      the responses go.</p>
+      <a class="button primary" target="_blank" rel="noopener">Open the Study Link Builder</a>
+    </section></template></div>
     <div class="stepnav">
       <button type="button" data-goto="0">Back: Choose scales</button>
     </div>
@@ -827,11 +846,11 @@ const FORMATS = {
   },
 };
 
-// hitop-form's link builder, and the encoding its `c` parameter takes (form.js
-// encodeConfig()): the JSON text as UTF-8 bytes, base64 with `-` and `_` in
-// place of `+` and `/` and no `=` padding. Written here rather than imported,
-// because this page loads nothing from hitop-form.
-const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+// hitop-form's Study Link Builder, and the encoding its `c` parameter takes
+// (form.js encodeConfig()): the JSON text as UTF-8 bytes, base64 with `-` and
+// `_` in place of `+` and `/` and no `=` padding. Written here rather than
+// imported, because this page loads nothing from hitop-form.
+const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
 
 function base64url(text) {
   const bytes = new TextEncoder().encode(text);
@@ -840,38 +859,35 @@ function base64url(text) {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-// Puts the "Continue to the link builder" link under the download button
-// after an online save. The link is cloned from the template in the markup,
-// so its text and its target and rel attributes are static, and only the href
-// is made here: the link builder's address with a `c` that carries the
-// instrument and the module the saved file holds, which is what link.html's
-// prefill reads. Any link already there is removed first, so the document
-// never holds two.
-function showLinkBuilder(module) {
-  removeLinkBuilder();
-  const a = el('linkBuilderTpl').content.firstElementChild.cloneNode(true);
-  a.href = `${LINK_BUILDER}?c=` +
+// Puts the "Next: make the study link" panel under the download button after
+// an online save. The panel is cloned from the template in the markup, so its
+// text and its link's target and rel attributes are static, and only the
+// href is made here: the Study Link Builder's address with a `c` that carries
+// the instrument and the module the saved file holds, which is what
+// link.html's prefill reads. Any panel already there is removed first, so the
+// document never holds two.
+function showNextStep(module) {
+  removeNextStep();
+  const panel = el('nextStepTpl').content.firstElementChild.cloneNode(true);
+  panel.querySelector('a').href = `${STUDY_LINK_BUILDER}?c=` +
     base64url(JSON.stringify({ instrument: INSTRUMENT, module }));
-  el('linkBuilderSlot').append(a);
-  el('onlineNext').hidden = false;
+  el('nextStepSlot').append(panel);
 }
 
-// Takes the link out of the document. Called on every selection change, on
+// Takes the panel out of the document. Called on every selection change, on
 // a press of another format's card, at the start of every build, and by
-// showLinkBuilder() before it puts a new link in: the
-// link carries the module of one saved file, and a tick, a format change or
-// a new build makes that file no longer the one the page is set up for.
-// The status line says the link is under the button after the save that
-// put it in, so a removal that takes a link out returns the status to
-// "Ready." rather than leave that claim standing. A removal that finds no
-// link leaves the status alone: the one at the start of a build is
-// followed by the build's own status, and the one a tick makes during a
-// build must not write over it.
-function removeLinkBuilder() {
-  const links = el('linkBuilderSlot').querySelectorAll('a');
-  for (const a of links) a.remove();
-  el('onlineNext').hidden = true;
-  if (links.length) status('Ready.');
+// showNextStep() before it puts a new panel in: the panel's link carries the
+// module of one saved file, and a tick, a format change or a new build makes
+// that file no longer the one the page is set up for. The status line names
+// the panel after the save that put it in, so a removal that takes a panel
+// out returns the status to "Ready." rather than leave that claim standing.
+// A removal that finds no panel leaves the status alone: the one at the
+// start of a build is followed by the build's own status, and the one a tick
+// makes during a build must not write over it.
+function removeNextStep() {
+  const panels = el('nextStepSlot').querySelectorAll('.nextstep');
+  for (const p of panels) p.remove();
+  if (panels.length) status('Ready.');
 }
 
 // The status line while a build runs, in the format's one name. The Online
@@ -972,13 +988,13 @@ const STEP_IDS = ['step1', 'step2'];
 // format makes. Every disclosure is closed here, the freshly shown one
 // included, so a card press always lands on the summary line and never on
 // settings left open from an earlier build.
-// A change of format takes out the link an online save left: the link
+// A change of format takes out the panel an online save left: the panel
 // belongs with the online card, and the button under any other card builds
 // something else. The online card pressed again is not a change, so the
-// link stays, and so does the call made at start-up for the page's first
+// panel stays, and so does the call made at start-up for the page's first
 // format.
 function setFormat(format) {
-  if (format !== currentFormat) removeLinkBuilder();
+  if (format !== currentFormat) removeNextStep();
   currentFormat = format;
   for (const panel of document.querySelectorAll('.fmtpanel')) {
     panel.hidden = panel.dataset.panel !== format;
@@ -1200,11 +1216,11 @@ function selectVisible() {
 
 // Every change the visitor makes to the selection -- a tick, an untick,
 // Select all, Clear all -- comes through here. It is not refreshTally(),
-// which download() also calls when a build ends: the link-builder link is
+// which download() also calls when a build ends: the next-step panel is
 // removed on a selection change and must survive the end of the online build
 // that made it.
 function selectionChanged() {
-  removeLinkBuilder();
+  removeNextStep();
   refreshTally();
 }
 
@@ -1430,12 +1446,12 @@ async function download() {
     building = true;
     buttons.forEach((b) => (b.disabled = true));
     cards.forEach((b) => (b.disabled = true));
-    // A build of any format makes the last online save's link stale: an
+    // A build of any format makes the last online save's panel stale: an
     // online build replaces it at its end, and any other build leaves none.
-    // The card press that chose another format has already taken the link
+    // The card press that chose another format has already taken the panel
     // out (see setFormat()), so this call finds one only when an online
     // build follows an online save.
-    removeLinkBuilder();
+    removeNextStep();
     status(buildStatus(format));
 
     // The paper form is the only format taking a page size, and the only one
@@ -1452,12 +1468,12 @@ async function download() {
     // bundle a visitor extracts still reads as one build.
     const stem = downloadStem(format, whole, shuffle);
 
-    // The online form: no questionnaire, no README, no bundle. The scoring
+    // The online form: no questionnaire, no README, no zip file. The module
     // file is written by write_module() from the ticked scales, every scale
     // included when every box is ticked, since the study link carries the
     // module either way, and it is saved as the one download. The link to
-    // the link builder is made from the file's own text, so what the link
-    // carries is what was saved. The finally below runs on the return.
+    // the Study Link Builder is made from the file's own text, so what the
+    // link carries is what was saved. The finally below runs on the return.
     if (format === 'online') {
       const descPath = `/tmp/${stem}.json`;
       await webR.objs.globalEnv.bind('selected_scales', chosen);
@@ -1474,17 +1490,17 @@ async function download() {
       const descBytes = await webR.FS.readFile(descPath);
       saveFile(descBytes, 'application/json', `${stem}.json`);
       log(`  saved ${stem}.json (${descBytes.length} bytes).`);
-      // The link carries the module of the file just saved, so it is put in
-      // only while the selection is still the one that file was built from.
-      // The boxes stay on during a build, and a tick made while R wrote the
-      // file has already removed the last link and changed the selection; a
-      // link put in here would sit beside a selection it does not describe.
-      // The status line, the page's one announced region, says where the
-      // link is when one is put in. It begins with "Ready." so that a card
-      // press after the save still announces the chosen format.
+      // The panel's link carries the module of the file just saved, so the
+      // panel is put in only while the selection is still the one that file
+      // was built from. The boxes stay on during a build, and a tick made
+      // while R wrote the file has already removed the last panel and changed
+      // the selection; a panel put in here would sit beside a selection it
+      // does not describe. The status line, the page's one announced region,
+      // names the panel when one is put in. It begins with "Ready." so that a
+      // card press after the save still announces the chosen format.
       if (selected().join() === chosen.join()) {
-        showLinkBuilder(JSON.parse(new TextDecoder().decode(descBytes)));
-        status('Ready. The scoring file is saved. The link to the link builder is under the button.');
+        showNextStep(JSON.parse(new TextDecoder().decode(descBytes)));
+        status('Ready. The module file is saved. "Next: make the study link" is under the button.');
       } else {
         status('Ready.');
       }

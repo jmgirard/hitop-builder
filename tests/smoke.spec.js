@@ -20,11 +20,11 @@
 //   A11: focus comes back to the download button when the build ends
 //   A12: the second step shows four format cards and the fourth is "Online form"
 //   A13: the online card saves one .json, named for the build, whose scales and items are the two ticked scales'
-//   A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
+//   A14: the Study Link Builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
 //   A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file
-//   A16: no link-builder anchor is in the document while a second online save begun with the first save's link present runs
-//   A17: a tick during an online build leaves no link-builder anchor at the build's end
-//   A18: a press of the Word card after an online save removes the anchor and hides its paragraph, and the Online card pressed again keeps the anchor
+//   A16: no Study Link Builder anchor is in the document while a second online save begun with the first save's link present runs
+//   A17: a tick during an online build leaves no Study Link Builder anchor at the build's end
+//   A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them
 //   A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
@@ -123,21 +123,25 @@ const ONLINE_ITEMS = [66, 109, 118, 144, 202, 260, 291, 389];
 // The items of the first of the two alone, for the second save.
 const ONLINE_ITEMS_FIRST = [66, 109, 118, 260, 291];
 
-// hitop-form's link builder, and the decoding of its `c` parameter: the
+// hitop-form's Study Link Builder, and the decoding of its `c` parameter: the
 // inverse of the page's base64url(), written here on its own so the test
 // reads nothing from the page.
-const LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
+
+// The next-step panel an online save puts under the button, and its link.
+const PANEL_HEADING = 'Next: make the study link';
+const PANEL_LINK = 'Open the Study Link Builder';
 function decodeC(c) {
   const b64 = c.replace(/-/g, '+').replace(/_/g, '/');
   const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
   return JSON.parse(Buffer.from(b64 + pad, 'base64').toString('utf8'));
 }
 
-// What the test reads of the link-builder anchor, or null with none in the
-// document. Anchors are found by their text so a hidden or relocated one
+// What the test reads of the Study Link Builder anchor, or null with none in
+// the document. Anchors are found by their text so a hidden or relocated one
 // still counts; the count is the whole document's.
 async function readAnchor(page) {
-  const anchors = page.getByRole('link', { name: 'Continue to the link builder', includeHidden: true });
+  const anchors = page.getByRole('link', { name: PANEL_LINK, includeHidden: true });
   const count = await anchors.count();
   if (count === 0) return { count, anchor: null };
   const a = anchors.first();
@@ -157,9 +161,9 @@ async function readAnchor(page) {
   };
 }
 
-// The status an online save ends on when it puts the link in. A save that
-// puts no link in, and every other build, ends on the bare "Ready.".
-const SAVED_STATUS = 'Ready. The scoring file is saved. The link to the link builder is under the button.';
+// The status an online save ends on when it puts the panel in. A save that
+// puts no panel in, and every other build, ends on the bare "Ready.".
+const SAVED_STATUS = 'Ready. The module file is saved. "Next: make the study link" is under the button.';
 
 // Presses the download button and waits for the status to come back to one
 // beginning with "Ready.", counting the download events in between. The
@@ -186,21 +190,25 @@ async function saveOnline(page, downloads, label) {
   return { count: saved.length, name: saved[0]?.suggestedFilename() ?? '', text, parsed, status };
 }
 
-// What the test reads of the page around the link, in one call: the count of
-// link-builder anchors in the whole document, found by their exact text
-// (readAnchor() finds the same link by its accessible name); whether the paragraph that holds the link carries
-// the hidden attribute (null with no such paragraph, which no expectation
-// below accepts); the status text; and whether the download button is off,
-// which it is for the length of a build. One call, so the four are read
-// from one state of the page.
-function readLinkState(page) {
-  return page.evaluate(() => ({
-    building: document.getElementById('downloadBtn').disabled,
-    anchors: [...document.querySelectorAll('a')]
-      .filter((a) => a.textContent.trim() === 'Continue to the link builder').length,
-    hidden: document.getElementById('onlineNext')?.hasAttribute('hidden') ?? null,
-    status: document.getElementById('status').textContent,
-  }));
+// What the test reads of the page around the panel, in one call: the count
+// of Study Link Builder anchors in the whole document, found by their exact
+// text (readAnchor() finds the same link by its accessible name); the
+// headings of the panels in the document that hold such an anchor; the
+// status text; and whether the download button is off, which it is for the
+// length of a build. One call, so the four are read from one state of the
+// page.
+function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
+  return page.evaluate(([heading, link]) => {
+    const anchors = [...document.querySelectorAll('a')].filter((a) => a.textContent.trim() === link);
+    return {
+      building: document.getElementById('downloadBtn').disabled,
+      anchors: anchors.length,
+      panels: anchors
+        .map((a) => a.closest('section')?.querySelector('h3')?.textContent.trim() ?? null)
+        .filter((h) => h === heading),
+      status: document.getElementById('status').textContent,
+    };
+  }, [heading, link]);
 }
 
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
@@ -302,18 +310,18 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       });
 
     // The anchor under the button: one, opening a new tab with rel noopener,
-    // pointing at the link builder with a c that decodes to the instrument
+    // pointing at the Study Link Builder with a c that decodes to the instrument
     // and the module the saved file holds.
     const afterSave = await readAnchor(page);
     expect
       .soft(
         afterSave,
-        'A14: the link-builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener'
+        'A14: the Study Link Builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener'
       )
       .toEqual({
         count: 1,
         anchor: {
-          base: LINK_BUILDER,
+          base: STUDY_LINK_BUILDER,
           target: '_blank',
           rel: 'noopener',
           decoded: { instrument: 'hitopsr', module: first.parsed },
@@ -340,7 +348,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     expect
       .soft(
         { anchorsBeforePress: beforeSecondPress.anchors, anchors: atSecondPress.anchors, building: atSecondPress.building },
-        "A16: no link-builder anchor is in the document while a second online save begun with the first save's link present runs"
+        "A16: no Study Link Builder anchor is in the document while a second online save begun with the first save's link present runs"
       )
       .toEqual({ anchorsBeforePress: 1, anchors: 0, building: true });
 
@@ -388,7 +396,7 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
           downloads: downloads.length - midBefore,
           anchors: (await readAnchor(page)).count,
         },
-        "A17: a tick during an online build leaves no link-builder anchor at the build's end"
+        "A17: a tick during an online build leaves no Study Link Builder anchor at the build's end"
       )
       .toEqual({ buildingAtTick: true, downloads: 1, anchors: 0 });
     await page.evaluate(() => {
@@ -429,10 +437,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       )
       .toEqual({ afterFirstSave: SAVED_STATUS, afterMidTickSave: 'Ready.', afterUntick: 'Ready.' });
 
-    // A press of another format's card takes the link out and hides its
-    // paragraph: the link belongs with the online card. The Word card stands
-    // for the three, which share setFormat(). The read before the press
-    // shows the count and the paragraph are found. After the press, the
+    // A press of another format's card takes the panel and its link out: the
+    // panel belongs with the online card. The Word card stands for the
+    // three, which share setFormat(). The read before the press shows the
+    // count and the panel are found. After the press, the
     // removal has returned the status to "Ready." and the card handler has
     // written the chosen format after it. The online card is then pressed
     // again, a save made from it, and the online card pressed once more: a
@@ -447,13 +455,13 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     expect
       .soft(
         { beforeWordPress, afterWordPress, thirdDownloads: third.count, afterOnlineAgain },
-        'A18: a press of the Word card after an online save removes the anchor and hides its paragraph, and the Online card pressed again keeps the anchor'
+        'A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them'
       )
       .toEqual({
-        beforeWordPress: { building: false, anchors: 1, hidden: false, status: SAVED_STATUS },
-        afterWordPress: { building: false, anchors: 0, hidden: true, status: 'Ready. Word form chosen.' },
+        beforeWordPress: { building: false, anchors: 1, panels: [PANEL_HEADING], status: SAVED_STATUS },
+        afterWordPress: { building: false, anchors: 0, panels: [], status: 'Ready. Word form chosen.' },
         thirdDownloads: 1,
-        afterOnlineAgain: { building: false, anchors: 1, hidden: false, status: 'Ready. Online form chosen.' },
+        afterOnlineAgain: { building: false, anchors: 1, panels: [PANEL_HEADING], status: 'Ready. Online form chosen.' },
       });
 
     // The Word build, from the one scale still ticked; the Word card is
