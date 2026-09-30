@@ -372,10 +372,13 @@
   }
 
   .step[hidden] { display: none; }
-  /* Entering a step moves focus to its heading, so the ring has to paint on a
-     heading as well as on a control: a programmatic focus does not match
-     :focus-visible. */
-  .step > h2:focus { outline: 3px solid var(--focus); outline-offset: 4px; }
+  /* Entering a step moves focus to its heading. The ring paints there only
+     when the browser counts that focus as visible: after a keyboard press on
+     the control that changed the step, and not after a mouse click, where a
+     ring on a heading reads as a stray box. The second rule removes any
+     outline a browser's own stylesheet adds on :focus. */
+  .step > h2:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
+  .step > h2:focus:not(:focus-visible) { outline: none; }
 
   .recap {
     display: flex; flex-wrap: wrap; gap: var(--s2); align-items: baseline;
@@ -506,10 +509,8 @@ runs in this browser.</p>
     <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
       <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
-    <p class="hint">Pick the file you need. Its settings start at their defaults
-    and sit folded below the cards. If you need to change a setting,
-    open the panel. To build another format from the same scales, pick another
-    card. The cards are off while a build runs.</p>
+    <p class="hint">Pick a format. You can build more than one from the same
+    scales.</p>
     <div class="formats" role="group" aria-label="Format">
       <button type="button" data-choose="docx">
         <span class="fmtname">Word (.docx)</span>
@@ -565,20 +566,18 @@ runs in this browser.</p>
              shuffled form needs layout = "printed" to score must stay in view
              for as long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p>Scoring a shuffled form takes one more step. If you enter the
-          data in the order the form printed the items, the columns are in
-          printed order, not in the instrument's own order. In R, read the .json scoring
+          <p>A shuffled form takes one more step to score. Data entered in the
+          printed order has its columns in that order. In R, read the module
           file with <code>read_module()</code> and pass that module to
           <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
-          Columns already in the original HiTOP-SR order take the default layout
-          instead. The wrong layout gives wrong scale scores and raises no error.</p>
+          Columns in the HiTOP-SR's own order take the default layout. The
+          wrong layout gives wrong scale scores and no error.</p>
           <!-- What the shuffled file does about recovering the original order
                depends on the numbering choice and on whether every scale is
                ticked, so this sentence is written by refreshShuffleNote(). -->
           <p id="shuffleCrosswalk"></p>
-          <p>Shuffling reaches this form only. The page never shuffles the
-          Qualtrics and REDCap files: there an item number names a collected
-          data column.</p>
+          <p>Only the Word form is shuffled. In the Qualtrics file and the
+          REDCap dictionary, an item number names a data column.</p>
         </div>
       </div>
 
@@ -618,61 +617,39 @@ runs in this browser.</p>
         </details>
       </div>
     </div>
-    <!-- Shown for the three bundled formats, because every bundle this page
-         makes carries a scoring file: it is the only record of which scales a form
-         collects, and on a shuffled Word form of the order it printed them
-         in. It sits above the button rather than in the small print under it,
-         so it is read before the file arrives rather than after. -->
-    <div class="notice" id="descriptorNote">
-      <p>A download here is one zip file holding three. The button below
-      builds the questionnaire and saves a <code>.zip</code> bundle. The bundle
-      holds the questionnaire, a small <code>.json</code> scoring file, and a
-      <code>README.txt</code> that says what each file is for. The scoring file
-      lists the scales you chose. On a shuffled Word form, it also records the
-      order the items were printed in. The bundle takes its name from the build
-      that made it: the format, every scale or a selection, and shuffled or not. A
-      build that differs from an earlier one in any of those three never lands
-      on top of it. Two builds that differ only in which scales you ticked share
-      a name. If you keep both, rename one of them.</p>
-      <p>Keep the <code>.json</code> file with the responses you collect. When
-      you score the data, the <code>hitop</code> package reads it back with
-      <code>read_module()</code>. A REDCap bundle holds a second zip inside it,
-      the data dictionary. Upload that inner zip to REDCap as it is, without
-      extracting it.</p>
+    <!-- At most 60 words from the cards to the download button, for each
+         format with its settings closed: the smoke test counts them. The
+         detail these notes once carried (how the zip file is named, the
+         REDCap dictionary's inner zip) is in the README.txt inside the zip
+         file (see bundleReadme()).
+         The zip note is shown for the three formats that make a zip file. It
+         sits above the button, so it is read before the file arrives. -->
+    <div class="notice" id="zipNote">
+      <p>The download is one zip file. It holds the questionnaire, a module
+      file that lists your scales, and a <code>README.txt</code>. Keep the
+      module file with the responses. The <code>hitop</code> package reads it
+      with <code>read_module()</code> when you score them.</p>
     </div>
-    <p class="hint" id="downloadHint">The button builds the questionnaire and
-    its scoring file in this browser, zips them with the README, and saves that
-    one bundle. It is on while at least one scale is ticked and no build is
-    running.</p>
-    <!-- The online form's notice and hint. The online form needs no
-         questionnaire file: the hitop-form page shows the items from the
-         package's own export, and the study link carries the module. So this
-         card saves the scoring file alone, one .json and no bundle, and the
-         two blocks above are swapped for these by setFormat(). -->
+    <!-- The Online form's note. The online form needs no questionnaire file:
+         the hitop-form page shows the items from the package's own export,
+         and the study link carries the module. So this card saves the module
+         file alone, and setFormat() swaps this note for the zip note. -->
     <div class="notice" id="onlineNote" hidden>
-      <p>A download here is one small <code>.json</code> scoring file, not a
-      zip bundle. The button below writes it and saves it. The online form
-      needs no questionnaire file: the hitop-form page shows the items itself,
-      and the study link carries this file's module. The file lists the scales
-      you chose. It takes its name from the build that made it:
-      <code>hitopsr-online.json</code> with every scale ticked, and
-      <code>hitopsr-online-module.json</code> for a selection. Two builds that
-      differ only in which scales you ticked share a name. If you keep both,
-      rename one of them.</p>
-      <p>Keep the <code>.json</code> file with the responses you collect. When
-      you score the data, the <code>hitop</code> package reads it back with
-      <code>read_module()</code>. After the save, a link under the button opens
-      the hitop-form link builder in a new tab with this file's module filled
-      in, so the study link you make there shows only the scales you chose.</p>
+      <p>The download is one module file that lists your scales. The Online
+      form shows the items itself, so there is no questionnaire to build. Keep
+      the module file with the responses. After the save, the next step is the
+      study link.</p>
     </div>
-    <p class="hint" id="onlineHint" hidden>The button writes the scoring file
-    in this browser and saves it. It is on while at least one scale is ticked
-    and no build is running.</p>
     <div class="downloadrow">
       <div class="downloads">
         <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
       </div>
     </div>
+    <!-- Under the button, so it does not count toward the 60 words above.
+         Shown by refreshTally() while no scale is ticked, the one reason
+         outside a build that the button is off. -->
+    <p class="hint" id="noScaleHint" hidden>Choose at least one scale to turn
+    the button on.</p>
     <!-- Shown after an online save, and only until the selection changes,
          another format's card is pressed, or another build starts. The link
          itself is made by showLinkBuilder() from the template here: its text
@@ -993,13 +970,11 @@ function setFormat(format) {
   }
   for (const d of document.querySelectorAll('.fmtpanel details')) d.open = false;
   // The online card has no settings panel, so no panel is on show under it.
-  // Its notice and hint say a single .json is saved, where the other three
-  // cards' say a bundle is; the two pairs are swapped here.
+  // Its note says a single module file is saved, where the other three
+  // cards' note says a zip file is; the two are swapped here.
   const online = format === 'online';
-  el('descriptorNote').hidden = online;
-  el('downloadHint').hidden = online;
+  el('zipNote').hidden = online;
   el('onlineNote').hidden = !online;
-  el('onlineHint').hidden = !online;
   markFormatChoice(format);
   el('downloadBtn').textContent = FORMATS[format].button;
 }
@@ -1058,7 +1033,9 @@ function showStep(index, { focus = true } = {}) {
   refreshRecap();
   // Focus lands on the step's own heading rather than its first control: it
   // names the step a keyboard or screen-reader visitor has just arrived at,
-  // and leaves the whole step ahead of them in tab order.
+  // and leaves the whole step ahead of them in tab order. Its ring shows
+  // after a keyboard press and not after a mouse click (see the
+  // `.step > h2` rules).
   if (focus) el(STEP_IDS[index]).querySelector('h2').focus();
 }
 
@@ -1085,6 +1062,7 @@ function refreshTally() {
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = bootAbandoned || building || selected().length === 0;
   }
+  el('noScaleHint').hidden = selected().length > 0;
   // The shuffle notice and the later steps' recap line both read the selection,
   // and every path that changes the selection already comes through here.
   refreshShuffleNote();
@@ -1240,12 +1218,12 @@ function crosswalkSentence() {
   if (wholeInstrument()) {
     return 'This form carries no crosswalk: for a shuffled whole instrument ' +
       'such a crosswalk runs to 405 pairs on a page a participant reads, so the package ' +
-      'prints none. Only the .json scoring file inside the bundle records ' +
+      'prints none. Only the module file inside the zip file records ' +
       'the printed order. Keep it, or the order is lost.';
   }
   return 'This form carries a crosswalk: each printed number beside the ' +
-    'original HiTOP-SR number it came from. The .json scoring file inside ' +
-    'the bundle records that order too.';
+    'original HiTOP-SR number it came from. The module file inside ' +
+    'the zip file records that order too.';
 }
 
 function clearAll() {
@@ -1344,18 +1322,24 @@ function wrapIndented(text, indent = '  ', width = 78) {
 
 // `shuffle` is true only for a Word form whose printed order was shuffled.
 // It adds the scoring advice for that form, and it leaves every other
-// bundle's README unchanged.
+// zip file's README unchanged. The title line names the format as the card,
+// the button and the build status do (FORMATS[].label). The last paragraph
+// says how the zip file is named, which the page itself no longer says.
 function bundleReadme(format, stem, version, shuffle = false) {
   return [
-    `${stem}.zip, built by the HiTOP-SR Module Builder`,
-    `(https://jmgirard.github.io/hitop-builder/) with hitop ${version}.`,
+    `HiTOP-SR ${FORMATS[format].label}: ${stem}.zip`,
+    ...wrapIndented(
+      'Built by the HiTOP-SR Module Builder ' +
+      `(https://jmgirard.github.io/hitop-builder/) with hitop ${version}.`,
+      ''
+    ),
     '',
     questionnaireName(format, stem),
     ...wrapIndented(BUNDLE_WHAT[format]),
     '',
     `${stem}.json`,
     ...wrapIndented(
-      'The scoring file. Keep it with the responses you collect: it records ' +
+      'The module file. Keep it with the responses you collect: it records ' +
       'which scales the questionnaire collects and, on a shuffled Word form, ' +
       'the order the items were printed in. When you score the data in R, ' +
       'the hitop package reads it back with read_module().'
@@ -1369,6 +1353,15 @@ function bundleReadme(format, stem, version, shuffle = false) {
     '',
     'README.txt',
     '  This file.',
+    '',
+    ...wrapIndented(
+      'The zip file takes its name from the build that made it: the format, ' +
+      'every scale or a selection of them, and shuffled or not. A build that ' +
+      'differs in any of those three gets another name. Two builds that ' +
+      'differ only in which scales were ticked share a name, so if you keep ' +
+      'both, rename one of them.',
+      ''
+    ),
     '',
   ].join('\n');
 }
