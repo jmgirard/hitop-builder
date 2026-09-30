@@ -378,6 +378,41 @@ const PLANTS = [
     from: '<h3 id="nextStepHeading">Next: make the study link</h3>',
     to: '<h3 id="nextStepHeading">Next step</h3>',
   },
+  {
+    id: 'am',
+    what: 'the next-step panel left behind when its link is removed',
+    // removeNextStep() takes out the link and leaves the panel, its heading
+    // and its text. No link is left, so the anchor counts hold, and a later
+    // save adds a second panel. A15, A16 and A18 count the panel headings.
+    from: '  for (const p of panels) p.remove();',
+    to: "  for (const p of panels) p.querySelector('a')?.remove();",
+  },
+  {
+    id: 'an',
+    what: '"Technical details" hidden once the page is ready',
+    // The section is closed as before, but hidden, so a visitor cannot open
+    // it. A21 reads it as not on show, and A30 reads it hidden after the
+    // failed build.
+    from: '  showStep(0, { focus: false });',
+    to: "  showStep(0, { focus: false });\n  el('techDetails').hidden = true;",
+  },
+  {
+    id: 'ao',
+    what: 'a failed build that leaves "Technical details" closed',
+    // The build's catch writes the status itself instead of calling
+    // showFailure(), as it did before, so the section stays closed and the
+    // status does not name it. A30 reads both.
+    from: '    showFailure(`The ${spec.label} build failed.`);',
+    to: '    status(`The ${spec.label} build failed.`);',
+  },
+  {
+    id: 'ap',
+    what: 'a Definition button that works on the first row only',
+    // Every other row's click does nothing. A test that drove the first row
+    // alone would pass. A24 drives every row.
+    from: '        desc.hidden = !desc.hidden;',
+    to: '        if (row !== box.firstElementChild) return;\n        desc.hidden = !desc.hidden;',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself

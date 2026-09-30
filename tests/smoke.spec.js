@@ -1,10 +1,12 @@
 // The smoke test: one headless run of the builder page, from a cold boot to a
 // Word form on disk. It drives the page the way a visitor does -- it reads
 // only the page's document, no script state, and stubs nothing -- so a green
-// run means the deployed article really does hand over a document. The one
-// exception is the webr.mjs request: the first test holds it for a moment to
-// read the page while it loads (A20), and a second test refuses it to read
-// the page after a failed load (A22).
+// run means the deployed article really does hand over a document. There are
+// two exceptions. The webr.mjs request: the first test holds it for a moment
+// to read the page while it loads (A20), and a second test refuses it to read
+// the page after a failed load (A22). And, as the first test's last step,
+// URL.createObjectURL is made to throw, so the next build fails at its save
+// and the test reads the page after a failed build (A30).
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
@@ -24,21 +26,22 @@
 //   A12: the second step shows four format cards and the fourth is "Online form"
 //   A13: the online card saves one .json, named for the build, whose scales and items are the two ticked scales'
 //   A14: the Study Link Builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
-//   A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file
-//   A16: no Study Link Builder anchor is in the document while a second online save begun with the first save's link present runs
+//   A15: a tick change removes the panel and its anchor, and a second online save puts back exactly one of each, carrying the second file
+//   A16: no Study Link Builder anchor or panel is in the document while a second online save begun with the first save's link present runs
 //   A17: a tick during an online build leaves no Study Link Builder anchor at the build's end
 //   A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them
 //   A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link
 //   A20: while R loads, the text from the h1 to the status line holds at most 50 words, and one closed "Technical details" holds the host list and the log
-//   A21: once the page is ready, "Technical details" is still closed
+//   A21: once the page is ready, "Technical details" is still closed and on show
 //   A22: a failed load opens "Technical details", and the status names it
 //   A23: every scale checkbox's accessible name is the scale's name and "<n> items", and the two known scales carry their own item counts
-//   A24: every scale row has a visible Definition button named for its scale, and on the first row a click and a key press open and close the definition and a hover opens none
+//   A24: every scale row has a visible Definition button named for its scale, and on every row a click and a key press open and close the definition and a hover opens none
 //   A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away
 //   A26: for each format, with its settings closed, the text from the cards to the download button holds at most 60 words
 //   A27: a mouse click on each step control leaves the new step's heading with no outline, and a keyboard press on it shows one
 //   A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name
 //   A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder link, drawn as a button
+//   A30: a build that fails opens "Technical details", and the status names it
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -328,9 +331,12 @@ async function saveOnline(page, downloads, label) {
 // of Study Link Builder anchors in the whole document, found by their exact
 // text (readAnchor() finds the same link by its accessible name); the
 // headings of the panels in the document that hold such an anchor; the
-// status text; and whether the download button is off, which it is for the
-// length of a build. One call, so the four are read from one state of the
-// page.
+// count of panel headings in the document, found by their text whether or
+// not an anchor is left beside them, so a removal that takes the link and
+// leaves the panel is seen; the status text; and whether the download
+// button is off, which it is for the length of a build. One call, so all of
+// it is read from one state of the page. The panel's <template> is not
+// counted: its content is not in the document.
 function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
   return page.evaluate(([heading, link]) => {
     const anchors = [...document.querySelectorAll('a')].filter((a) => a.textContent.trim() === link);
@@ -340,6 +346,8 @@ function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
       panels: anchors
         .map((a) => a.closest('section')?.querySelector('h3')?.textContent.trim() ?? null)
         .filter((h) => h === heading),
+      headings: [...document.querySelectorAll('h1, h2, h3, h4')]
+        .filter((h) => h.textContent.trim() === heading).length,
       status: document.getElementById('status').textContent,
     };
   }, [heading, link]);
@@ -402,10 +410,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     const ready = await readTechState(page);
     expect
       .soft(
-        { sections: ready.sections, open: ready.open, hostsShown: ready.hostsShown },
-        'A21: once the page is ready, "Technical details" is still closed'
+        { sections: ready.sections, open: ready.open, rendered: ready.rendered, hostsShown: ready.hostsShown },
+        'A21: once the page is ready, "Technical details" is still closed and on show'
       )
-      .toEqual({ sections: 1, open: false, hostsShown: [] });
+      .toEqual({ sections: 1, open: false, rendered: true, hostsShown: [] });
 
     const rows = page.locator('#scales label');
     const rowCount = await rows.count();
@@ -454,30 +462,45 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       )
       .toEqual({ boxes: rowCount, misnamed: [], known: KNOWN_COUNTS });
 
-    // Every row has a Definition button, on show, named for its scale. On the
-    // first row: a hover opens nothing; a click opens the definition and a
+    // Every row has a Definition button, on show, named for its scale. On
+    // every row: a hover opens nothing; a click opens the definition and a
     // second click closes it; Enter opens it and Space closes it. The
-    // definition is the text the checkbox's aria-describedby names.
-    const firstRow = page.locator('#scales .row').first();
-    const defButton = firstRow.locator('button');
-    const descId = (await defButton.getAttribute('aria-controls')) ?? '';
-    const desc = page.locator(`[id="${descId}"]`);
-    const shown = () => desc.isVisible();
-    await firstRow.locator('label').hover();
-    await page.waitForTimeout(600);
-    const onHover = await shown();
-    await page.mouse.move(0, 0);
-    await defButton.click();
-    const onClick = await shown();
-    const expanded = await defButton.getAttribute('aria-expanded');
-    const descText = ((await desc.textContent()) ?? '').trim();
-    await defButton.click();
-    const onSecondClick = await shown();
-    await defButton.focus();
-    await page.keyboard.press('Enter');
-    const onEnter = await shown();
-    await page.keyboard.press(' ');
-    const onSpace = await shown();
+    // definition is the text the checkbox's aria-describedby names. The
+    // hover is held 600 ms on the first row, long enough for a delayed
+    // opener like the hover popup this button replaced, and 150 ms on the
+    // others, which still catches an opener that fires at once. Each row's
+    // result is kept whole, so a failure names the rows that went wrong.
+    const expectedRow = {
+      onHover: false, onClick: true, expanded: 'true', hasText: true,
+      onSecondClick: false, onEnter: true, onSpace: false,
+    };
+    const rowFailures = [];
+    const defRows = page.locator('#scales .row');
+    const defRowCount = await defRows.count();
+    for (let i = 0; i < defRowCount; i++) {
+      const row = defRows.nth(i);
+      const defButton = row.locator('button');
+      const descId = (await defButton.getAttribute('aria-controls')) ?? '';
+      const desc = page.locator(`[id="${descId}"]`);
+      const shown = () => desc.isVisible();
+      await row.locator('label').hover();
+      await page.waitForTimeout(i === 0 ? 600 : 150);
+      const onHover = await shown();
+      await page.mouse.move(0, 0);
+      await defButton.click();
+      const onClick = await shown();
+      const expanded = await defButton.getAttribute('aria-expanded');
+      const descText = ((await desc.textContent()) ?? '').trim();
+      await defButton.click();
+      const onSecondClick = await shown();
+      await defButton.focus();
+      await page.keyboard.press('Enter');
+      const onEnter = await shown();
+      await page.keyboard.press(' ');
+      const onSpace = await shown();
+      const got = { onHover, onClick, expanded, hasText: descText.length > 0, onSecondClick, onEnter, onSpace };
+      if (JSON.stringify(got) !== JSON.stringify(expectedRow)) rowFailures.push({ row: names[i], ...got });
+    }
     const definitions = await page.locator('#scales .row').evaluateAll((rs) => rs.map((r) => {
       const b = r.querySelector('button.defbtn');
       return {
@@ -490,15 +513,16 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         {
           buttons: definitions.filter((d) => d.shown && d.describes).length,
           buttonNames: buttonNames.filter((n, i) => n === `Definition of ${names[i]}`).length,
-          onHover, onClick, expanded, hasText: descText.length > 0, onSecondClick, onEnter, onSpace,
+          rowsDriven: defRowCount,
+          rowFailures,
         },
-        'A24: every scale row has a visible Definition button named for its scale, and on the first row a click and a key press open and close the definition and a hover opens none'
+        'A24: every scale row has a visible Definition button named for its scale, and on every row a click and a key press open and close the definition and a hover opens none'
       )
       .toEqual({
         buttons: rowCount,
         buttonNames: rowCount,
-        onHover: false, onClick: true, expanded: 'true', hasText: true,
-        onSecondClick: false, onEnter: true, onSpace: false,
+        rowsDriven: rowCount,
+        rowFailures: [],
       });
 
     // A filter that matches nothing shows the line and hides every row; one
@@ -655,10 +679,16 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
     expect
       .soft(
-        { anchorsBeforePress: beforeSecondPress.anchors, anchors: atSecondPress.anchors, building: atSecondPress.building },
-        "A16: no Study Link Builder anchor is in the document while a second online save begun with the first save's link present runs"
+        {
+          anchorsBeforePress: beforeSecondPress.anchors,
+          headingsBeforePress: beforeSecondPress.headings,
+          anchors: atSecondPress.anchors,
+          headings: atSecondPress.headings,
+          building: atSecondPress.building,
+        },
+        "A16: no Study Link Builder anchor or panel is in the document while a second online save begun with the first save's link present runs"
       )
-      .toEqual({ anchorsBeforePress: 1, anchors: 0, building: true });
+      .toEqual({ anchorsBeforePress: 1, headingsBeforePress: 1, anchors: 0, headings: 0, building: true });
 
     // A tick change removes the anchor and returns the status to "Ready.".
     // The second scale is unticked, which leaves the first alone: the one
@@ -668,7 +698,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     await page.locator('#stepbar button[data-goto="0"]').click();
     await rows.filter({ has: page.locator('.nm', { hasText: new RegExp(`^${ONLINE_SCALES[1]}$`) }) })
       .locator('input[type=checkbox]').uncheck();
-    const afterTick = { ...(await readAnchor(page)), status: await page.locator('#status').textContent() };
+    const afterTick = {
+      ...(await readAnchor(page)),
+      headings: (await readLinkState(page)).headings,
+      status: await page.locator('#status').textContent(),
+    };
     await page.locator('#stepbar button[data-goto="1"]').click();
 
     // An online save from the one scale, with a second scale ticked
@@ -715,20 +749,25 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     const second = await saveOnline(page, downloads, 'A15: the second online save returns the status to "Ready."');
     const afterSecond = await readAnchor(page);
+    const headingsAfterSecond = (await readLinkState(page)).headings;
     expect
       .soft(
         {
           afterTick: afterTick.count,
+          headingsAfterTick: afterTick.headings,
           afterSecond: afterSecond.count,
+          headingsAfterSecond,
           secondDownloads: second.count,
           secondItems: second.parsed?.items ?? null,
           secondDecoded: afterSecond.anchor?.decoded ?? null,
         },
-        'A15: a tick change removes the anchor, and a second online save puts back exactly one carrying the second file'
+        'A15: a tick change removes the panel and its anchor, and a second online save puts back exactly one of each, carrying the second file'
       )
       .toEqual({
         afterTick: 0,
+        headingsAfterTick: 0,
         afterSecond: 1,
+        headingsAfterSecond: 1,
         secondDownloads: 1,
         secondItems: ONLINE_ITEMS_FIRST,
         secondDecoded: { instrument: 'hitopsr', module: second.parsed },
@@ -766,10 +805,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         'A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them'
       )
       .toEqual({
-        beforeWordPress: { building: false, anchors: 1, panels: [PANEL_HEADING], status: SAVED_STATUS },
-        afterWordPress: { building: false, anchors: 0, panels: [], status: 'Ready. Word form chosen.' },
+        beforeWordPress: { building: false, anchors: 1, panels: [PANEL_HEADING], headings: 1, status: SAVED_STATUS },
+        afterWordPress: { building: false, anchors: 0, panels: [], headings: 0, status: 'Ready. Word form chosen.' },
         thirdDownloads: 1,
-        afterOnlineAgain: { building: false, anchors: 1, panels: [PANEL_HEADING], status: 'Ready. Online form chosen.' },
+        afterOnlineAgain: { building: false, anchors: 1, panels: [PANEL_HEADING], headings: 1, status: 'Ready. Online form chosen.' },
       });
 
     // Each format's card pressed in turn, which closes its settings: the
@@ -1019,6 +1058,32 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         stepBar: STEP_NAMES,
         controls: STEP_CONTROLS.map((c) => STEP_NAMES[c.to]),
       });
+
+    // A failed build, the run's last step. URL.createObjectURL is made to
+    // throw, so the next Word build fails at its save, after R has written
+    // the files, and the error reaches download()'s catch as any build
+    // failure does. "Technical details" is read before the press, closed, so
+    // the section's state after the press is the failure's doing.
+    const beforeFailure = await readTechState(page);
+    await page.evaluate(() => {
+      URL.createObjectURL = () => { throw new Error('made to fail by the smoke test (A30)'); };
+    });
+    await page.locator('[data-choose="docx"]').click();
+    await page.locator('#downloadBtn').click();
+    await expect(page.locator('#status'), 'A30: the page reports the failed build')
+      .toHaveText(/^The Word form build failed\./, { timeout: BUILD_MS });
+    const afterFailure = await readTechState(page);
+    expect
+      .soft(
+        {
+          openBefore: beforeFailure.open,
+          open: afterFailure.open,
+          rendered: afterFailure.rendered,
+          namesIt: afterFailure.status.includes(`"${TECH_DETAILS}"`),
+        },
+        'A30: a build that fails opens "Technical details", and the status names it'
+      )
+      .toEqual({ openBefore: false, open: true, rendered: true, namesIt: true });
   } finally {
     await target.close();
   }
