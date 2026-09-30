@@ -1,7 +1,10 @@
-// The prose extraction: the page's body text and the strings its script
-// writes into the page, listed so a linter can read them too, and the facts
-// each passage carries, so a rewrite can be shown to have kept them. What it
-// leaves out on purpose is listed under "Excluded on purpose" below.
+// The prose extraction: the page's body text and the script's text at the
+// sites listed under "script" below, listed so a linter can read them too,
+// and the facts each passage carries, so a rewrite can be shown to have kept
+// them. It is not every string a visitor reads. What it leaves out on purpose
+// is under "Excluded on purpose" below, in the WRITERS rows marked
+// "excluded" and in PINNED. scriptPassages() also drops a passage that is
+// only code, and the ledger counts no `.value`, `.href` or `.download` write.
 //
 // The domain has four parts, in the order they are emitted:
 //
@@ -9,7 +12,7 @@
 //            <style>, one passage per block element, with the `placeholder`
 //            and `aria-label` attributes as passages of their own. The run
 //            exits 1 if a text node of the body is in no passage.
-//   script   every string that reaches the page as text: the arguments of
+//   script   the strings at these sites: the arguments of
 //            status(), log(), abandonBoot() and showFailure(), the strings inside the
 //            functions that write the tally, the recap, the settings
 //            summaries, the "Select all" label, the crosswalk sentence, the
@@ -24,7 +27,8 @@
 //
 // Excluded on purpose: the scale names and definitions the page renders from
 // the package (`s.Scale`, `s.Brief`, `s.nItems`), and the two `Ready.` status
-// strings the smoke test pins. Each exclusion is listed in WRITERS below.
+// strings the smoke test pins. The scale text is listed in WRITERS below,
+// and the two statuses in PINNED.
 //
 // Every run also checks each passage for the names the hitop package retired
 // from its web pages (RETIRED below) and exits 1 on a hit.
