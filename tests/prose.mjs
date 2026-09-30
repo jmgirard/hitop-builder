@@ -1,6 +1,7 @@
-// The prose extraction: every string a visitor can read, listed so a linter
-// can read it too, and the facts each passage carries, so a rewrite can be
-// shown to have kept them.
+// The prose extraction: the page's body text and the strings its script
+// writes into the page, listed so a linter can read them too, and the facts
+// each passage carries, so a rewrite can be shown to have kept them. What it
+// leaves out on purpose is listed under "Excluded on purpose" below.
 //
 // The domain has four parts, in the order they are emitted:
 //
