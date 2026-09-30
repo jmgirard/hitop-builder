@@ -508,7 +508,10 @@ runs in this browser.</p>
       <button type="button" id="clearAll">Clear all</button>
     </div>
     <div id="scales" role="group" aria-label="HiTOP-SR scales"></div>
-    <p id="noMatch" hidden>No scales match the filter.</p>
+    <!-- A live region of its own, always in the page, so a screen reader
+         announces the line when a filter empties the list. The line is
+         hidden and shown inside it (see applyFilter()). -->
+    <div role="status"><p id="noMatch" hidden>No scales match the filter.</p></div>
     <p id="tally"></p>
     <div class="stepnav">
       <button type="button" class="primary" data-goto="1">Next: Choose a format and download</button>
@@ -636,17 +639,20 @@ runs in this browser.</p>
       </div>
     </div>
     <!-- At most 60 words from the cards to the download button, for each
-         format with its settings closed: the smoke test counts them. The
-         detail these notes once carried (how the zip file is named, the
-         REDCap dictionary's inner zip) is in the README.txt inside the zip
-         file (see bundleReadme()).
-         The zip note is shown for the three formats that make a zip file. It
-         sits above the button, so it is read before the file arrives. -->
+         format with its settings closed: the smoke test counts them. How the
+         zip file is named is in the README.txt inside the zip file (see
+         bundleReadme()). The REDCap line stays on the page, because a
+         researcher who uploads the outer zip file gets a refusal from REDCap.
+         The zip note is shown for the three formats that make a zip file,
+         and its REDCap line for REDCap alone (see setFormat()). It sits
+         above the button, so it is read before the file arrives. -->
     <div class="notice" id="zipNote">
       <p>The download is one zip file. It holds the questionnaire, a module
       file that lists your scales, and a <code>README.txt</code>. Keep the
       module file with the responses. The <code>hitop</code> package reads it
       with <code>read_module()</code> when you score them.</p>
+      <p id="redcapNote" hidden>For REDCap, upload the inner
+      <code>-upload.zip</code> file as it is.</p>
     </div>
     <!-- The Online form's note. The online form needs no questionnaire file:
          the hitop-form page shows the items from the package's own export,
@@ -656,7 +662,8 @@ runs in this browser.</p>
       <p>The download is one module file that lists your scales. The Online
       form shows the items itself, so there is no questionnaire to build. Keep
       the module file with the responses. After the save, the next step is the
-      study link.</p>
+      study link. Saves from different scales share a file name, so rename one
+      if you keep both.</p>
     </div>
     <div class="downloadrow">
       <div class="downloads">
@@ -771,7 +778,7 @@ let bootAbandoned = false;
 
 // True while download() runs. Every build writes into the one /tmp/bundle
 // directory and ends in one save, so a second build that starts before the
-// first ends can put its files into the first one's bundle. refreshTally()
+// first ends can put its files into the first one's zip file. refreshTally()
 // reads this flag so that a selection change during a build leaves the button
 // off, and download() returns at once while it is set. download() also turns
 // the format cards off until the build ends, so a card press cannot
@@ -809,8 +816,8 @@ function showFailure(message) {
 }
 
 // Each format names the package function that writes it, the extension the
-// questionnaire carries inside the bundle, and the word it contributes to
-// the bundle's filename (see downloadStem). Nothing here describes the
+// questionnaire carries inside the zip file, and the word it contributes to
+// the zip file's name (see downloadStem). Nothing here describes the
 // instrument's content -- item numbers and scale names come from the package.
 //
 // `name` is the system the file is for rather than the key or the extension:
@@ -1006,6 +1013,7 @@ function setFormat(format) {
   const online = format === 'online';
   el('zipNote').hidden = online;
   el('onlineNote').hidden = !online;
+  el('redcapNote').hidden = format !== 'redcap';
   markFormatChoice(format);
   el('downloadBtn').textContent = FORMATS[format].button;
 }
@@ -1297,7 +1305,7 @@ function namingValue(id) {
 
 // Hands one built file to the browser. Exactly one save happens per build:
 // a browser may drop the second of two saves it was not asked for, which is
-// why the questionnaire and its scoring file travel inside one bundle rather
+// why the questionnaire and its module file travel inside one zip file rather
 // than as two saves (see download()).
 function saveFile(bytes, mime, name) {
   const blob = new Blob([bytes], { type: mime });
@@ -1311,28 +1319,29 @@ function saveFile(bytes, mime, name) {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
-// The name the questionnaire takes inside the bundle. A REDCap build is
-// itself a zip, so inside the bundle it is called `-upload`: the outer file
+// The name the questionnaire takes inside the zip file. A REDCap build is
+// itself a zip, so inside the zip file it is called `-upload`: the outer file
 // is the download, and the inner one is what REDCap takes. The other two
 // formats keep the stem and their own extension.
 function questionnaireName(format, stem) {
   return format === 'redcap' ? `${stem}-upload.zip` : `${stem}.${FORMATS[format].ext}`;
 }
 
-// The README that travels inside every bundle. It is the one thing the
-// bundle says to a reader who never saw this page -- a colleague the files
+// The README that travels inside every zip file. It is the one thing the
+// zip file says to a reader who never saw this page -- a colleague the files
 // were forwarded to -- so it names each entry and what to do with it. Only
 // the questionnaire paragraph differs by format, keyed on FORMATS like the
-// button label; the REDCap paragraph is the one place the bundle has to say
-// that the inner zip is uploaded as it is.
+// button label; the REDCap paragraph says that the inner zip is uploaded as
+// it is, which the page's REDCap line also says.
 const BUNDLE_WHAT = {
   docx: 'The questionnaire, and the file to field: a Word document to print ' +
     'and fill in on paper.',
   qualtrics: 'The questionnaire, and the file to field: an advanced-format ' +
     'file to import as a Qualtrics survey.',
   redcap: 'The questionnaire, and the file to field: a data dictionary to ' +
-    'import into a REDCap project. Upload this zip file to REDCap as it is, ' +
-    'without extracting it. The REDCap instrument upload takes the zip itself.',
+    'import into a REDCap project. Upload this file, the one that ends in ' +
+    '-upload.zip, to REDCap as it is, without extracting it. The REDCap ' +
+    'instrument upload takes this zip itself, not the zip file that holds it.',
 };
 
 // Breaks one paragraph into indented lines of at most 78 characters, so the
@@ -1437,7 +1446,7 @@ async function download() {
   const focusAtClick = document.activeElement;
 
   // Every build lands in one directory that is emptied first, and every file
-  // in it is written under the name it will carry inside the bundle: the zip
+  // in it is written under the name it will carry inside the zip file: the zip
   // call below stores each by its basename ("cherry-pick"), so the names are
   // fixed here, on the R side, not at the save.
   const bundleDir = '/tmp/bundle';
@@ -1463,9 +1472,9 @@ async function download() {
     const shuffle = format === 'docx' && el('shuffle').checked;
     const renumber = numberingMode() === 'renumber';
     const whole = wholeInstrument();
-    // The stem says which build made the bundle (see downloadStem); the
-    // questionnaire and the scoring file inside it take the same stem, so a
-    // bundle a visitor extracts still reads as one build.
+    // The stem says which build made the zip file (see downloadStem); the
+    // questionnaire and the module file inside it take the same stem, so a
+    // zip file a visitor extracts still reads as one build.
     const stem = downloadStem(format, whole, shuffle);
 
     // The online form: no questionnaire, no README, no zip file. The module
@@ -1516,7 +1525,7 @@ async function download() {
     // before the first await.
     // The visitor can change a control while the build waits on R, and a
     // value read after that point would mix two sets of settings in one
-    // bundle. Each naming value goes only into the format that has the
+    // zip file. Each naming value goes only into the format that has the
     // argument: the Word call takes none of them, and neither the Qualtrics
     // nor the REDCap call takes the other's.
     const papersize =
@@ -1577,16 +1586,16 @@ async function download() {
       hitop::${spec.fn}(file = out_path, descriptor = desc_path${moduleArg}${extra})
     `, { captureStreams: false });
 
-    // Both files are read before the bundle is made, so a missing descriptor
-    // fails the whole build rather than handing over a form with nothing to
+    // Both files are read before the zip file is made, so a missing module
+    // file fails the whole build rather than handing over a form with nothing to
     // score it by.
     const bytes = await webR.FS.readFile(path);
     const descBytes = await webR.FS.readFile(descPath);
     log(`  wrote ${bytes.length} bytes to ${questionnaireName(format, stem)} ` +
         `and ${descBytes.length} bytes to ${stem}.json.`);
 
-    // The three files are zipped into one bundle, so the download is one
-    // save whichever format was built: the scoring file is the one a visitor
+    // The three files are zipped into one zip file, so the download is one
+    // save whichever format was built: the module file is the one a visitor
     // would not notice missing until scoring time, and a second save is the
     // one a browser may drop (see saveFile). {zip} implements the archive in
     // C with no child process, which is what lets it run here at all; the
@@ -1619,7 +1628,7 @@ async function download() {
     cards.forEach((b) => (b.disabled = bootAbandoned));
     refreshTally();
     // Focus comes back to the control that had it at the click, whether the
-    // build saved a bundle or failed. It comes back only if focus is on the
+    // build saved a zip file or failed. It comes back only if focus is on the
     // body when the build ends, so focus that is on another element then,
     // such as a control the visitor moved to, stays there. It also comes
     // back only to a control that is on and on show: a control that the
@@ -1904,8 +1913,8 @@ async function main() {
   }
   // Every control that moves between steps -- the bar's two buttons, the
   // Next button at the foot of step 1, and the Back button and the button
-  // drawn as a link beside the tally on step 2 -- says where it goes in the same attribute, so
-  // there is one handler.
+  // drawn as a link in the recap line at the top of step 2 -- says where it
+  // goes in the same attribute, so there is one handler.
   for (const b of document.querySelectorAll('[data-goto]')) {
     b.addEventListener('click', () => showStep(Number(b.dataset.goto)));
   }

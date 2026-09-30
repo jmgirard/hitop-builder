@@ -166,7 +166,7 @@ const STEP_CONTROLS = [
   { what: 'the step bar button to step 2', from: 0, to: 1, sel: '#stepbar button[data-goto="1"]' },
   { what: 'the Next button', from: 0, to: 1, sel: '#step1 .stepnav button[data-goto="1"]' },
   { what: 'the step bar button to step 1', from: 1, to: 0, sel: '#stepbar button[data-goto="0"]' },
-  { what: 'the link beside the tally', from: 1, to: 0, sel: '#step2 .recap button[data-goto="0"]' },
+  { what: 'the link in the step 2 recap', from: 1, to: 0, sel: '#step2 .recap button[data-goto="0"]' },
   { what: 'the Back button', from: 1, to: 0, sel: '#step2 .stepnav button[data-goto="0"]' },
 ];
 

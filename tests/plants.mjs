@@ -413,6 +413,28 @@ const PLANTS = [
     from: '        desc.hidden = !desc.hidden;',
     to: '        if (row !== box.firstElementChild) return;\n        desc.hidden = !desc.hidden;',
   },
+  {
+    id: 'aq',
+    what: 'a hover that opens the definition after a delay',
+    // A pointer resting on a row's label opens its definition 300 ms later,
+    // as the hover popup this button replaced did. The button still works.
+    // A24 holds the hover on the first row for 600 ms.
+    from: '    row.append(label);',
+    to:
+      '    row.append(label);\n' +
+      "    label.addEventListener('pointerenter', () => setTimeout(() => {\n" +
+      "      const d = row.querySelector('.desc');\n" +
+      '      if (d) d.hidden = false;\n' +
+      '    }, 300));',
+  },
+  {
+    id: 'ar',
+    what: 'the README.txt title naming the file type, not the format',
+    // The title line reads "HiTOP-SR DOCX: ..." and so on. The card, the
+    // button and the status keep the name. A28 reads the README.txt titles.
+    from: '    `HiTOP-SR ${FORMATS[format].label}: ${stem}.zip`,',
+    to: '    `HiTOP-SR ${FORMATS[format].ext.toUpperCase()}: ${stem}.zip`,',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself

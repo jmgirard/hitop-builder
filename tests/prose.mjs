@@ -545,5 +545,7 @@ if (COMPARE) {
   }
   for (const id of mine.keys()) if (!theirs.has(id)) { console.log(`NEW ${id}`); bad++; }
   console.log(bad ? `${bad} passages differ from ${COMPARE}` : `every passage keeps the facts in ${COMPARE}`);
-  process.exit(bad ? 1 : 0);
+  // A retired-name hit above has set the exit code already, and a clean
+  // compare does not clear it.
+  process.exit(bad || process.exitCode ? 1 : 0);
 }

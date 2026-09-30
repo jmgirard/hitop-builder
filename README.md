@@ -42,13 +42,16 @@ under its download button then says to choose a scale first.
 Every other control that changes the step holds the name of the step it goes
 to: *Next: Choose a format and download* at the foot of the first step, and
 *Back: Choose scales* twice on the second. A step change moves keyboard focus
-to the new step's heading. The heading shows a focus outline after a keyboard
-press, and no outline after a mouse click.
+to the new step's heading. In Chromium, the browser the tests run, the
+heading shows a focus outline after a keyboard press and no outline after a
+mouse click. The page uses the CSS `:focus-visible` rule for this. Other
+browsers apply their own version of that rule.
 
 ### Step 1: Choose scales
 
 A *Filter scales…* box narrows the list of scales. A filter that matches no
-scale shows *No scales match the filter.* in place of the list. *Select all*
+scale shows *No scales match the filter.* in place of the list, and a screen
+reader announces that line. *Select all*
 selects every scale the filter shows, and its label says how many while a
 filter is in use. *Clear all* clears every scale, shown or not.
 
@@ -97,7 +100,10 @@ and nothing set under one format reaches another format's file.
 A short note above the download button says what the download holds. For the
 three zip formats, the note lists the questionnaire, a module file and a
 `README.txt`. It adds that `read_module()` reads the module file at scoring
-time. For the Online form, the note says that the download is one module file.
+time. For the REDCap dictionary, a second line says to upload the inner
+`-upload.zip` file as it is. For the Online form, the note says that the
+download is one module file. It also says that saves from different scales
+share a file name. If you keep both, rename one.
 
 The download button builds the current format in this browser. While it runs,
 the status line reads *Building the Word form…* (or the format's own name), or
@@ -173,8 +179,9 @@ Built by the HiTOP-SR Module Builder
 
 hitopsr-redcap-module-upload.zip
   The questionnaire, and the file to field: a data dictionary to import into a
-  REDCap project. Upload this zip file to REDCap as it is, without extracting
-  it. The REDCap instrument upload takes the zip itself.
+  REDCap project. Upload this file, the one that ends in -upload.zip, to
+  REDCap as it is, without extracting it. The REDCap instrument upload takes
+  this zip itself, not the zip file that holds it.
 
 hitopsr-redcap-module.json
   The module file. Keep it with the responses you collect: it records which
@@ -226,8 +233,8 @@ filled in. There you name the study and choose where the responses go. Its
 *Open the Study Link Builder* link is drawn as a button. It opens
 `https://jmgirard.github.io/hitop-form/link.html` in a new tab. The address's
 `c` value holds the instrument and the saved file's module, in the encoding
-that the Study Link Builder reads. The status line, the one region a screen
-reader announces, reads *Ready. The module file is saved. "Next: make the study
+that the Study Link Builder reads. The status line, which a screen reader
+announces, reads *Ready. The module file is saved. "Next: make the study
 link" is under the button.*
 
 The panel carries the module of one saved file. If you tick or untick a scale,
@@ -480,7 +487,7 @@ Every tracked file:
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the prose extraction on this checkout on every run, then the smoke test: on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test, whose assertions its header lists. One test boots the page and reads its head and *Technical details* while R loads, with the `webr.mjs` request held. It then checks the scale rows, their names, *Definition* buttons and filter line. It checks the step controls' names and focus outlines, and each format's text and names. It saves the Online form's module file and reads the next-step panel. It builds a Word, a Qualtrics and a REDCap zip file and reads them. A second test refuses the `webr.mjs` request and reads the failed load |
+| `tests/smoke.spec.js` | The smoke test, whose assertions its header lists. One test boots the page and reads its head and *Technical details* while R loads, with the `webr.mjs` request held. It then checks the scale rows, their names, *Definition* buttons and filter line. It checks the step controls' names and focus outlines, and each format's text and names. It saves the Online form's module file and reads the next-step panel. It builds a Word, a Qualtrics and a REDCap zip file and reads them. Last, it makes `URL.createObjectURL` throw and reads the failed build that follows. A second test refuses the `webr.mjs` request and reads the failed load |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list. Each is run to prove that the smoke test goes red on it. The matrix also checks that every smoke assertion goes red on at least one |
 | `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run. It lists every string a visitor reads, for a linter, and the facts each passage carries. It refuses a page whose count of `.textContent`, `.innerHTML` and `.setAttribute` writes differs from its ledger. It also refuses a passage that holds a name the `hitop` package retired from its web pages |
