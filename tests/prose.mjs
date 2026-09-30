@@ -459,10 +459,13 @@ function facts(passage) {
 // The terms the hitop package's decision D-083 retires from visitor text, as
 // that decision lists them: ten case-insensitive patterns and two fixed
 // strings. Every run checks the passages for them and exits 1 on a hit.
+// The one pattern about a template hole is read against the text with its
+// holes kept, since namesText() takes holes out for the other eleven.
+const HOLE_PARAMETER = /\$\{[^}]*\} parameter/i;
 const RETIRED = [
   /\bdescriptor\b/i, /\bscoring file\b/i, /\bbundle\b/i, /\bendpoint\b/i,
   /\bstores?\b/i, /\bcompressed\b/i, /\b(hitop-form )?form page\b/i,
-  /(?<!study )\blink builder\b/i, /\b[cz] parameter\b/i, /\$\{[^}]*\} parameter/i,
+  /(?<!study )\blink builder\b/i, /\b[cz] parameter\b/i, HOLE_PARAMETER,
   /\?c=/, /\?z=/,
 ];
 
@@ -471,13 +474,13 @@ const RETIRED = [
 // passage every code token goes: the log shows the R calls the page makes
 // and what R prints. In README.md, code spans and fenced blocks go, which
 // is D-083's code-identifier and R-code exception.
-function namesText(p) {
+function namesText(p, { keepHoles = false } = {}) {
   // A README.md section's heading is its id, so it is checked with the body.
   let t = p.id.startsWith('md:') ? `${p.id.slice(3)}\n${p.text}` : p.text;
   t = t.replace(/```[\s\S]*?```/g, ' ');
   t = t.replace(/\]\([^)]*\)/g, '] ');
   t = t.replace(/https?:\/\/[^\s)>\]]+/g, ' ');
-  t = t.replace(/`\$\{[^}]*\}`/g, ' ');
+  t = keepHoles ? t.replace(/`(\$\{[^}]*\})`/g, '$1') : t.replace(/`\$\{[^}]*\}`/g, ' ');
   if (p.id.startsWith('log') || p.id.startsWith('md:')) t = t.replace(/`[^`\n]*`/g, ' ');
   return t;
 }
@@ -485,8 +488,8 @@ function namesText(p) {
 function retiredHits(passages) {
   const hits = [];
   for (const p of passages) {
-    const t = namesText(p);
     for (const re of RETIRED) {
+      const t = namesText(p, { keepHoles: re === HOLE_PARAMETER });
       const m = re.exec(t);
       if (m) hits.push(`${p.id}: "${m[0]}" in ${JSON.stringify(squash(t).slice(Math.max(0, m.index - 40), m.index + 40))}`);
     }

@@ -5,10 +5,10 @@ scales you choose. You download a module as a Word form, a Qualtrics file or a
 REDCap dictionary. Each of those downloads is one zip file. It holds the
 questionnaire, a module file that records the scales it collects, and a
 `README.txt`. The `hitop` package later scores the responses with the module
-file. A fourth
-choice, the Online form, saves the module file alone. The page then leads you
-to the [Study Link Builder](https://jmgirard.github.io/hitop-form/link.html)
-of hitop-form with your module filled in.
+file. A fourth choice, the Online form, saves the module file alone. The page
+then leads you to the
+[Study Link Builder](https://jmgirard.github.io/hitop-form/link.html) of
+hitop-form with your module filled in.
 
 Live app: <https://jmgirard.github.io/hitop-builder/>
 
@@ -50,14 +50,15 @@ browsers apply their own version of that rule.
 ### Step 1: Choose scales
 
 A *Filter scales…* box narrows the list of scales. A filter that matches no
-scale shows *No scales match the filter.* in place of the list, and a screen
-reader announces that line. *Select all*
+scale shows *No scales match the filter.* in place of the list. The line sits
+in a `role="status"` live region, so a screen reader can announce it. *Select
+all*
 selects every scale the filter shows, and its label says how many while a
 filter is in use. *Clear all* clears every scale, shown or not.
 
 Each row holds a checkbox, the scale's name and its item count, such as
-*5 items*. A screen reader reads the name and the count together as the
-checkbox's name. A *Definition* button on each row shows the scale's brief
+*5 items*. The checkbox's accessible name holds the name and the count, as
+Chromium computes it. Other browsers are not tested. A *Definition* button on each row shows the scale's brief
 clinician-facing definition as a line under the row. A second press hides it.
 Nothing opens on hover. A screen reader also reads the definition with the
 checkbox. The names, counts and definitions come from the installed `hitop`
@@ -198,7 +199,7 @@ of those three gets another name. Two builds that differ only in which scales
 were ticked share a name, so if you keep both, rename one of them.
 ```
 
-A Word or Qualtrics `README.txt` differs from that one in three places. Its
+A Word or Qualtrics `README.txt` differs from that one in four places. Its
 first line names that format. Its stem, which names the zip file and the
 module file, takes that format's name. Its questionnaire entry is named for
 the stem and the format's extension, such as `hitopsr-word-module.docx`, with

@@ -28,7 +28,7 @@
 //   A14: the Study Link Builder anchor after the save carries the saved file in its c, opens a new tab, and has rel noopener
 //   A15: a tick change removes the panel and its anchor, and a second online save puts back exactly one of each, carrying the second file
 //   A16: no Study Link Builder anchor or panel is in the document while a second online save begun with the first save's link present runs
-//   A17: a tick during an online build leaves no Study Link Builder anchor at the build's end
+//   A17: a tick during an online build leaves no Study Link Builder anchor or panel at the build's end
 //   A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them
 //   A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link
 //   A20: while R loads, the text from the h1 to the status line holds at most 50 words, and one closed "Technical details" holds the host list and the log
@@ -36,7 +36,7 @@
 //   A22: a failed load opens "Technical details", and the status names it
 //   A23: every scale checkbox's accessible name is the scale's name and "<n> items", and the two known scales carry their own item counts
 //   A24: every scale row has a visible Definition button named for its scale, and on every row a click and a key press open and close the definition and a hover opens none
-//   A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away
+//   A25: a filter that matches no scale shows "No scales match" in a status region, and a filter that matches one takes it away
 //   A26: for each format, with its settings closed, the text from the cards to the download button holds at most 60 words
 //   A27: a mouse click on each step control leaves the new step's heading with no outline, and a keyboard press on it shows one
 //   A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name
@@ -184,11 +184,12 @@ const WEBR_MJS = '**/webr.mjs';
 const MAX_HEADER_WORDS = 50;
 const MAX_STEP2_WORDS = 60;
 
-// The item counts of the two online scales, from the item lists above: the
-// first scale's items, and the rest of the two-scale list.
+// The item counts of the two online scales, listed by hand from the hitop
+// package's own tables (lengths(hitopsr_scales$itemNumbers) in hitop 0.2.0,
+// on 2026-09-30) rather than worked out from the item lists above.
 const KNOWN_COUNTS = {
-  [ONLINE_SCALES[0]]: ONLINE_ITEMS_FIRST.length,
-  [ONLINE_SCALES[1]]: ONLINE_ITEMS.length - ONLINE_ITEMS_FIRST.length,
+  [ONLINE_SCALES[0]]: 5,
+  [ONLINE_SCALES[1]]: 3,
 };
 
 // Opens the page under test: SMOKE_TARGET when set, else a local server over
@@ -525,11 +526,13 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         rowFailures: [],
       });
 
-    // A filter that matches nothing shows the line and hides every row; one
-    // that matches a scale takes the line away again.
+    // A filter that matches nothing shows the line, inside a status region,
+    // and hides every row; one that matches a scale takes the line away
+    // again.
     const readFilter = () => page.evaluate(() => ({
       line: document.getElementById('noMatch')?.checkVisibility()
         ? document.getElementById('noMatch').textContent.trim() : null,
+      inStatus: document.getElementById('noMatch')?.closest('[role="status"]') != null,
       rows: [...document.querySelectorAll('#scales .row')].filter((r) => r.checkVisibility()).length,
     }));
     await page.locator('#filter').fill('qqqq no such scale');
@@ -540,9 +543,12 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     expect
       .soft(
         { noMatch: { ...noMatch, line: noMatch.line?.startsWith('No scales match') ? 'No scales match' : noMatch.line }, oneMatch },
-        'A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away'
+        'A25: a filter that matches no scale shows "No scales match" in a status region, and a filter that matches one takes it away'
       )
-      .toEqual({ noMatch: { line: 'No scales match', rows: 0 }, oneMatch: { line: null, rows: 1 } });
+      .toEqual({
+        noMatch: { line: 'No scales match', inStatus: true, rows: 0 },
+        oneMatch: { line: null, inStatus: true, rows: 1 },
+      });
 
     // Each control that changes the step, pressed once with the mouse and
     // once with the keyboard. After the mouse click the new step's heading
@@ -737,10 +743,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
           buildingAtTick: atTick.buildingAtTick,
           downloads: downloads.length - midBefore,
           anchors: (await readAnchor(page)).count,
+          headings: (await readLinkState(page)).headings,
         },
-        "A17: a tick during an online build leaves no Study Link Builder anchor at the build's end"
+        "A17: a tick during an online build leaves no Study Link Builder anchor or panel at the build's end"
       )
-      .toEqual({ buildingAtTick: true, downloads: 1, anchors: 0 });
+      .toEqual({ buildingAtTick: true, downloads: 1, anchors: 0, headings: 0 });
     await page.evaluate(() => {
       const box = document.querySelectorAll('#scales input')[1];
       box.checked = false;
@@ -1014,21 +1021,30 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // A28 reads each format's name in its card title, its download button,
     // its build status and, for the three zip formats, the first line of
     // the README.txt in its zip file. The Word README comes from the build
-    // above; a Qualtrics and a REDCap build follow for theirs. Each status is
-    // read right after the press, where download() has written it and no
-    // await has let the build end.
+    // above; a Qualtrics and a REDCap build follow for theirs. A fast build
+    // can end before a read taken after the press, so every status text the
+    // build writes is recorded from before the press, by an observer on the
+    // status element, and the one naming the format is kept. With none, the
+    // whole record is kept, so a failure shows what the build wrote.
     seen.readmes.docx = (bundle.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
     await expect(page.locator('#status'), 'A28: the Word build returns the status to "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
     for (const format of ['qualtrics', 'redcap']) {
       await page.locator(`[data-choose="${format}"]`).click();
+      await page.evaluate(() => {
+        const s = document.getElementById('status');
+        window.smokeStatuses = [];
+        new MutationObserver(() => window.smokeStatuses.push(s.textContent))
+          .observe(s, { childList: true, characterData: true, subtree: true });
+      });
       const saved = page.waitForEvent('download', { timeout: BUILD_MS });
       await page.locator('#downloadBtn').click();
-      seen.statuses[format] = await page.locator('#status').textContent();
       const zip = zipEntries(await readFile(await (await saved).path()));
       seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
       await expect(page.locator('#status'), `A28: the ${FORMAT_NAMES[format]} build returns the status to "Ready."`)
         .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+      const written = await page.evaluate(() => window.smokeStatuses);
+      seen.statuses[format] = written.find((t) => t.includes(FORMAT_NAMES[format])) ?? written.join(' | ');
     }
     // The step bar's names, from each button's name span, and the text of
     // each control that changes the step.

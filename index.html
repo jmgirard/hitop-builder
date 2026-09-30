@@ -191,7 +191,7 @@
   }
   #scales .defbtn {
     padding: .05rem .4rem; font-size: var(--t-micro); font-weight: 500;
-    background: var(--bg);
+    min-height: 1.5rem; background: var(--bg);
   }
   #scales .defbtn[aria-expanded=true] { border-color: var(--accent); background: var(--accent-weak); }
   /* The definition opens as a line under its row, inside the list. It comes
@@ -473,8 +473,8 @@
      "Technical details" at the foot of the page. -->
 <p class="lede">Choose the HiTOP-SR scales you need. Then download a
 questionnaire that holds only their items, as a Word form, a Qualtrics file
-or a REDCap dictionary. Or save a module file for the Online form. Everything
-runs in this browser.</p>
+or a REDCap dictionary. Or save a module file for the Online form. The page
+downloads R and the hitop package, then runs in this browser.</p>
 
 <noscript>
   <div class="notice">
@@ -587,9 +587,10 @@ runs in this browser.</p>
              shuffled form needs layout = "printed" to score must stay in view
              for as long as the box is ticked, fold open or closed. -->
         <div class="notice" id="shuffleNote" hidden>
-          <p>A shuffled form takes one more step to score. Data entered in the
-          printed order has its columns in that order. In R, read the module
-          file with <code>read_module()</code> and pass that module to
+          <p>A shuffled form takes one more step to score. If you enter the
+          data in the printed order, its columns are in that order. Then, in
+          R, read the module file with <code>read_module()</code> and pass
+          that module to
           <code>score_hitopsr()</code> with <code>layout = "printed"</code>.
           Columns in the HiTOP-SR's own order take the default layout. The
           wrong layout gives wrong scale scores and no error.</p>
@@ -662,8 +663,8 @@ runs in this browser.</p>
       <p>The download is one module file that lists your scales. The Online
       form shows the items itself, so there is no questionnaire to build. Keep
       the module file with the responses. After the save, the next step is the
-      study link. Saves from different scales share a file name, so rename one
-      if you keep both.</p>
+      study link. Two saves of different selections of scales share a file
+      name, so rename one if you keep both.</p>
     </div>
     <div class="downloadrow">
       <div class="downloads">
@@ -678,8 +679,8 @@ runs in this browser.</p>
     <!-- The next step after an online save, in the page only until the
          selection changes, another format's card is pressed, or another
          build starts. showNextStep() clones the panel from the template
-         here: its text is static markup, and the script fills in the
-         button's href. It is removed from the document, not hidden, when the
+         here: its text is static markup, and the script fills in the href
+         of its link, which is drawn as a button. It is removed from the document, not hidden, when the
          selection or the format it was made for no longer holds (see
          removeNextStep()), so a stale link is never left in the page. -->
     <div id="nextStepSlot"><template id="nextStepTpl"><section class="nextstep" aria-labelledby="nextStepHeading">
@@ -700,7 +701,7 @@ runs in this browser.</p>
      names it. -->
 <details id="techDetails" hidden>
   <summary>Technical details</summary>
-  <p>Everything runs in this browser. The page fetches R from
+  <p>The page fetches R from
   <code>webr.r-wasm.org</code>. It fetches the
   <a href="https://jmgirard.github.io/hitop/"><code>hitop</code></a> package
   <span id="pkgver"></span> from <code>jmgirard.r-universe.dev</code>, which
@@ -1330,9 +1331,9 @@ function questionnaireName(format, stem) {
 
 // The README that travels inside every zip file. It is the one thing the
 // zip file says to a reader who never saw this page -- a colleague the files
-// were forwarded to -- so it names each entry and what to do with it. Only
-// the questionnaire paragraph differs by format, keyed on FORMATS like the
-// button label; the REDCap paragraph says that the inner zip is uploaded as
+// were forwarded to -- so it names each entry and what to do with it. The
+// title line and the questionnaire paragraph differ by format, keyed on
+// FORMATS and BUNDLE_WHAT; the REDCap paragraph says that the inner zip is uploaded as
 // it is, which the page's REDCap line also says.
 const BUNDLE_WHAT = {
   docx: 'The questionnaire, and the file to field: a Word document to print ' +
@@ -1900,7 +1901,8 @@ async function main() {
   // A card press selects its format in place: the step stays where it is and
   // the settings and button below the cards switch to that format. Focus
   // stays on the card, so nothing else would announce the swap to a screen
-  // reader; the status line, the page's one announcing region, says which
+  // reader; the status line, the announcing region for build and format
+  // news (the "No scales match" line has its own), says which
   // format the controls below now belong to. It does so only while the
   // status begins with "Ready.", so neither a build's progress nor a
   // failure's message is written over. During a build the press does not

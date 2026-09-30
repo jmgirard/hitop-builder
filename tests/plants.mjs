@@ -142,13 +142,13 @@ const PLANTS = [
   },
   {
     id: 'n',
-    what: 'the saved scoring file under a wrong name',
+    what: 'the saved module file under a wrong name',
     from: "saveFile(descBytes, 'application/json', `${stem}.json`);",
     to: "saveFile(descBytes, 'application/json', `${stem}.txt`);",
   },
   {
     id: 'o',
-    what: "the saved scoring file's items out of order",
+    what: "the saved module file's items out of order",
     // The file's items array is reversed in the text the browser is handed,
     // on every online save: the text is parsed, its items reversed, and the module
     // serialised again, so the plant reads no layout of write_module()'s
@@ -434,6 +434,21 @@ const PLANTS = [
     // button and the status keep the name. A28 reads the README.txt titles.
     from: '    `HiTOP-SR ${FORMATS[format].label}: ${stem}.zip`,',
     to: '    `HiTOP-SR ${FORMATS[format].ext.toUpperCase()}: ${stem}.zip`,',
+  },
+  {
+    id: 'as',
+    what: 'the "No scales match" line outside any status region',
+    // The line still shows and hides as before. A25 reads its region.
+    from: '<div role="status"><p id="noMatch" hidden>',
+    to: '<div><p id="noMatch" hidden>',
+  },
+  {
+    id: 'at',
+    what: 'the Qualtrics and REDCap build statuses without the format name',
+    // The Word and Online form statuses keep the name. A28 reads the other
+    // two from every status their builds write.
+    from: 'function buildStatus(format) {',
+    to: "function buildStatus(format) {\n  if (format === 'qualtrics' || format === 'redcap') return 'Building…';",
   },
 ];
 
