@@ -10,8 +10,9 @@
 //   script   every string that reaches the page as text: the arguments of
 //            status(), log(), abandonBoot() and showFailure(), the strings inside the
 //            functions that write the tally, the recap, the settings
-//            summaries, the "Select all" label, the crosswalk sentence and
-//            the words on a scale row (scaleRowText()),
+//            summaries, the "Select all" label, the crosswalk sentence, the
+//            words on a scale row (scaleRowText()), the build status
+//            (buildStatus()),
 //            FORMATS[].label and .button, the version line, and the message
 //            the <script nomodule> block writes
 //   readme   the README.txt the page puts in a bundle, one passage per format,
@@ -22,6 +23,9 @@
 // Excluded on purpose: the scale names and definitions the page renders from
 // the package (`s.Scale`, `s.Brief`, `s.nItems`), and the two `Ready.` status
 // strings the smoke test pins. Each exclusion is listed in WRITERS below.
+//
+// Every run also checks each passage for the names the hitop package retired
+// from its web pages (RETIRED below) and exits 1 on a hit.
 //
 // WRITERS is a ledger of every site in the script that writes text or an
 // attribute into the page. The script greps the source for such sites and

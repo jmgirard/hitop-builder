@@ -1,7 +1,10 @@
 // The smoke test: one headless run of the builder page, from a cold boot to a
 // Word form on disk. It drives the page the way a visitor does -- it reads
 // only the page's document, no script state, and stubs nothing -- so a green
-// run means the deployed article really does hand over a document.
+// run means the deployed article really does hand over a document. The one
+// exception is the webr.mjs request: the first test holds it for a moment to
+// read the page while it loads (A20), and a second test refuses it to read
+// the page after a failed load (A22).
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
@@ -26,6 +29,16 @@
 //   A17: a tick during an online build leaves no Study Link Builder anchor at the build's end
 //   A18: a press of the Word card after an online save removes the panel and its anchor, and the Online card pressed again keeps them
 //   A19: the status names the saved file and the link after an online save, and reads "Ready." after the guarded save and after a tick that removed the link
+//   A20: while R loads, the text from the h1 to the status line holds at most 50 words, and one closed "Technical details" holds the host list and the log
+//   A21: once the page is ready, "Technical details" is still closed
+//   A22: a failed load opens "Technical details", and the status names it
+//   A23: every scale checkbox's accessible name is the scale's name and "<n> items", and the two known scales carry their own item counts
+//   A24: every scale row has a visible Definition button that opens and closes its definition by click and by keyboard, and a hover opens none
+//   A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away
+//   A26: for each format, with its settings closed, the text from the cards to the download button holds at most 60 words
+//   A27: a mouse click on each step control leaves the new step's heading with no outline, and a keyboard press on it shows one
+//   A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name
+//   A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder button
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -131,6 +144,127 @@ const STUDY_LINK_BUILDER = 'https://jmgirard.github.io/hitop-form/link.html';
 // The next-step panel an online save puts under the button, and its link.
 const PANEL_HEADING = 'Next: make the study link';
 const PANEL_LINK = 'Open the Study Link Builder';
+
+// The one table the names are read against (A28): each format's one name,
+// keyed by its card's data-choose, and each step's name, by its index. They
+// are stated here, not read off the page, so a page that renames a format in
+// one place and not the others fails.
+const FORMAT_NAMES = {
+  docx: 'Word form',
+  qualtrics: 'Qualtrics file',
+  redcap: 'REDCap dictionary',
+  online: 'Online form',
+};
+const STEP_NAMES = ['Choose scales', 'Choose a format and download'];
+
+// Every control that changes the step, with the step it is on and the step
+// it leads to (A27, A28).
+const STEP_CONTROLS = [
+  { what: 'the step bar button to step 2', from: 0, to: 1, sel: '#stepbar button[data-goto="1"]' },
+  { what: 'the Next button', from: 0, to: 1, sel: '#step1 .stepnav button[data-goto="1"]' },
+  { what: 'the step bar button to step 1', from: 1, to: 0, sel: '#stepbar button[data-goto="0"]' },
+  { what: 'the link beside the tally', from: 1, to: 0, sel: '#step2 .recap button[data-goto="0"]' },
+  { what: 'the Back button', from: 1, to: 0, sel: '#step2 .stepnav button[data-goto="0"]' },
+];
+
+// The closed section that holds the host list and the log (A20 to A22), and
+// the hosts the page names there. The page loads R and the package from
+// these, so they are facts about the page's own code, not content.
+const TECH_DETAILS = 'Technical details';
+const HOSTS = ['webr.r-wasm.org', 'jmgirard.r-universe.dev', 'r2.ropensci.org', 'repo.r-wasm.org'];
+
+// The page's first request for R. A20 holds it to read the loading state,
+// and A22 refuses it to make the load fail.
+const WEBR_MJS = '**/webr.mjs';
+
+// The word limits AC1 and AC3 set.
+const MAX_HEADER_WORDS = 50;
+const MAX_STEP2_WORDS = 60;
+
+// The item counts of the two online scales, from the item lists above: the
+// first scale's items, and the rest of the two-scale list.
+const KNOWN_COUNTS = {
+  [ONLINE_SCALES[0]]: ONLINE_ITEMS_FIRST.length,
+  [ONLINE_SCALES[1]]: ONLINE_ITEMS.length - ONLINE_ITEMS_FIRST.length,
+};
+
+// Opens the page under test: SMOKE_TARGET when set, else a local server over
+// SERVE_DIR. Returns its URL and a close function.
+async function openTarget() {
+  if (!TARGET && REQUIRE_TARGET) {
+    throw new Error(
+      'SMOKE_REQUIRE_TARGET is set but SMOKE_TARGET is empty: this run was ' +
+        'meant to drive a deployed page and would have driven a local copy.'
+    );
+  }
+  if (TARGET) return { url: TARGET, close: async () => {} };
+  const server = await serveDir(SERVE_DIR);
+  return { url: `${server.origin}/index.html`, close: () => server.close() };
+}
+
+// What A20 to A22 read of the page's head and its "Technical details", in
+// one call. Words are runs of non-space text holding a letter or a digit,
+// counted over the rendered elements from the h1 to the status line. The
+// hosts shown are the ones in the page's rendered text, which leaves out the
+// body of a closed <details>.
+function readTechState(page) {
+  return page.evaluate(([summaryText, hosts]) => {
+    const count = (t) => (t.match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const texts = [];
+    for (let n = document.querySelector('h1').nextElementSibling; n && n.id !== 'status'; n = n.nextElementSibling) {
+      if (n.checkVisibility()) texts.push(n.innerText);
+    }
+    const sections = [...document.querySelectorAll('details')]
+      .filter((d) => d.querySelector(':scope > summary')?.textContent.trim() === summaryText);
+    const d = sections[0];
+    return {
+      headerWords: count(texts.join(' ')),
+      sections: sections.length,
+      open: d ? d.open : null,
+      rendered: d ? d.checkVisibility() : null,
+      holdsLog: d ? d.querySelector('#log') !== null : null,
+      holdsHosts: d ? hosts.every((h) => d.textContent.includes(h)) : null,
+      hostsShown: hosts.filter((h) => document.body.innerText.includes(h)),
+      status: document.getElementById('status').textContent,
+    };
+  }, [TECH_DETAILS, HOSTS]);
+}
+
+// The words step 2 shows between the format cards and the download button,
+// read from the rendered children of the step between the two, so a closed
+// settings disclosure counts its summary line only (A26).
+function readStep2Words(page) {
+  return page.evaluate(() => {
+    const count = (t) => (t.match(/\S+/g) ?? []).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const kids = [...document.getElementById('step2').children];
+    const from = kids.indexOf(document.querySelector('#step2 .formats'));
+    const to = kids.indexOf(document.querySelector('#step2 .downloadrow'));
+    const text = from < 0 || to < 0 ? '' : kids.slice(from + 1, to)
+      .filter((k) => k.checkVisibility()).map((k) => k.innerText).join(' ');
+    return {
+      words: count(text),
+      openSettings: [...document.querySelectorAll('#formatOptions details')].some((d) => d.open),
+    };
+  });
+}
+
+// Which element has focus after a step change, and its computed outline.
+function readFocusOutline(page) {
+  return page.evaluate(() => {
+    const a = document.activeElement;
+    const step = a?.closest('.step');
+    return {
+      heading: a?.tagName === 'H2' && step ? step.id : null,
+      outline: a ? getComputedStyle(a).outlineStyle : null,
+    };
+  });
+}
+
+// A value that names `name` reads as the name, and any other value as it
+// stands, so a failure shows the text that left the name out.
+function uses(text, name) {
+  return typeof text === 'string' && text.includes(name) ? name : text;
+}
 function decodeC(c) {
   const b64 = c.replace(/-/g, '+').replace(/_/g, '/');
   const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
@@ -212,18 +346,8 @@ function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
 }
 
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
-  let server = null;
-  let url = TARGET;
-  if (!url && REQUIRE_TARGET) {
-    throw new Error(
-      'SMOKE_REQUIRE_TARGET is set but SMOKE_TARGET is empty: this run was ' +
-        'meant to drive a deployed page and would have driven a local copy.'
-    );
-  }
-  if (!url) {
-    server = await serveDir(SERVE_DIR);
-    url = `${server.origin}/index.html`;
-  }
+  const target = await openTarget();
+  const url = target.url;
 
   try {
     // Recorded so every run says on its own face which page it drove: the two
@@ -232,12 +356,56 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     console.log(`smoke target: ${url}`);
     test.info().annotations.push({ type: 'smoke target', description: url });
 
+    // The webr.mjs request is held until the loading state has been read, so
+    // the read cannot race a fast load. It is then let through unchanged.
+    let releaseWebr;
+    const webrHeld = new Promise((resolve) => { releaseWebr = resolve; });
+    await page.route(WEBR_MJS, async (route) => {
+      await webrHeld;
+      await route.continue();
+    }, { times: 1 });
+
     await page.goto(url);
+
+    // While R loads: the head of the page is short, and the host list and
+    // the log sit in one closed "Technical details". The hosts must not show
+    // anywhere in the rendered text, which rules out a host list left in the
+    // head. The status is read in the same call, so the read is shown to be
+    // of the loading state.
+    await expect(page.locator('#status'), 'A20: the page shows its loading status')
+      .toHaveText('Starting R in your browser…');
+    const loading = await readTechState(page);
+    releaseWebr();
+    console.log(`header words while loading: ${loading.headerWords}`);
+    expect
+      .soft(
+        { ...loading, headerWordsInLimit: loading.headerWords > 0 && loading.headerWords <= MAX_HEADER_WORDS },
+        `A20: while R loads, the text from the h1 to the status line holds at most ${MAX_HEADER_WORDS} words, and one closed "Technical details" holds the host list and the log`
+      )
+      .toEqual({
+        headerWords: loading.headerWords,
+        headerWordsInLimit: true,
+        sections: 1,
+        open: false,
+        rendered: true,
+        holdsLog: true,
+        holdsHosts: true,
+        hostsShown: [],
+        status: 'Starting R in your browser…',
+      });
 
     // "Ready." is also the status a finished build restores, so it is read
     // here, before anything is clicked, where it can only mean boot finished.
     await expect(page.locator('#status'), 'A1: the status region reaches "Ready."')
       .toHaveText('Ready.', { timeout: BOOT_MS });
+
+    const ready = await readTechState(page);
+    expect
+      .soft(
+        { sections: ready.sections, open: ready.open, hostsShown: ready.hostsShown },
+        'A21: once the page is ready, "Technical details" is still closed'
+      )
+      .toEqual({ sections: 1, open: false, hostsShown: [] });
 
     const rows = page.locator('#scales label');
     const rowCount = await rows.count();
@@ -260,6 +428,131 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       { named: names.length, blank },
       'A3: every rendered row carries a non-empty name'
     ).toEqual({ named: rowCount, blank: [] });
+
+    // Each checkbox's accessible name, as the browser computes it, is the
+    // scale's name and its item count. The names come from the accessibility
+    // tree, one per row in row order. The count on each row is the package's,
+    // so two of them are held to the counts this file states on its own.
+    const tree = await page.locator('#scales').ariaSnapshot();
+    const boxNames = [...tree.matchAll(/- checkbox "((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+    const buttonNames = [...tree.matchAll(/- button "((?:[^"\\]|\\.)*)"/g)].map((m) => m[1]);
+    const counts = {};
+    const misnamed = [];
+    names.forEach((name, i) => {
+      const m = new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} ([1-9]\\d*) items$`).exec(boxNames[i] ?? '');
+      if (m) counts[name] = Number(m[1]);
+      else misnamed.push(boxNames[i] ?? `(no checkbox for ${name})`);
+    });
+    expect
+      .soft(
+        {
+          boxes: boxNames.length,
+          misnamed,
+          known: Object.fromEntries(Object.keys(KNOWN_COUNTS).map((k) => [k, counts[k] ?? null])),
+        },
+        'A23: every scale checkbox\'s accessible name is the scale\'s name and "<n> items", and the two known scales carry their own item counts'
+      )
+      .toEqual({ boxes: rowCount, misnamed: [], known: KNOWN_COUNTS });
+
+    // Every row has a Definition button, on show, named for its scale. On the
+    // first row: a hover opens nothing; a click opens the definition and a
+    // second click closes it; Enter opens it and Space closes it. The
+    // definition is the text the checkbox's aria-describedby names.
+    const firstRow = page.locator('#scales .row').first();
+    const defButton = firstRow.locator('button');
+    const descId = (await defButton.getAttribute('aria-controls')) ?? '';
+    const desc = page.locator(`[id="${descId}"]`);
+    const shown = () => desc.isVisible();
+    await firstRow.locator('label').hover();
+    await page.waitForTimeout(600);
+    const onHover = await shown();
+    await page.mouse.move(0, 0);
+    await defButton.click();
+    const onClick = await shown();
+    const expanded = await defButton.getAttribute('aria-expanded');
+    const descText = ((await desc.textContent()) ?? '').trim();
+    await defButton.click();
+    const onSecondClick = await shown();
+    await defButton.focus();
+    await page.keyboard.press('Enter');
+    const onEnter = await shown();
+    await page.keyboard.press(' ');
+    const onSpace = await shown();
+    const definitions = await page.locator('#scales .row').evaluateAll((rs) => rs.map((r) => {
+      const b = r.querySelector('button.defbtn');
+      return {
+        shown: b !== null && b.checkVisibility() && b.textContent.trim() === 'Definition',
+        describes: r.querySelector('input').getAttribute('aria-describedby') === b?.getAttribute('aria-controls'),
+      };
+    }));
+    expect
+      .soft(
+        {
+          buttons: definitions.filter((d) => d.shown && d.describes).length,
+          buttonNames: buttonNames.filter((n, i) => n === `Definition of ${names[i]}`).length,
+          onHover, onClick, expanded, hasText: descText.length > 0, onSecondClick, onEnter, onSpace,
+        },
+        'A24: every scale row has a visible Definition button that opens and closes its definition by click and by keyboard, and a hover opens none'
+      )
+      .toEqual({
+        buttons: rowCount,
+        buttonNames: rowCount,
+        onHover: false, onClick: true, expanded: 'true', hasText: true,
+        onSecondClick: false, onEnter: true, onSpace: false,
+      });
+
+    // A filter that matches nothing shows the line and hides every row; one
+    // that matches a scale takes the line away again.
+    const readFilter = () => page.evaluate(() => ({
+      line: document.getElementById('noMatch')?.checkVisibility()
+        ? document.getElementById('noMatch').textContent.trim() : null,
+      rows: [...document.querySelectorAll('#scales .row')].filter((r) => r.checkVisibility()).length,
+    }));
+    await page.locator('#filter').fill('qqqq no such scale');
+    const noMatch = await readFilter();
+    await page.locator('#filter').fill(ONLINE_SCALES[0]);
+    const oneMatch = await readFilter();
+    await page.locator('#filter').fill('');
+    expect
+      .soft(
+        { noMatch: { ...noMatch, line: noMatch.line?.startsWith('No scales match') ? 'No scales match' : noMatch.line }, oneMatch },
+        'A25: a filter that matches no scale shows "No scales match", and a filter that matches one takes it away'
+      )
+      .toEqual({ noMatch: { line: 'No scales match', rows: 0 }, oneMatch: { line: null, rows: 1 } });
+
+    // Each control that changes the step, pressed once with the mouse and
+    // once with the keyboard. After the mouse click the new step's heading
+    // has focus and no outline; after the key press it has focus and an
+    // outline. Before each press the page is put on the control's own step
+    // with a mouse click on the step bar.
+    const stepPresses = [];
+    for (const c of STEP_CONTROLS) {
+      for (const how of ['mouse', 'keyboard']) {
+        await page.locator(`#stepbar button[data-goto="${c.from}"]`).click();
+        const control = page.locator(c.sel);
+        if (how === 'mouse') {
+          await control.click();
+        } else {
+          await control.focus();
+          await page.keyboard.press('Enter');
+        }
+        const r = await readFocusOutline(page);
+        stepPresses.push({
+          control: c.what, how, heading: r.heading,
+          outline: how === 'mouse' ? r.outline : (r.outline !== 'none' ? 'shown' : 'none'),
+        });
+      }
+    }
+    expect
+      .soft(stepPresses, 'A27: a mouse click on each step control leaves the new step\'s heading with no outline, and a keyboard press on it shows one')
+      .toEqual(STEP_CONTROLS.flatMap((c) => [
+        { control: c.what, how: 'mouse', heading: `step${c.to + 1}`, outline: 'none' },
+        { control: c.what, how: 'keyboard', heading: `step${c.to + 1}`, outline: 'shown' },
+      ]));
+    await page.locator('#stepbar button[data-goto="0"]').click();
+
+    // The names A28 reads, gathered as the run reaches each one.
+    const seen = { cards: {}, buttons: {}, statuses: {}, readmes: {} };
 
     // Every download the page hands over from here on is counted, so a save
     // that is one file can be told from one that is two, or none.
@@ -328,6 +621,19 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         },
       });
 
+    // The anchor sits in a panel under that heading, and is on show.
+    const panel = page.locator('#nextStepSlot section', { has: page.getByRole('heading', { name: PANEL_HEADING }) });
+    expect
+      .soft(
+        {
+          panels: await panel.count(),
+          heading: ((await panel.locator('h3').first().textContent().catch(() => null)) ?? '').trim() || null,
+          buttonShown: await panel.getByRole('link', { name: PANEL_LINK }).isVisible(),
+        },
+        'A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder button'
+      )
+      .toEqual({ panels: 1, heading: PANEL_HEADING, buttonShown: true });
+
     // A second online save, pressed with the first save's link still in the
     // document. download() takes the link out synchronously, before its
     // first await, right after it turns the controls off, so no anchor is in
@@ -342,6 +648,8 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     const secondSaved = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
     const atSecondPress = await readLinkState(page);
+    // The status download() writes as it starts, read in the same call.
+    seen.statuses.online = atSecondPress.status;
     await secondSaved;
     await expect(page.locator('#status'), 'A16: the second online save returns the status to a "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
@@ -464,6 +772,27 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         afterOnlineAgain: { building: false, anchors: 1, panels: [PANEL_HEADING], status: 'Ready. Online form chosen.' },
       });
 
+    // Each format's card pressed in turn, which closes its settings: the
+    // words from the cards to the download button, and, for A28, the card's
+    // title and the button's text. A count of zero fails too, so a read that
+    // found nothing to count cannot pass.
+    const step2Words = {};
+    for (const format of Object.keys(FORMAT_NAMES)) {
+      const card = page.locator(`[data-choose="${format}"]`);
+      await card.click();
+      const r = await readStep2Words(page);
+      step2Words[format] = r.openSettings ? 'settings open' : r.words;
+      seen.cards[format] = ((await card.locator('.fmtname').textContent()) ?? '').trim();
+      seen.buttons[format] = await page.locator('#downloadBtn').textContent();
+    }
+    console.log(`step 2 words: ${JSON.stringify(step2Words)}`);
+    expect
+      .soft(
+        Object.fromEntries(Object.entries(step2Words).map(([f, n]) => [f, typeof n === 'number' && n > 0 && n <= MAX_STEP2_WORDS ? 'within' : n])),
+        `A26: for each format, with its settings closed, the text from the cards to the download button holds at most ${MAX_STEP2_WORDS} words`
+      )
+      .toEqual(Object.fromEntries(Object.keys(FORMAT_NAMES).map((f) => [f, 'within'])));
+
     // The Word build, from the one scale still ticked; the Word card is
     // pressed rather than relied on as the page's starting format.
     await rows.first().locator('input[type=checkbox]').check();
@@ -483,6 +812,8 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // page's network panel, which is why nothing here watches for them.
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
     await page.locator('#downloadBtn').click();
+    // The status download() writes as it starts, before its first await.
+    seen.statuses.docx = await page.locator('#status').textContent();
 
     // Every selection change (a tick, an untick, Select all, Clear all) goes
     // through refreshTally(), the one site that can turn the button back on
@@ -640,7 +971,81 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         timeout: 5000,
       })
       .toBe('downloadBtn');
+
+    // A28 reads each format's name in its card title, its download button,
+    // its build status and, for the three zip formats, the first line of
+    // the README.txt in its zip file. The Word README comes from the build
+    // above; a Qualtrics and a REDCap build follow for theirs. Each status is
+    // read right after the press, where download() has written it and no
+    // await has let the build end.
+    seen.readmes.docx = (bundle.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
+    await expect(page.locator('#status'), 'A28: the Word build returns the status to "Ready."')
+      .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    for (const format of ['qualtrics', 'redcap']) {
+      await page.locator(`[data-choose="${format}"]`).click();
+      const saved = page.waitForEvent('download', { timeout: BUILD_MS });
+      await page.locator('#downloadBtn').click();
+      seen.statuses[format] = await page.locator('#status').textContent();
+      const zip = zipEntries(await readFile(await (await saved).path()));
+      seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
+      await expect(page.locator('#status'), `A28: the ${FORMAT_NAMES[format]} build returns the status to "Ready."`)
+        .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    }
+    // The step bar's names, from each button's name span, and the text of
+    // each control that changes the step.
+    const stepBar = await page.locator('#stepbar button span:not(.num)').allTextContents();
+    const controls = [];
+    for (const c of STEP_CONTROLS) {
+      controls.push(uses((await page.locator(c.sel).textContent())?.trim() ?? null, STEP_NAMES[c.to]));
+    }
+    expect
+      .soft(
+        {
+          formats: Object.fromEntries(Object.entries(FORMAT_NAMES).map(([f, name]) => [f, {
+            card: seen.cards[f],
+            button: uses(seen.buttons[f], name),
+            status: uses(seen.statuses[f], name),
+            readme: f === 'online' ? null : uses(seen.readmes[f], name),
+          }])),
+          stepBar: stepBar.map((t) => t.trim()),
+          controls,
+        },
+        "A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name"
+      )
+      .toEqual({
+        formats: Object.fromEntries(Object.entries(FORMAT_NAMES).map(([f, name]) => [f, {
+          card: name, button: name, status: name, readme: f === 'online' ? null : name,
+        }])),
+        stepBar: STEP_NAMES,
+        controls: STEP_CONTROLS.map((c) => STEP_NAMES[c.to]),
+      });
   } finally {
-    if (server) await server.close();
+    await target.close();
+  }
+});
+
+// A failed load: the webr.mjs request is refused, so R never arrives. The
+// page stops, and the status points at "Technical details", which is open.
+test('a failed load opens Technical details', async ({ page }) => {
+  const target = await openTarget();
+  try {
+    await page.route(WEBR_MJS, (route) => route.abort());
+    await page.goto(target.url);
+    await expect(page.locator('#status'), 'A22: the page reports the failed load')
+      .toHaveText(/^R did not load\./, { timeout: BOOT_MS });
+    const failed = await readTechState(page);
+    expect
+      .soft(
+        {
+          sections: failed.sections,
+          open: failed.open,
+          rendered: failed.rendered,
+          namesIt: failed.status.includes(`"${TECH_DETAILS}"`),
+        },
+        'A22: a failed load opens "Technical details", and the status names it'
+      )
+      .toEqual({ sections: 1, open: true, rendered: true, namesIt: true });
+  } finally {
+    await target.close();
   }
 });
