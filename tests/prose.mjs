@@ -357,7 +357,7 @@ function scriptPassages() {
     add(`FORMATS.${m[1]}@${moduleScript.slice(0, m.index).split('\n').length}`, renderStringExpr(m[2]));
   }
   add('pkgver', renderStringExpr(/el\('pkgver'\)\.textContent = (.*);/.exec(moduleScript)[1]));
-  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence', 'scaleRowText']) {
+  for (const fn of ['selectionSentence', 'settingsSummary', 'namingSummary', 'refreshSelectAllLabel', 'crosswalkSentence', 'scaleRowText', 'buildStatus']) {
     literalsIn(functionBody(moduleScript, fn)).forEach((t, k) => add(`${fn}[${k}]`, t));
   }
   return passages;
@@ -428,6 +428,46 @@ function facts(passage) {
   return out;
 }
 
+// ---- Retired names ---------------------------------------------------------
+
+// The terms the hitop package's decision D-083 retires from visitor text, as
+// that decision lists them: ten case-insensitive patterns and two fixed
+// strings. Every run checks the passages for them and exits 1 on a hit.
+const RETIRED = [
+  /\bdescriptor\b/i, /\bscoring file\b/i, /\bbundle\b/i, /\bendpoint\b/i,
+  /\bstores?\b/i, /\bcompressed\b/i, /\b(hitop-form )?form page\b/i,
+  /(?<!study )\blink builder\b/i, /\b[cz] parameter\b/i, /\$\{[^}]*\} parameter/i,
+  /\?c=/, /\?z=/,
+];
+
+// What a passage keeps for the check. URLs go everywhere. A template hole
+// (`${...}`) is code, not what the visitor reads, so it goes too. In a log
+// passage every code token goes: the log shows the R calls the page makes
+// and what R prints. In README.md, code spans and fenced blocks go, which
+// is D-083's code-identifier and R-code exception.
+function namesText(p) {
+  // A README.md section's heading is its id, so it is checked with the body.
+  let t = p.id.startsWith('md:') ? `${p.id.slice(3)}\n${p.text}` : p.text;
+  t = t.replace(/```[\s\S]*?```/g, ' ');
+  t = t.replace(/\]\([^)]*\)/g, '] ');
+  t = t.replace(/https?:\/\/[^\s)>\]]+/g, ' ');
+  t = t.replace(/`\$\{[^}]*\}`/g, ' ');
+  if (p.id.startsWith('log') || p.id.startsWith('md:')) t = t.replace(/`[^`\n]*`/g, ' ');
+  return t;
+}
+
+function retiredHits(passages) {
+  const hits = [];
+  for (const p of passages) {
+    const t = namesText(p);
+    for (const re of RETIRED) {
+      const m = re.exec(t);
+      if (m) hits.push(`${p.id}: "${m[0]}" in ${JSON.stringify(squash(t).slice(Math.max(0, m.index - 40), m.index + 40))}`);
+    }
+  }
+  return hits;
+}
+
 // ---- Run -----------------------------------------------------------------
 
 const writerCount = checkWriters();
@@ -442,6 +482,15 @@ const counts = {};
 for (const p of passages) { const k = p.id.split(/[:@\[]/)[0]; counts[k] = (counts[k] ?? 0) + 1; }
 console.log(`writer sites: ${writerCount} in the source, ${WRITERS.length} in the ledger`);
 console.log(`passages: ${passages.length} (${Object.entries(counts).map(([k, v]) => `${k} ${v}`).join(', ')})`);
+
+const retired = retiredHits(passages);
+if (retired.length) {
+  console.log(`retired names: ${retired.length} hits`);
+  for (const h of retired) console.log(`  ${h}`);
+  process.exitCode = 1;
+} else {
+  console.log(`retired names: none in ${passages.length} passages`);
+}
 
 if (TEXT_OUT) {
   // The linted text is parts 1 to 3; README.md is linted as a file.

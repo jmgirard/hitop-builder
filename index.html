@@ -475,7 +475,8 @@ runs in this browser.</p>
 <div id="controls" hidden>
   <!-- The numeral is decoration beside the step name: hiding it from the
        accessibility tree leaves each button named for its step and nothing
-       else, which is what its heading is called too. -->
+       else, which is what its heading is called too. Every other control
+       that changes the step holds the same name after "Next:" or "Back:". -->
   <nav id="stepbar" aria-label="Steps">
     <ol>
       <li><button type="button" data-goto="0"><span class="num" aria-hidden="true">1</span> <span>Choose scales</span></button></li>
@@ -495,7 +496,7 @@ runs in this browser.</p>
     <p id="noMatch" hidden>No scales match the filter.</p>
     <p id="tally"></p>
     <div class="stepnav">
-      <button type="button" class="primary" data-goto="1">Continue to the format and download</button>
+      <button type="button" class="primary" data-goto="1">Next: Choose a format and download</button>
     </div>
   </section>
 
@@ -508,25 +509,27 @@ runs in this browser.</p>
   <section class="step" id="step2" hidden>
     <h2 tabindex="-1">Choose a format and download</h2>
     <p class="recap"><span class="recapText"></span>
-      <button type="button" class="linkish" data-goto="0">Change the selection</button></p>
+      <button type="button" class="linkish" data-goto="0">Back: Choose scales</button></p>
     <p class="hint">Pick a format. You can build more than one from the same
     scales.</p>
     <div class="formats" role="group" aria-label="Format">
+      <!-- Each card title is its format's FORMATS[].label, word for word:
+           the smoke test reads the two against one table. -->
       <button type="button" data-choose="docx">
-        <span class="fmtname">Word (.docx)</span>
-        <span class="fmtwhat">A questionnaire to print and fill in on paper.</span>
+        <span class="fmtname">Word form</span>
+        <span class="fmtwhat">A questionnaire to print and fill in on paper (.docx).</span>
       </button>
       <button type="button" data-choose="qualtrics">
-        <span class="fmtname">Qualtrics (.txt)</span>
-        <span class="fmtwhat">An advanced-format file to import as a Qualtrics survey.</span>
+        <span class="fmtname">Qualtrics file</span>
+        <span class="fmtwhat">An advanced-format file to import as a Qualtrics survey (.txt).</span>
       </button>
       <button type="button" data-choose="redcap">
-        <span class="fmtname">REDCap (.zip)</span>
-        <span class="fmtwhat">A data dictionary to import into a REDCap project.</span>
+        <span class="fmtname">REDCap dictionary</span>
+        <span class="fmtwhat">A data dictionary to import into a REDCap project (.zip).</span>
       </button>
       <button type="button" data-choose="online">
         <span class="fmtname">Online form</span>
-        <span class="fmtwhat">A scoring file for the online form, to paste into the study link builder.</span>
+        <span class="fmtwhat">A module file for a study link in the Study Link Builder (.json).</span>
       </button>
     </div>
     <!-- Each format's settings live in one disclosure, closed on first paint
@@ -642,7 +645,7 @@ runs in this browser.</p>
     </div>
     <div class="downloadrow">
       <div class="downloads">
-        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip bundle)</button>
+        <button type="button" class="primary" id="downloadBtn" disabled>Download the Word form (.zip)</button>
       </div>
     </div>
     <!-- Under the button, so it does not count toward the 60 words above.
@@ -661,7 +664,7 @@ runs in this browser.</p>
     <span id="linkBuilderSlot"><template id="linkBuilderTpl"><a target="_blank" rel="noopener">Continue to the link builder</a></template></span>
     to make the study link. It opens in a new tab with your module filled in.</p>
     <div class="stepnav">
-      <button type="button" data-goto="0">Back to scales</button>
+      <button type="button" data-goto="0">Back: Choose scales</button>
     </div>
   </section>
 </div>
@@ -794,29 +797,33 @@ function showFailure(message) {
 // `name` is the system the file is for rather than the key or the extension:
 // on the questionnaire the extension already says `.docx`, and a stem of
 // `hitopsr-docx` would say it twice.
+//
+// `label` is the format's one name on the page: its card title, its download
+// button, its build status, the status after a card press, and the title
+// line of the README.txt in its zip file all use it.
 const FORMATS = {
   docx: {
     fn: 'generate_docx_hitopsr', ext: 'docx', name: 'word',
     label: 'Word form',
-    button: 'Download the Word form (.zip bundle)',
+    button: 'Download the Word form (.zip)',
   },
   qualtrics: {
     fn: 'generate_qualtrics_hitopsr', ext: 'txt', name: 'qualtrics',
     label: 'Qualtrics file',
-    button: 'Download the Qualtrics file (.zip bundle)',
+    button: 'Download the Qualtrics file (.zip)',
   },
   redcap: {
     fn: 'generate_redcap_hitopsr', ext: 'zip', name: 'redcap',
     label: 'REDCap dictionary',
-    button: 'Download the REDCap dictionary (.zip bundle)',
+    button: 'Download the REDCap dictionary (.zip)',
   },
-  // The online form has no questionnaire file and no bundle: download()
-  // writes the scoring file with write_module() and saves that one .json
+  // The online form has no questionnaire file and no zip file: download()
+  // writes the module file with write_module() and saves that one .json
   // (see the online branch there), so `ext` is the saved file's own.
   online: {
     fn: 'write_module', ext: 'json', name: 'online',
     label: 'Online form',
-    button: 'Download the scoring file (.json)',
+    button: 'Download the module file for the Online form (.json)',
   },
 };
 
@@ -865,6 +872,14 @@ function removeLinkBuilder() {
   for (const a of links) a.remove();
   el('onlineNext').hidden = true;
   if (links.length) status('Ready.');
+}
+
+// The status line while a build runs, in the format's one name. The Online
+// form's build writes a module file and nothing else, so it says so.
+function buildStatus(format) {
+  const name = FORMATS[format].label;
+  if (format === 'online') return `Writing the module file for the ${name}…`;
+  return `Building the ${name}…`;
 }
 
 // The stem both files of one build share. Three things about the build are
@@ -1421,7 +1436,7 @@ async function download() {
     // out (see setFormat()), so this call finds one only when an online
     // build follows an online save.
     removeLinkBuilder();
-    status(`Building the ${spec.ext.toUpperCase()} file…`);
+    status(buildStatus(format));
 
     // The paper form is the only format taking a page size, and the only one
     // offered a shuffle or a numbering choice: on the Qualtrics and REDCap exports an
