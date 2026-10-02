@@ -240,9 +240,10 @@ The panel carries the module of one saved file. If you tick or untick a scale,
 press another format's card, or start another build, the page removes the
 panel. After a tick the status line returns to *Ready.* After a card press it
 names the chosen format. Pressing the Online form card again keeps the panel. A
-later save puts a new panel in its place. In the Study Link Builder you can
-also choose the saved module file, or paste its text, in the *Item order and
-HiTOP-SR module* section.
+later save puts a new panel in its place. The Study Link Builder opens with a
+*HiTOP-SR module* instrument row that holds your module. You can also set an
+instrument row to *HiTOP-SR module* yourself. Then choose the saved module
+file in that row, or paste its text there.
 
 ### What the downloads are named
 
