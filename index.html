@@ -771,10 +771,9 @@ const INSTALL_TIMEOUT_MS = 120000;
 // webr.mjs import could not be loaded; init() failed; R's download timed out;
 // the connection to R was lost; the package download failed; the package
 // install timed out; the installed version could not be read; the installed
-// package is older than MIN_HITOP -- eight sites. main()'s own catch-all at
-// the foot of this file is not one of them: it reports and stops without
-// latching, so a throw reaching it after the controls are shown leaves them
-// on. None of the eight can cancel what is still in flight, so a
+// package is older than MIN_HITOP; main()'s own catch-all at the foot of this
+// file, for a throw after R started -- nine sites. None of the nine can cancel
+// what is still in flight, so a
 // late-settling import, init or install would otherwise be free to run the
 // rest of boot and put a build button back within reach.
 // Every site that turns a control on reads this, so nothing after this can.
@@ -792,14 +791,15 @@ let building = false;
 // Stops the page where it stands and says why. The controls are hidden rather
 // than merely disabled: nothing behind them can produce a file, and a visitor
 // reading a greyed-out form has to work out for themselves that it will never
-// come back.
+// come back. The controls go before the failure is shown, so the scroll in
+// showFailure() measures the page without them.
 function abandonBoot(message) {
   bootAbandoned = true;
-  showFailure(message);
   el('controls').hidden = true;
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = true;
   }
+  showFailure(message);
 }
 
 const el = (id) => document.getElementById(id);
@@ -813,10 +813,16 @@ function status(text) { el('status').textContent = text; }
 
 // Every load or build failure comes through here. The log that says what went
 // wrong is under "Technical details", which stays closed while all goes well,
-// so a failure opens it and the status line says where to look.
+// so a failure opens it and the status line says where to look. A build
+// failure leaves the visitor near the download button, with the section below
+// the fold, so the page scrolls it into view. "nearest" moves the page only
+// when the section is not already in full view. It brings the whole section
+// in when it fits, and its top, the summary, when it is taller than the
+// window. The scroll is instant because the page sets no scroll-behavior.
 function showFailure(message) {
   status(`${message} The log under "Technical details" below says more.`);
   el('techDetails').open = true;
+  el('techDetails').scrollIntoView({ block: 'nearest' });
 }
 
 // Each format names the package function that writes it, the extension the
@@ -1808,7 +1814,8 @@ async function main() {
   } catch (err) {
     // The guard refuses through its own path rather than throwing: a version
     // this page cannot read or compare is one it cannot vouch for either, and
-    // the top-level catch would blame R for starting badly.
+    // the top-level catch would say only that the page did not finish setting
+    // up.
     log(`  reading the installed hitop version failed: ` +
         `${err && err.message ? err.message : err}`);
     abandonBoot(
@@ -1937,9 +1944,14 @@ async function main() {
   status('Ready.');
 }
 
+// main() reports a failed or stalled download or start of R itself, in the
+// runtime race, so a throw that reaches this catch comes from a later step,
+// after R started. The status says so rather
+// than blaming R. It latches like the other boot failures, so a throw after
+// the controls were shown takes them away again.
 main().catch((err) => {
-  showFailure('R did not start.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
+  abandonBoot('R started, but the page did not finish setting up.');
 });
 </script>
 </body>
