@@ -79,10 +79,12 @@ import { serveDir } from './serve.mjs';
 // yields an empty map rather than throwing or a part of its entries, so a
 // bundle that is not a sound zip fails A4 by name instead of crashing the
 // test or passing on the entries it kept. The reader refuses a record whose
-// signature is wrong, fewer records than the end record counts, a method
-// other than stored (0) or deflated (8), and any field that points past the
-// end of the buffer; the test 'the zip reader refuses a damaged archive'
-// makes one copy for each of the first three and for data past the end.
+// signature is wrong, fewer records than the end record counts, records that
+// do not end where the central directory ends (so a count that is too low),
+// a name that appears twice, a method other than stored (0) or deflated (8),
+// and any field that points past the end of the buffer. The test 'the zip
+// reader refuses a damaged archive' makes one damaged copy for each of these
+// but the bounds checks, for which it makes one with data past the end.
 function zipEntries(buf) {
   const none = new Map();
   const entries = new Map();
@@ -92,6 +94,7 @@ function zipEntries(buf) {
   }
   if (eocd < 0) return none;
   const count = buf.readUInt16LE(eocd + 10);
+  const cdEnd = buf.readUInt32LE(eocd + 16) + buf.readUInt32LE(eocd + 12);
   let p = buf.readUInt32LE(eocd + 16);
   for (let n = 0; n < count; n++) {
     if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) return none;
@@ -105,6 +108,7 @@ function zipEntries(buf) {
     if (p + 46 + nameLen > buf.length || local + 30 > buf.length) return none;
     if (buf.readUInt32LE(local) !== 0x04034b50) return none;
     const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
+    if (entries.has(name)) return none;
     const dataStart =
       local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
     if (dataStart + csize > buf.length) return none;
@@ -118,6 +122,7 @@ function zipEntries(buf) {
     entries.set(name, bytes);
     p += 46 + nameLen + extraLen + commentLen;
   }
+  if (p !== cdEnd) return none;
   return entries;
 }
 
@@ -477,7 +482,7 @@ function makeZip(files) {
   return { buf: Buffer.concat([...locals, ...records, end]), recordOffsets, endOffset: offset };
 }
 
-// zipEntries() on a zip it can read and on four damaged copies of it. Each
+// zipEntries() on a zip it can read and on six damaged copies of it. Each
 // damage is one the reader must refuse whole, with an empty map, so a damaged
 // bundle fails A4 by name rather than passing with some of its entries.
 test('the zip reader refuses a damaged archive', async () => {
@@ -499,6 +504,8 @@ test('the zip reader refuses a damaged archive', async () => {
       fewerRecords: read(damaged((b) => b.writeUInt16LE(files.length + 1, endOffset + 10))),
       unknownMethod: read(damaged((b) => b.writeUInt16LE(12, last + 10))),
       pastTheEnd: read(damaged((b) => b.writeUInt32LE(b.length, last + 20))),
+      fewerCounted: read(damaged((b) => b.writeUInt16LE(files.length - 1, endOffset + 10))),
+      repeatedName: read(damaged((b) => b.write('form.docx', recordOffsets[1] + 46, 'utf8'))),
     },
     'the zip reader returns every entry of a whole zip and no entry of a damaged one'
   ).toEqual({
@@ -508,6 +515,8 @@ test('the zip reader refuses a damaged archive', async () => {
     fewerRecords: [],
     unknownMethod: [],
     pastTheEnd: [],
+    fewerCounted: [],
+    repeatedName: [],
   });
 });
 
@@ -1145,6 +1154,14 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         stillBuilding: true,
       });
 
+    // The click above focused the download button, and download() then
+    // disabled it, which drops focus to the body. The step bar presses since
+    // then (showStep() focuses the second step's heading) and the forced card
+    // press can leave focus off the body, so it is blurred here.
+    // This stands in for a focus lost to the disabled button, which is what
+    // a visitor who clicks and then waits has at the end of the build.
+    await page.evaluate(() => document.activeElement?.blur());
+
     // A36: the same read in the dark scheme, still during the Word build.
     // The page is switched to prefers-color-scheme: dark, and the read also
     // takes the button's background, which must differ from the light one, so
@@ -1170,14 +1187,6 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         dark: true,
         schemeChanged: true,
       });
-
-    // The click above focused the download button, and download() then
-    // disabled it, which drops focus to the body. The step bar presses since
-    // then (showStep() focuses the second step's heading) and the forced card
-    // press can leave focus off the body, so it is blurred here.
-    // This stands in for a focus lost to the disabled button, which is what
-    // a visitor who clicks and then waits has at the end of the build.
-    await page.evaluate(() => document.activeElement?.blur());
 
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
@@ -1234,18 +1243,26 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       await page.locator(`[data-choose="${format}"]`).click();
       await watchStatus(page);
       const saved = page.waitForEvent('download', { timeout: BUILD_MS });
-      await page.locator('#downloadBtn').click();
       // A35, in the Qualtrics build: A11 needs focus on the body at the end
-      // of the Word build, so this one moves it. The "Technical details"
-      // summary stays enabled while a build runs. The move and a read of
-      // the download button's state happen in one call, so a build that had
-      // already ended shows as such and fails A35 rather than passing it.
-      const movedDuringBuild = format === 'qualtrics'
-        ? await page.evaluate(() => {
-            document.querySelector('#techDetails > summary').focus();
-            return document.getElementById('downloadBtn').disabled;
-          })
-        : null;
+      // of the Word build, so this one moves it. The press, the move and the
+      // reads happen in one call, one task of the page: download() turns the
+      // button off before its first await, so the move lands during the build
+      // however fast the build is. The button is focused first, as a press
+      // leaves it, so download() keeps it as the control to give focus back
+      // to. The "Technical details" summary stays enabled while a build runs.
+      let movedDuringBuild = null;
+      if (format === 'qualtrics') {
+        movedDuringBuild = await page.evaluate(() => {
+          const button = document.getElementById('downloadBtn');
+          const summary = document.querySelector('#techDetails > summary');
+          button.focus();
+          button.click();
+          summary.focus();
+          return { buildRunning: button.disabled, focusOnSummary: document.activeElement === summary };
+        });
+      } else {
+        await page.locator('#downloadBtn').click();
+      }
       const zip = zipEntries(await readFile(await (await saved).path()));
       seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
       bundles[format] = {
@@ -1265,7 +1282,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
             { movedDuringBuild, ...focusAfter },
             'A35: focus moved during a build to an enabled control other than the download button is still there when the build ends'
           )
-          .toEqual({ movedDuringBuild: true, onSummary: true, buildEnded: true });
+          .toEqual({
+            movedDuringBuild: { buildRunning: true, focusOnSummary: true },
+            onSummary: true,
+            buildEnded: true,
+          });
       }
     }
     expect

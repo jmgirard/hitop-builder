@@ -49,11 +49,15 @@
 //                        [--compare <baseline.json>]
 //
 // --ref reads index.html and README.md from a git ref instead of the working
-// tree. An older page can predate the ledger or the body-text floor, so under
-// --ref a writer count that differs from WRITERS, or a body text node in no
-// passage, is a warning on stderr and does not set the exit code. The
-// retired-name check and --compare keep their exit 1. --text writes the passages for the linter: code tokens in backticks,
-// URLs bare. --json writes the passages with their facts. --compare reads a
+// tree. An older page can predate the ledger or the body-text checks, so under
+// --ref four things are a warning on stderr and do not set the exit code: a
+// writer count that differs from WRITERS, a WRITERS anchor not found exactly
+// once, a body with no text node, and a body text node in no passage. A
+// function the extraction cannot find still stops the run, and the
+// retired-name check and --compare keep their exit 1.
+//
+// --text writes the passages for the linter: code tokens in backticks, URLs
+// bare. --json writes the passages with their facts. --compare reads a
 // JSON written earlier and reports every passage whose facts differ, exiting 1
 // if any do. Facts are compared as multisets: the same tokens the same number
 // of times, in any order.
@@ -362,11 +366,7 @@ function callArgs(src, names) {
 // Returns the body of `function name(...) { ... }`.
 function functionBody(src, name) {
   const m = new RegExp(`function ${name}\\([^)]*\\)\\s*\\{`).exec(src);
-  if (!m) {
-    // An older page under --ref can lack a function the extraction reads.
-    if (REF) { console.error(`warning (--ref ${REF}): function ${name} not found; its passages are left out`); return ''; }
-    throw new Error(`function ${name} not found`);
-  }
+  if (!m) throw new Error(`function ${name} not found`);
   let i = m.index + m[0].length; let depth = 1; const start = i; let q = null;
   while (i < src.length && depth) {
     const c = src[i];
@@ -434,19 +434,6 @@ function scriptPassages() {
 }
 
 // ---- Part 3: the bundle README ------------------------------------------
-
-// Under --ref an older page can lack a piece the README run needs; its
-// README passages are then left out with a warning. On the working tree a
-// missing piece stops the run.
-function readmePassagesOrNone() {
-  if (!REF) return bundleReadmePassages();
-  try {
-    return bundleReadmePassages();
-  } catch (err) {
-    console.error(`warning (--ref ${REF}): the bundle README was not read (${err.message}); its passages are left out`);
-    return [];
-  }
-}
 
 function bundleReadmePassages() {
   const pick = (re) => { const m = re.exec(moduleScript); if (!m) throw new Error(`not found: ${re}`); return m[0]; };
@@ -560,7 +547,7 @@ const writerCount = checkWriters();
 const passages = [
   ...bodyPassages(html),
   ...scriptPassages(),
-  ...readmePassagesOrNone(),
+  ...bundleReadmePassages(),
   ...markdownPassages(readme),
 ].map((p) => ({ ...p, facts: facts(p) }));
 
@@ -572,7 +559,8 @@ console.log(`passages: ${passages.length} (${Object.entries(counts).map(([k, v])
 if (!seen.length) {
   // A body that parses to no text node is a broken read, not a clean page.
   console.log('body text: no text node found in the body');
-  process.exitCode = 1;
+  if (REF) console.error(`warning (--ref ${REF}): no text node in the body`);
+  else process.exitCode = 1;
 } else if (missingBodyText.length) {
   console.log(`body text: ${missingBodyText.length} of ${seen.length} text nodes in no passage`);
   for (const s of missingBodyText) console.log(`  ${JSON.stringify(s)}`);
