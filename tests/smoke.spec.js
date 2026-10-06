@@ -64,36 +64,52 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { serveDir } from './serve.mjs';
 
 // Reads a zip's entries from its central directory: a map of entry name to
 // bytes. Only what the page's bundles use is handled -- stored and deflated
-// entries, no encryption, no zip64 -- and a buffer with no central directory
-// yields an empty map rather than throwing, so a bundle that is not a zip at
-// all fails A4 by name instead of crashing the test.
+// entries, no encryption, no zip64. A buffer the reader cannot read whole
+// yields an empty map rather than throwing or a part of its entries, so a
+// bundle that is not a sound zip fails A4 by name instead of crashing the
+// test or passing on the entries it kept. The reader refuses a record whose
+// signature is wrong, fewer records than the end record counts, a method
+// other than stored (0) or deflated (8), and any field that points past the
+// end of the buffer; the test 'the zip reader refuses a damaged archive'
+// makes one copy for each of the first three and for data past the end.
 function zipEntries(buf) {
+  const none = new Map();
   const entries = new Map();
   let eocd = -1;
   for (let i = buf.length - 22; i >= 0; i--) {
     if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
   }
-  if (eocd < 0) return entries;
+  if (eocd < 0) return none;
   const count = buf.readUInt16LE(eocd + 10);
   let p = buf.readUInt32LE(eocd + 16);
   for (let n = 0; n < count; n++) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) break;
+    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) return none;
     const method = buf.readUInt16LE(p + 10);
+    if (method !== 0 && method !== 8) return none;
     const csize = buf.readUInt32LE(p + 20);
     const nameLen = buf.readUInt16LE(p + 28);
     const extraLen = buf.readUInt16LE(p + 30);
     const commentLen = buf.readUInt16LE(p + 32);
     const local = buf.readUInt32LE(p + 42);
+    if (p + 46 + nameLen > buf.length || local + 30 > buf.length) return none;
+    if (buf.readUInt32LE(local) !== 0x04034b50) return none;
     const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
     const dataStart =
       local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    if (dataStart + csize > buf.length) return none;
     const raw = buf.subarray(dataStart, dataStart + csize);
-    entries.set(name, method === 8 ? inflateRawSync(raw) : Buffer.from(raw));
+    let bytes;
+    try {
+      bytes = method === 8 ? inflateRawSync(raw) : Buffer.from(raw);
+    } catch {
+      return none;
+    }
+    entries.set(name, bytes);
     p += 46 + nameLen + extraLen + commentLen;
   }
   return entries;
@@ -371,6 +387,84 @@ function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
     };
   }, [heading, link]);
 }
+
+// A zip written here, byte by byte, so the reader test below needs no browser
+// and no file a browser test saved. Each entry is stored (method 0) or
+// deflated (method 8). The CRC fields are left at 0: zipEntries() reads none.
+// Returns the buffer and the offset of each central-directory record, so a
+// test can damage one record in place.
+function makeZip(files) {
+  const locals = [];
+  const records = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = Buffer.from(f.name, 'utf8');
+    const data = f.method === 8 ? deflateRawSync(f.data) : f.data;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(f.method, 8);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(f.data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    locals.push(local, name, data);
+    const rec = Buffer.alloc(46);
+    rec.writeUInt32LE(0x02014b50, 0);
+    rec.writeUInt16LE(20, 4);
+    rec.writeUInt16LE(20, 6);
+    rec.writeUInt16LE(f.method, 10);
+    rec.writeUInt32LE(data.length, 20);
+    rec.writeUInt32LE(f.data.length, 24);
+    rec.writeUInt16LE(name.length, 28);
+    rec.writeUInt32LE(offset, 42);
+    records.push(Buffer.concat([rec, name]));
+    offset += 30 + name.length + data.length;
+  }
+  const cdStart = offset;
+  const recordOffsets = [];
+  for (const r of records) { recordOffsets.push(offset); offset += r.length; }
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(offset - cdStart, 12);
+  end.writeUInt32LE(cdStart, 16);
+  return { buf: Buffer.concat([...locals, ...records, end]), recordOffsets, endOffset: offset };
+}
+
+// zipEntries() on a zip it can read and on four damaged copies of it. Each
+// damage is one the reader must refuse whole, with an empty map, so a damaged
+// bundle fails A4 by name rather than passing with some of its entries.
+test('the zip reader refuses a damaged archive', async () => {
+  const files = [
+    { name: 'form.docx', data: Buffer.from('PK'.repeat(500)), method: 8 },
+    { name: 'form.json', data: Buffer.from('{"scales":[]}'), method: 0 },
+    { name: 'README.txt', data: Buffer.from('Read me.\n'), method: 0 },
+  ];
+  const { buf, recordOffsets, endOffset } = makeZip(files);
+  const last = recordOffsets[recordOffsets.length - 1];
+  const damaged = (edit) => { const b = Buffer.from(buf); edit(b); return b; };
+  const read = (b) => [...zipEntries(b).keys()];
+  const whole = zipEntries(buf);
+  expect(
+    {
+      unaltered: [...whole.keys()],
+      contents: files.every((f) => whole.get(f.name)?.equals(f.data)),
+      wrongSignature: read(damaged((b) => b.writeUInt32LE(0x02014b51, last))),
+      fewerRecords: read(damaged((b) => b.writeUInt16LE(files.length + 1, endOffset + 10))),
+      unknownMethod: read(damaged((b) => b.writeUInt16LE(12, last + 10))),
+      pastTheEnd: read(damaged((b) => b.writeUInt32LE(b.length, last + 20))),
+    },
+    'the zip reader returns every entry of a whole zip and no entry of a damaged one'
+  ).toEqual({
+    unaltered: files.map((f) => f.name),
+    contents: true,
+    wrongSignature: [],
+    fewerRecords: [],
+    unknownMethod: [],
+    pastTheEnd: [],
+  });
+});
 
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
   const target = await openTarget();
