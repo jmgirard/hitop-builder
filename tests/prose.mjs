@@ -4,7 +4,8 @@
 // them. It is not every string a visitor reads. What it leaves out on purpose
 // is under "Excluded on purpose" below, in the WRITERS rows marked
 // "excluded" and in PINNED. scriptPassages() also drops a passage that is
-// only code, and the ledger counts no `.value`, `.href` or `.download` write.
+// only code, and the ledger counts only the write forms in WRITE_FORMS, so no
+// `.value`, `.href` or `.download` write.
 // literalsIn() drops one-character strings, such as the " · " separator in
 // the settings summaries.
 //
@@ -37,17 +38,21 @@
 // Every run also checks each passage for the names the hitop package retired
 // from its web pages (RETIRED below) and exits 1 on a hit.
 //
-// WRITERS is a ledger of every site in the script that writes text or an
-// attribute into the page. The script greps the source for such sites and
-// refuses to run if the count differs from the ledger, so a writer added
+// WRITERS is a ledger of the sites in the script of each write form in
+// WRITE_FORMS. The script counts those sites in the source and refuses to run
+// if the count differs from the ledger, so a writer of a listed form added
 // later has to be classified here before the extraction is trusted again.
+// The check compares counts, and a form left off WRITE_FORMS is not counted.
 //
 // Usage:
 //   node tests/prose.mjs [--ref <git ref>] [--text <out.md>] [--json <out.json>]
 //                        [--compare <baseline.json>]
 //
 // --ref reads index.html and README.md from a git ref instead of the working
-// tree. --text writes the passages for the linter: code tokens in backticks,
+// tree. An older page can predate the ledger or the body-text floor, so under
+// --ref a writer count that differs from WRITERS, or a body text node in no
+// passage, is a warning on stderr and does not set the exit code. The
+// retired-name check and --compare keep their exit 1. --text writes the passages for the linter: code tokens in backticks,
 // URLs bare. --json writes the passages with their facts. --compare reads a
 // JSON written earlier and reports every passage whose facts differ, exiting 1
 // if any do. Facts are compared as multisets: the same tokens the same number
@@ -235,16 +240,42 @@ const WRITERS = [
   { anchor: "el('shuffleCrosswalk').textContent = crosswalkSentence();", covered: 'crosswalkSentence()' },
   { anchor: "el('selectAll').textContent =", covered: 'refreshSelectAllLabel()' },
   { anchor: "el('pkgver').textContent = `(version ${version})`;", covered: 'the version line' },
+  { anchor: "el('nextStepSlot').append(panel);", covered: 'the next-step panel, cloned from its <template> in the body' },
+  { anchor: 'label.append(input, name, n);', covered: 'excluded: elements whose text is written at name.textContent and n.textContent' },
+  { anchor: 'row.append(label);', covered: 'excluded: an element, no text' },
+  { anchor: 'row.append(button, desc);', covered: 'excluded: elements whose text is written at button.textContent and desc.textContent' },
+  { anchor: 'box.append(row);', covered: 'excluded: an element, no text' },
+  { anchor: 'document.body.append(a);', covered: 'excluded: the hidden download anchor, no text' },
 ];
 
+// The write forms the ledger counts. An assignment form is counted where the
+// property is assigned (`=` or `+=`), a call form where the method is called.
+// smoke.yml's comment names the same list.
+const WRITE_FORMS = [
+  ['textContent', 'assign'], ['innerHTML', 'assign'], ['setAttribute', 'call'],
+  ['innerText', 'assign'], ['outerHTML', 'assign'],
+  ['insertAdjacentText', 'call'], ['insertAdjacentHTML', 'call'],
+  ['append', 'call'], ['prepend', 'call'], ['replaceChildren', 'call'],
+  ['createTextNode', 'call'],
+];
+const WRITE_FORM_RE = new RegExp(WRITE_FORMS.map(([name, kind]) =>
+  kind === 'assign' ? `\\.${name}\\s*\\+?=(?!=)` : `\\.${name}\\(`).join('|'), 'g');
+
+// Under --ref a mismatch is reported and the run goes on (see the header);
+// on the working tree it stops the run.
+function ledgerProblem(message) {
+  if (REF) { console.error(`warning (--ref ${REF}): ${message}`); return; }
+  throw new Error(message);
+}
+
 function checkWriters() {
-  const grep = [...html.matchAll(/\.(textContent|innerHTML)\s*\+?=|\.setAttribute\(/g)].length;
+  const grep = [...html.matchAll(WRITE_FORM_RE)].length;
   if (grep !== WRITERS.length) {
-    throw new Error(`the source has ${grep} writer sites and the ledger lists ${WRITERS.length}; classify the difference in WRITERS`);
+    ledgerProblem(`the source has ${grep} writer sites and the ledger lists ${WRITERS.length}; classify the difference in WRITERS`);
   }
   for (const w of WRITERS) {
     const hits = html.split(w.anchor).length - 1;
-    if (hits !== 1) throw new Error(`ledger anchor found ${hits} times, expected 1: ${JSON.stringify(w.anchor)}`);
+    if (hits !== 1) ledgerProblem(`ledger anchor found ${hits} times, expected 1: ${JSON.stringify(w.anchor)}`);
   }
   return grep;
 }
@@ -331,7 +362,11 @@ function callArgs(src, names) {
 // Returns the body of `function name(...) { ... }`.
 function functionBody(src, name) {
   const m = new RegExp(`function ${name}\\([^)]*\\)\\s*\\{`).exec(src);
-  if (!m) throw new Error(`function ${name} not found`);
+  if (!m) {
+    // An older page under --ref can lack a function the extraction reads.
+    if (REF) { console.error(`warning (--ref ${REF}): function ${name} not found; its passages are left out`); return ''; }
+    throw new Error(`function ${name} not found`);
+  }
   let i = m.index + m[0].length; let depth = 1; const start = i; let q = null;
   while (i < src.length && depth) {
     const c = src[i];
@@ -399,6 +434,19 @@ function scriptPassages() {
 }
 
 // ---- Part 3: the bundle README ------------------------------------------
+
+// Under --ref an older page can lack a piece the README run needs; its
+// README passages are then left out with a warning. On the working tree a
+// missing piece stops the run.
+function readmePassagesOrNone() {
+  if (!REF) return bundleReadmePassages();
+  try {
+    return bundleReadmePassages();
+  } catch (err) {
+    console.error(`warning (--ref ${REF}): the bundle README was not read (${err.message}); its passages are left out`);
+    return [];
+  }
+}
 
 function bundleReadmePassages() {
   const pick = (re) => { const m = re.exec(moduleScript); if (!m) throw new Error(`not found: ${re}`); return m[0]; };
@@ -512,7 +560,7 @@ const writerCount = checkWriters();
 const passages = [
   ...bodyPassages(html),
   ...scriptPassages(),
-  ...bundleReadmePassages(),
+  ...readmePassagesOrNone(),
   ...markdownPassages(readme),
 ].map((p) => ({ ...p, facts: facts(p) }));
 
@@ -528,7 +576,8 @@ if (!seen.length) {
 } else if (missingBodyText.length) {
   console.log(`body text: ${missingBodyText.length} of ${seen.length} text nodes in no passage`);
   for (const s of missingBodyText) console.log(`  ${JSON.stringify(s)}`);
-  process.exitCode = 1;
+  if (REF) console.error(`warning (--ref ${REF}): body text nodes in no passage`);
+  else process.exitCode = 1;
 } else {
   console.log(`body text: all ${seen.length} text nodes in a passage`);
 }
