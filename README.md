@@ -112,7 +112,7 @@ are off during a build. The cards look grey with a dashed border, and the
 current card keeps the check in its corner. At the end of a build, keyboard
 focus goes back to the button or card that had it at your press of the button.
 Two things must hold for that: no other element has focus then, and that
-control is on and on show. The page does not scroll.
+control is on and on show. The focus return does not scroll the page.
 
 A zip format's download is one file rather than two saves, because a browser
 can drop a second save that nobody asked for. A questionnaire that arrives
@@ -130,9 +130,10 @@ page asked R to do and what R replied. The section stays closed while the page
 loads and once it is ready. If the load or a build fails, the page opens it.
 The status line then says where to look: *The log under "Technical details"
 below says more.* If a build fails while the section is below the window, the
-page scrolls the section into view. If R starts and a later step of the load
-throws an error that has no message of its own, the status line begins *R
-started, but the page did not finish setting up.*
+page scrolls the section into view. A failed load does not scroll. If R
+starts and a later step of the load fails in a way that has no message of its
+own, the status line begins *R started, but the page did not finish setting
+up.*
 
 ### The module file
 
@@ -438,11 +439,13 @@ against a first load of about twenty seconds each. On either timeout the page
 says which half stalled and stays switched off. A stalled step that settles
 afterwards does not turn it back on. Every failure to load R or the package,
 and every build failure, goes through `showFailure()`. It opens *Technical
-details*. If the section lies below the window, it scrolls the section into
-view, or only its top when the section is taller than the window. The page reports a failed or stalled start of R inside `main()`. So a
-throw that reaches the catch on `main()` comes from a later step. That catch
-says that R started and the page did not finish setting up. It also switches
-the page off.
+details*. After a build failure, `download()` also scrolls the section into
+view if it is not in full view. A load failure does not scroll. The page
+reports a failed or stalled start of R inside `main()`. So a throw that
+reaches the catch on `main()` comes from the page's own code, in practice a
+later step. That catch says that R started and the page did not finish
+setting up, and it switches the page off. If the page has already given up,
+the catch keeps the first message and only writes the log.
 
 ### Verification notes
 

@@ -13,9 +13,10 @@ export default defineConfig({
   // test took 30s locally on 2026-09-30. Past ten minutes a run dies on a
   // bare "Test timeout exceeded". Two attempts take up to 20 of the job's 25
   // minutes, which leaves 5 for setup, the prose run and the other two tests.
-  // Those two download no package: the failed load stops before R arrives,
-  // and the failed start-up stops after R starts and before the install. On
-  // 2026-10-06 they took 0.2s and 2.1s locally.
+  // Neither downloads the hitop package. The failed load stops before R
+  // arrives. The failed start-up downloads R itself and stops after R starts,
+  // before the install, so on a cold CI run it costs one R download. On
+  // 2026-10-06 they took 0.2s and 2.1s locally, a warm run.
   timeout: 10 * 60 * 1000,
   expect: { timeout: 60 * 1000 },
   // One retry in CI, so a single hiccup on webr.r-wasm.org or r-universe does

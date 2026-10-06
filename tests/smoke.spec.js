@@ -46,6 +46,7 @@
 //   A30: a build that fails opens "Technical details", and the status names it
 //   A31: a build that fails while the "Technical details" summary is below the window brings the summary wholly into the window
 //   A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden
+//   A33: a failed load leaves the page unscrolled, with the open section reaching below the window
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -1104,7 +1105,10 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     await page.locator('[data-choose="docx"]').click();
     // A31 starts from the place a visitor builds from: the download button
     // at the foot of the window, with "Technical details" below it, out of
-    // sight. The button is in view, so the click below does not scroll.
+    // sight. A short window makes that start hold whatever the height of the
+    // content above the button, and A31 asserts it rather than assuming it.
+    // The button is in view, so the click below does not scroll.
+    await page.setViewportSize({ width: 1280, height: 400 });
     await page.locator('#downloadBtn').evaluate((b) => b.scrollIntoView({ block: 'end' }));
     const boxBefore = await readSummaryBox(page);
     await page.locator('#downloadBtn').click();
@@ -1183,6 +1187,9 @@ test('a start-up that fails after R started says so', async ({ page }) => {
 test('a failed load opens Technical details', async ({ page }) => {
   const target = await openTarget();
   try {
+    // A short window, so the opened section reaches past its foot and a
+    // scroll to it would move the page (A33).
+    await page.setViewportSize({ width: 1280, height: 300 });
     await page.route(WEBR_MJS, (route) => route.abort());
     await page.goto(target.url);
     await expect(page.locator('#status'), 'A22: the page reports the failed load')
@@ -1199,6 +1206,13 @@ test('a failed load opens Technical details', async ({ page }) => {
         'A22: a failed load opens "Technical details", and the status names it'
       )
       .toEqual({ sections: 1, open: true, rendered: true, namesIt: true });
+    const after = await page.evaluate(() => ({
+      scrollY: window.scrollY,
+      sectionBelow: document.getElementById('techDetails').getBoundingClientRect().bottom > window.innerHeight,
+    }));
+    expect
+      .soft(after, 'A33: a failed load leaves the page unscrolled, with the open section reaching below the window')
+      .toEqual({ scrollY: 0, sectionBelow: true });
   } finally {
     await target.close();
   }

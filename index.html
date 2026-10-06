@@ -414,7 +414,10 @@
 
   /* ---- Technical details --------------------------------------------- */
   /* The host list and the log, closed unless a failure opens them. */
-  #techDetails { margin-top: var(--s6); }
+  /* scroll-margin keeps the section a little inside the window when a failed
+     build scrolls it into view, so a fractional scroll position cannot leave
+     its edge a fraction of a pixel outside. */
+  #techDetails { margin-top: var(--s6); scroll-margin: var(--s4); }
   #techDetails[hidden] { display: none; }
   #techDetails > summary {
     cursor: pointer; color: var(--muted); font-size: var(--t-small);
@@ -791,15 +794,14 @@ let building = false;
 // Stops the page where it stands and says why. The controls are hidden rather
 // than merely disabled: nothing behind them can produce a file, and a visitor
 // reading a greyed-out form has to work out for themselves that it will never
-// come back. The controls go before the failure is shown, so the scroll in
-// showFailure() measures the page without them.
+// come back.
 function abandonBoot(message) {
   bootAbandoned = true;
+  showFailure(message);
   el('controls').hidden = true;
   for (const b of document.querySelectorAll('.downloads button')) {
     b.disabled = true;
   }
-  showFailure(message);
 }
 
 const el = (id) => document.getElementById(id);
@@ -813,17 +815,13 @@ function status(text) { el('status').textContent = text; }
 
 // Every load or build failure comes through here. The log that says what went
 // wrong is under "Technical details", which stays closed while all goes well,
-// so a failure opens it and the status line says where to look. A build
-// failure leaves the visitor near the download button, which can leave the
-// section below the fold, so the page scrolls it into view. "nearest" moves
-// the page only when the section is not already in full view. For a section
-// below the window, it brings the whole section in when it fits, and its top,
-// the summary, when it is taller than the window. The scroll is instant
-// because the page sets no scroll-behavior.
+// so a failure opens it and the status line says where to look. Only a build
+// failure also scrolls the section into view (see download()). A load failure
+// does not scroll, so on a short window the status line, just above the
+// section, is not pushed out of view.
 function showFailure(message) {
   status(`${message} The log under "Technical details" below says more.`);
   el('techDetails').open = true;
-  el('techDetails').scrollIntoView({ block: 'nearest' });
 }
 
 // Each format names the package function that writes it, the extension the
@@ -1634,6 +1632,11 @@ async function download() {
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     showFailure(`The ${spec.label} build failed.`);
+    // A build starts from the download button, which can leave "Technical
+    // details" below the window, so the section is scrolled into view.
+    // "nearest" moves the page only when the section is not already in full
+    // view. The scroll is instant because the page sets no scroll-behavior.
+    el('techDetails').scrollIntoView({ block: 'nearest' });
   } finally {
     building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
@@ -1646,9 +1649,10 @@ async function download() {
     // back only to a control that is on and on show: a control that the
     // build's end leaves off or hidden, such as the download
     // button with every scale unticked or on a step that is not on show,
-    // cannot take focus, and focus stays on the body. The page does not
+    // cannot take focus, and focus stays on the body. The focus call does not
     // scroll to the control, so a visitor reading the log stays where they
-    // are.
+    // are, and after a failed build the page stays on "Technical details",
+    // where the catch above scrolled it.
     const now = document.activeElement;
     if (
       (!now || now === document.body) &&
@@ -1946,13 +1950,16 @@ async function main() {
 }
 
 // main() reports a failed or stalled download or start of R itself, in the
-// runtime race, so a throw that reaches this catch comes from a later step,
-// after R started. The status says so rather
+// runtime race, so a throw that reaches this catch comes from the page's own
+// code: in practice a later step, after R started. The status says so rather
 // than blaming R. It latches like the other boot failures, so a throw after
-// the controls were shown takes them away again.
+// the controls were shown takes them away again. When the page has already
+// given up, for example on a lost connection to R that leaves a later await
+// to reject, the first and more specific message stays, and the throw only
+// goes to the log.
 main().catch((err) => {
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
-  abandonBoot('R started, but the page did not finish setting up.');
+  if (!bootAbandoned) abandonBoot('R started, but the page did not finish setting up.');
 });
 </script>
 </body>
