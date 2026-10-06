@@ -353,11 +353,14 @@ async function readAnchor(page) {
 // A28 records every status text a build writes, from before its press, so
 // a build that ends before a later read is still seen. watchStatus() starts
 // the record; takeStatuses() stops it, disconnecting the observer, and
-// returns the texts. One record runs at a time.
+// returns the texts. One record runs at a time. The record starts empty: the
+// status on show before the press is the card press's "Ready. <format>
+// chosen.", which names the format and would pass A28 for a build that did
+// not (plants aj and at).
 function watchStatus(page) {
   return page.evaluate(() => {
     const s = document.getElementById('status');
-    window.smokeStatuses = [s.textContent];
+    window.smokeStatuses = [];
     window.smokeObserver = new MutationObserver(() => window.smokeStatuses.push(s.textContent));
     window.smokeObserver.observe(s, { childList: true, characterData: true, subtree: true });
   });
