@@ -1950,13 +1950,13 @@ async function main() {
 }
 
 // main() reports a failed or stalled download or start of R itself, in the
-// runtime race, so a throw that reaches this catch comes from the page's own
-// code: in practice a later step, after R started. The status says so rather
-// than blaming R. It latches like the other boot failures, so a throw after
-// the controls were shown takes them away again. When the page has already
-// given up, for example on a lost connection to R that leaves a later await
-// to reject, the first and more specific message stays, and the throw only
-// goes to the log.
+// runtime race, so a throw that reaches this catch comes from a later step,
+// after R started: the page's own code or an R call it makes. The status says
+// so rather than blaming R. It latches like the other boot failures, so a
+// throw after the controls were shown takes them away again. When the page has already
+// given up, for example when the reader has already reported a lost
+// connection to R and a later step then throws, the first and more specific
+// message stays, and the throw only goes to the log.
 main().catch((err) => {
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
   if (!bootAbandoned) abandonBoot('R started, but the page did not finish setting up.');

@@ -440,10 +440,11 @@ says which half stalled and stays switched off. A stalled step that settles
 afterwards does not turn it back on. Every failure to load R or the package,
 and every build failure, goes through `showFailure()`. It opens *Technical
 details*. After a build failure, `download()` also scrolls the section into
-view if it is not in full view. A load failure does not scroll. The page
-reports a failed or stalled start of R inside `main()`. So a throw that
-reaches the catch on `main()` comes from the page's own code, in practice a
-later step. That catch says that R started and the page did not finish
+view, or only its top when the section is taller than the window. A load
+failure does not scroll. The page reports a failed or stalled start of R
+inside `main()`. So a throw that reaches the catch on `main()` comes from a
+later step, after R started: the page's own code or an R call it makes. That
+catch says that R started and the page did not finish
 setting up, and it switches the page off. If the page has already given up,
 the catch keeps the first message and only writes the log.
 

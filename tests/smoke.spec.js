@@ -1105,8 +1105,8 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     await page.locator('[data-choose="docx"]').click();
     // A31 starts from the place a visitor builds from: the download button
     // at the foot of the window, with "Technical details" below it, out of
-    // sight. A short window makes that start hold whatever the height of the
-    // content above the button, and A31 asserts it rather than assuming it.
+    // sight. A 400px window, shorter than the content above the button, makes
+    // that start hold, and A31 asserts it rather than assuming it.
     // The button is in view, so the click below does not scroll.
     await page.setViewportSize({ width: 1280, height: 400 });
     await page.locator('#downloadBtn').evaluate((b) => b.scrollIntoView({ block: 'end' }));
