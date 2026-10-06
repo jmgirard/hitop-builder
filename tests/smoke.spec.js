@@ -48,6 +48,7 @@
 //   A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden
 //   A33: a failed load leaves the page unscrolled, with the open section reaching below the window
 //   A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty
+//   A35: focus moved during a build to an enabled control other than the download button is still there when the build ends
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -1188,6 +1189,17 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       await watchStatus(page);
       const saved = page.waitForEvent('download', { timeout: BUILD_MS });
       await page.locator('#downloadBtn').click();
+      // A35, in the Qualtrics build: A11 needs focus on the body at the end
+      // of the Word build, so this one moves it. The "Technical details"
+      // summary stays enabled while a build runs. The move and a read of
+      // the download button's state happen in one call, so a build that had
+      // already ended shows as such and fails A35 rather than passing it.
+      const movedDuringBuild = format === 'qualtrics'
+        ? await page.evaluate(() => {
+            document.querySelector('#techDetails > summary').focus();
+            return document.getElementById('downloadBtn').disabled;
+          })
+        : null;
       const zip = zipEntries(await readFile(await (await saved).path()));
       seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
       bundles[format] = {
@@ -1197,6 +1209,18 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       await expect(page.locator('#status'), `A28: the ${FORMAT_NAMES[format]} build returns the status to "Ready."`)
         .toHaveText(/^Ready\./, { timeout: BUILD_MS });
       seen.statuses[format] = statusNaming(await takeStatuses(page), format);
+      if (format === 'qualtrics') {
+        const focusAfter = await page.evaluate(() => ({
+          onSummary: document.activeElement === document.querySelector('#techDetails > summary'),
+          buildEnded: !document.getElementById('downloadBtn').disabled,
+        }));
+        expect
+          .soft(
+            { movedDuringBuild, ...focusAfter },
+            'A35: focus moved during a build to an enabled control other than the download button is still there when the build ends'
+          )
+          .toEqual({ movedDuringBuild: true, onSummary: true, buildEnded: true });
+      }
     }
     expect
       .soft(
