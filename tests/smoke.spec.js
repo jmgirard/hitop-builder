@@ -17,7 +17,7 @@
 //   A1: the status region reaches "Ready."
 //   A2: more than MIN_SCALE_ROWS scale rows render in the initial list
 //   A3: every rendered row carries a non-empty name
-//   A4: the downloaded bundle holds exactly the three expected entries
+//   A4: the downloaded bundle holds exactly the three expected entries, whatever their order
 //   A5: the bundle's .docx entry begins with the four bytes of a zip container
 //   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
 //   A7: the download button is present and enabled
@@ -47,6 +47,7 @@
 //   A31: a build that fails while the "Technical details" summary is below the window brings the summary wholly into the window
 //   A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden
 //   A33: a failed load leaves the page unscrolled, with the open section reaching below the window
+//   A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -180,6 +181,17 @@ const FORMAT_NAMES = {
   online: 'Online form',
 };
 const STEP_NAMES = ['Choose scales', 'Choose a format and download'];
+
+// The entries of each zip format's bundle for a module build (A4, A34), and
+// which one is the questionnaire. Stated here, not read off the page: the
+// questionnaire, the module file and the README, named for the build.
+const BUNDLE_ENTRIES = {
+  docx: { questionnaire: 'hitopsr-word-module.docx', others: ['hitopsr-word-module.json', 'README.txt'] },
+  qualtrics: { questionnaire: 'hitopsr-qualtrics-module.txt', others: ['hitopsr-qualtrics-module.json', 'README.txt'] },
+  redcap: { questionnaire: 'hitopsr-redcap-module-upload.zip', others: ['hitopsr-redcap-module.json', 'README.txt'] },
+};
+const bundleNames = (format) =>
+  [BUNDLE_ENTRIES[format].questionnaire, ...BUNDLE_ENTRIES[format].others].sort();
 
 // Every control that changes the step, with the step it is on and the step
 // it leads to (A27, A28).
@@ -331,6 +343,31 @@ async function readAnchor(page) {
       decoded,
     },
   };
+}
+
+// A28 records every status text a build writes, from before its press, so
+// a build that ends before a later read is still seen. watchStatus() starts
+// the record; takeStatuses() stops it, disconnecting the observer, and
+// returns the texts. One record runs at a time.
+function watchStatus(page) {
+  return page.evaluate(() => {
+    const s = document.getElementById('status');
+    window.smokeStatuses = [s.textContent];
+    window.smokeObserver = new MutationObserver(() => window.smokeStatuses.push(s.textContent));
+    window.smokeObserver.observe(s, { childList: true, characterData: true, subtree: true });
+  });
+}
+function takeStatuses(page) {
+  return page.evaluate(() => {
+    window.smokeObserver?.disconnect();
+    window.smokeObserver = null;
+    return window.smokeStatuses ?? [];
+  });
+}
+// The status of a format's build among the recorded texts: the one naming
+// the format, or the whole record, so a failure shows what the build wrote.
+function statusNaming(written, format) {
+  return written.find((t) => t.includes(FORMAT_NAMES[format])) ?? written.join(' | ');
 }
 
 // The status an online save ends on when it puts the panel in. A save that
@@ -493,8 +530,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // anywhere in the rendered text, which rules out a host list left in the
     // head. The status is read in the same call, so the read is shown to be
     // of the loading state.
+    // The wait takes the status's prefix, and the soft read below holds the
+    // exact text, so a changed loading text fails A20 by name rather than
+    // as a timeout (LESSONS M127).
     await expect(page.locator('#status'), 'A20: the page shows its loading status')
-      .toHaveText('Starting R in your browser…');
+      .toHaveText(/^Starting R/);
     const loading = await readTechState(page);
     releaseWebr();
     console.log(`header words while loading: ${loading.headerWords}`);
@@ -788,13 +828,13 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // saveOnline() does.
     const beforeSecondPress = await readLinkState(page);
     const secondSaved = page.waitForEvent('download', { timeout: BUILD_MS });
+    await watchStatus(page);
     await page.locator('#downloadBtn').click();
     const atSecondPress = await readLinkState(page);
-    // The status download() writes as it starts, read in the same call.
-    seen.statuses.online = atSecondPress.status;
     await secondSaved;
     await expect(page.locator('#status'), 'A16: the second online save returns the status to a "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    seen.statuses.online = statusNaming(await takeStatuses(page), 'online');
     expect
       .soft(
         {
@@ -969,9 +1009,8 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // webR's own requests come from a Web Worker and are invisible to the
     // page's network panel, which is why nothing here watches for them.
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
+    await watchStatus(page);
     await page.locator('#downloadBtn').click();
-    // The status download() writes as it starts, before its first await.
-    seen.statuses.docx = await page.locator('#status').textContent();
 
     // Every selection change (a tick, an untick, Select all, Clear all) goes
     // through refreshTally(), the one site that can turn the button back on
@@ -1098,14 +1137,15 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
 
     // One scale ticked is a module, and the page names a Word module's bundle
     // and its entries hitopsr-word-module; the README travels in every bundle.
-    const STEM = 'hitopsr-word-module';
+    // The names are compared sorted: which entries the bundle holds is the
+    // claim, and the order a zip writer lists them in is not.
     expect
       .soft(
-        Array.from(bundle.keys()),
-        'A4: the downloaded bundle holds exactly the three expected entries'
+        Array.from(bundle.keys()).sort(),
+        'A4: the downloaded bundle holds exactly the three expected entries, whatever their order'
       )
-      .toEqual([`${STEM}.docx`, `${STEM}.json`, 'README.txt']);
-    const docx = bundle.get(`${STEM}.docx`) ?? Buffer.alloc(0);
+      .toEqual(bundleNames('docx'));
+    const docx = bundle.get(BUNDLE_ENTRIES.docx.questionnaire) ?? Buffer.alloc(0);
     expect
       .soft(
         Array.from(docx.subarray(0, 4)),
@@ -1141,23 +1181,34 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     seen.readmes.docx = (bundle.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
     await expect(page.locator('#status'), 'A28: the Word build returns the status to "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    seen.statuses.docx = statusNaming(await takeStatuses(page), 'docx');
+    const bundles = {};
     for (const format of ['qualtrics', 'redcap']) {
       await page.locator(`[data-choose="${format}"]`).click();
-      await page.evaluate(() => {
-        const s = document.getElementById('status');
-        window.smokeStatuses = [];
-        new MutationObserver(() => window.smokeStatuses.push(s.textContent))
-          .observe(s, { childList: true, characterData: true, subtree: true });
-      });
+      await watchStatus(page);
       const saved = page.waitForEvent('download', { timeout: BUILD_MS });
       await page.locator('#downloadBtn').click();
       const zip = zipEntries(await readFile(await (await saved).path()));
       seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
+      bundles[format] = {
+        names: [...zip.keys()].sort(),
+        questionnaireBytes: zip.get(BUNDLE_ENTRIES[format].questionnaire)?.length ?? 0,
+      };
       await expect(page.locator('#status'), `A28: the ${FORMAT_NAMES[format]} build returns the status to "Ready."`)
         .toHaveText(/^Ready\./, { timeout: BUILD_MS });
-      const written = await page.evaluate(() => window.smokeStatuses);
-      seen.statuses[format] = written.find((t) => t.includes(FORMAT_NAMES[format])) ?? written.join(' | ');
+      seen.statuses[format] = statusNaming(await takeStatuses(page), format);
     }
+    expect
+      .soft(
+        Object.fromEntries(Object.entries(bundles).map(([f, b]) => [f, {
+          names: b.names, questionnaireNotEmpty: b.questionnaireBytes > 0,
+        }])),
+        'A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty'
+      )
+      .toEqual({
+        qualtrics: { names: bundleNames('qualtrics'), questionnaireNotEmpty: true },
+        redcap: { names: bundleNames('redcap'), questionnaireNotEmpty: true },
+      });
     // The step bar's names, from each button's name span, and the text of
     // each control that changes the step.
     const stepBar = await page.locator('#stepbar button span:not(.num)').allTextContents();
