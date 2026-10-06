@@ -4,16 +4,17 @@ export default defineConfig({
   testDir: 'tests',
   // A cold webR boot -- R itself, then the hitop package -- is the bulk of
   // every run here, so both budgets sit well past Playwright's 30-second
-  // defaults. The smoke test's first test boots once and runs nine builds,
+  // defaults. The smoke test's boot test boots once and runs nine builds,
   // and most builds wait twice, for the download and then for "Ready.": 17
   // waits of up to 240s each, 68 minutes in all, which no per-test budget
   // inside smoke.yml's 25-minute job can hold. Each wait is a ceiling for one
   // stalled step, not a share of the whole. Ten minutes holds the boot at its
-  // ceiling and leaves six for the builds and the scale rows; the whole first
+  // ceiling and leaves six for the builds and the scale rows; the whole boot
   // test took 30s locally on 2026-09-30. Past ten minutes a run dies on a
   // bare "Test timeout exceeded". Two attempts take up to 20 of the job's 25
-  // minutes, which leaves 5 for setup, the prose run and the other two tests.
-  // Neither downloads the hitop package. The failed load stops before R
+  // minutes, which leaves 5 for setup, the prose run and the other three
+  // tests. The zip reader's test loads no page. The other two download no
+  // hitop package. The failed load stops before R
   // arrives. The failed start-up downloads R itself and stops after R starts,
   // before the install, so every run of it costs one R download. On
   // 2026-10-06 they took 0.2s and 2.1s locally.

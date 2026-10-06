@@ -471,6 +471,30 @@ const PLANTS = [
     from: "  el('techDetails').open = true;\n}",
     to: "  el('techDetails').open = true;\n  el('techDetails').scrollIntoView({ block: 'nearest' });\n}",
   },
+  {
+    id: 'ax',
+    what: 'the Qualtrics questionnaire in the bundle under a .qsf name',
+    // The other entries and the README title keep their names, so A34 reads
+    // the one changed entry name.
+    from: "fn: 'generate_qualtrics_hitopsr', ext: 'txt', name: 'qualtrics',",
+    to: "fn: 'generate_qualtrics_hitopsr', ext: 'qsf', name: 'qualtrics',",
+  },
+  {
+    id: 'ay',
+    what: 'focus taken back to the clicked control at the end of a build wherever it is',
+    // A11's build ends with focus on the body, so it still passes; A35 moves
+    // focus to another control during a build and reads it taken away.
+    from: '      (!now || now === document.body) &&\n',
+    to: '',
+  },
+  {
+    id: 'az',
+    what: 'the format cards keep a solid border during a build in the dark scheme only',
+    // A rule inside the dark-scheme block, so A10's light read still passes
+    // and A36's dark read fails on the border style.
+    from: '  @media (prefers-color-scheme: dark) {\n',
+    to: '  @media (prefers-color-scheme: dark) {\n    .formats button:disabled { border-style: solid !important; }\n',
+  },
 ];
 
 // The assertions this matrix must cover, read out of the spec file itself

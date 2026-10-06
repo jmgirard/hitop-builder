@@ -2,13 +2,16 @@
 // Word form on disk. It drives the page the way a visitor does -- it reads
 // only the page's document, no script state, and stubs nothing -- so a green
 // run means the deployed article really does hand over a document. There are
-// three exceptions. The webr.mjs request: the first test holds it for a moment
-// to read the page while it loads (A20), and the last test refuses it to read
-// the page after a failed load (A22). As the first test's last step,
-// URL.createObjectURL is made to throw, so the next build fails at its save
-// and the test reads the page after a failed build (A30, A31). And the second
-// test makes one status write after R starts throw, to read the page after a
-// start-up that failed past R (A32).
+// these exceptions. The webr.mjs request: the boot test (the second) holds it
+// for a moment to read the page while it loads (A20), and the last test
+// refuses it to read the page after a failed load (A22). As the boot test's
+// last step, URL.createObjectURL is made to throw, so the next build fails at
+// its save and the test reads the page after a failed build (A30, A31). During
+// its Word build the boot test switches the page to the dark colour scheme for
+// one read (A36), and during its Qualtrics build it moves focus by script
+// (A35). The third test makes one status write after R starts throw, to read
+// the page after a start-up that failed past R (A32). The first test loads no
+// page: it checks the zip reader on a zip it writes itself.
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
@@ -17,7 +20,7 @@
 //   A1: the status region reaches "Ready."
 //   A2: more than MIN_SCALE_ROWS scale rows render in the initial list
 //   A3: every rendered row carries a non-empty name
-//   A4: the downloaded bundle holds exactly the three expected entries
+//   A4: the downloaded bundle holds exactly the three expected entries, whatever their order
 //   A5: the bundle's .docx entry begins with the four bytes of a zip container
 //   A6: the bundle's .docx entry is longer than MIN_DOCX_BYTES
 //   A7: the download button is present and enabled
@@ -47,6 +50,9 @@
 //   A31: a build that fails while the "Technical details" summary is below the window brings the summary wholly into the window
 //   A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden
 //   A33: a failed load leaves the page unscrolled, with the open section reaching below the window
+//   A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty
+//   A35: focus moved during a build to an enabled control other than the download button is still there when the build ends
+//   A36: in the dark colour scheme, the format cards wear the disabled look during a build
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -64,38 +70,59 @@ import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { inflateRawSync } from 'node:zlib';
+import { deflateRawSync, inflateRawSync } from 'node:zlib';
 import { serveDir } from './serve.mjs';
 
 // Reads a zip's entries from its central directory: a map of entry name to
 // bytes. Only what the page's bundles use is handled -- stored and deflated
-// entries, no encryption, no zip64 -- and a buffer with no central directory
-// yields an empty map rather than throwing, so a bundle that is not a zip at
-// all fails A4 by name instead of crashing the test.
+// entries, no encryption, no zip64. A buffer the reader cannot read whole
+// yields an empty map rather than throwing or a part of its entries, so a
+// bundle that is not a sound zip fails A4 by name instead of crashing the
+// test or passing on the entries it kept. The reader refuses a record whose
+// signature is wrong, fewer records than the end record counts, records that
+// do not end where the central directory ends (so a count that is too low),
+// a name that appears twice, a method other than stored (0) or deflated (8),
+// and any field that points past the end of the buffer. The test 'the zip
+// reader refuses a damaged archive' makes one damaged copy for each of these
+// but the bounds checks, for which it makes one with data past the end.
 function zipEntries(buf) {
+  const none = new Map();
   const entries = new Map();
   let eocd = -1;
   for (let i = buf.length - 22; i >= 0; i--) {
     if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
   }
-  if (eocd < 0) return entries;
+  if (eocd < 0) return none;
   const count = buf.readUInt16LE(eocd + 10);
+  const cdEnd = buf.readUInt32LE(eocd + 16) + buf.readUInt32LE(eocd + 12);
   let p = buf.readUInt32LE(eocd + 16);
   for (let n = 0; n < count; n++) {
-    if (buf.readUInt32LE(p) !== 0x02014b50) break;
+    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) return none;
     const method = buf.readUInt16LE(p + 10);
+    if (method !== 0 && method !== 8) return none;
     const csize = buf.readUInt32LE(p + 20);
     const nameLen = buf.readUInt16LE(p + 28);
     const extraLen = buf.readUInt16LE(p + 30);
     const commentLen = buf.readUInt16LE(p + 32);
     const local = buf.readUInt32LE(p + 42);
+    if (p + 46 + nameLen > buf.length || local + 30 > buf.length) return none;
+    if (buf.readUInt32LE(local) !== 0x04034b50) return none;
     const name = buf.toString('utf8', p + 46, p + 46 + nameLen);
+    if (entries.has(name)) return none;
     const dataStart =
       local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    if (dataStart + csize > buf.length) return none;
     const raw = buf.subarray(dataStart, dataStart + csize);
-    entries.set(name, method === 8 ? inflateRawSync(raw) : Buffer.from(raw));
+    let bytes;
+    try {
+      bytes = method === 8 ? inflateRawSync(raw) : Buffer.from(raw);
+    } catch {
+      return none;
+    }
+    entries.set(name, bytes);
     p += 46 + nameLen + extraLen + commentLen;
   }
+  if (p !== cdEnd) return none;
   return entries;
 }
 
@@ -164,6 +191,17 @@ const FORMAT_NAMES = {
   online: 'Online form',
 };
 const STEP_NAMES = ['Choose scales', 'Choose a format and download'];
+
+// The entries of each zip format's bundle for a module build (A4, A34), and
+// which one is the questionnaire. Stated here, not read off the page: the
+// questionnaire, the module file and the README, named for the build.
+const BUNDLE_ENTRIES = {
+  docx: { questionnaire: 'hitopsr-word-module.docx', others: ['hitopsr-word-module.json', 'README.txt'] },
+  qualtrics: { questionnaire: 'hitopsr-qualtrics-module.txt', others: ['hitopsr-qualtrics-module.json', 'README.txt'] },
+  redcap: { questionnaire: 'hitopsr-redcap-module-upload.zip', others: ['hitopsr-redcap-module.json', 'README.txt'] },
+};
+const bundleNames = (format) =>
+  [BUNDLE_ENTRIES[format].questionnaire, ...BUNDLE_ENTRIES[format].others].sort();
 
 // Every control that changes the step, with the step it is on and the step
 // it leads to (A27, A28).
@@ -317,6 +355,34 @@ async function readAnchor(page) {
   };
 }
 
+// A28 records every status text a build writes, from before its press, so
+// a build that ends before a later read is still seen. watchStatus() starts
+// the record; takeStatuses() stops it, disconnecting the observer, and
+// returns the texts. One record runs at a time. The record starts empty: the
+// status on show before the press is the card press's "Ready. <format>
+// chosen.", which names the format and would pass A28 for a build that did
+// not (plants aj and at).
+function watchStatus(page) {
+  return page.evaluate(() => {
+    const s = document.getElementById('status');
+    window.smokeStatuses = [];
+    window.smokeObserver = new MutationObserver(() => window.smokeStatuses.push(s.textContent));
+    window.smokeObserver.observe(s, { childList: true, characterData: true, subtree: true });
+  });
+}
+function takeStatuses(page) {
+  return page.evaluate(() => {
+    window.smokeObserver?.disconnect();
+    window.smokeObserver = null;
+    return window.smokeStatuses ?? [];
+  });
+}
+// The status of a format's build among the recorded texts: the one naming
+// the format, or the whole record, so a failure shows what the build wrote.
+function statusNaming(written, format) {
+  return written.find((t) => t.includes(FORMAT_NAMES[format])) ?? written.join(' | ');
+}
+
 // The status an online save ends on when it puts the panel in. A save that
 // puts no panel in, and every other build, ends on the bare "Ready.".
 const SAVED_STATUS = 'Ready. The module file is saved. "Next: make the study link" is under the button.';
@@ -372,6 +438,88 @@ function readLinkState(page, heading = PANEL_HEADING, link = PANEL_LINK) {
   }, [heading, link]);
 }
 
+// A zip written here, byte by byte, so the reader test below needs no browser
+// and no file a browser test saved. Each entry is stored (method 0) or
+// deflated (method 8). The CRC fields are left at 0: zipEntries() reads none.
+// Returns the buffer and the offset of each central-directory record, so a
+// test can damage one record in place.
+function makeZip(files) {
+  const locals = [];
+  const records = [];
+  let offset = 0;
+  for (const f of files) {
+    const name = Buffer.from(f.name, 'utf8');
+    const data = f.method === 8 ? deflateRawSync(f.data) : f.data;
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(f.method, 8);
+    local.writeUInt32LE(data.length, 18);
+    local.writeUInt32LE(f.data.length, 22);
+    local.writeUInt16LE(name.length, 26);
+    locals.push(local, name, data);
+    const rec = Buffer.alloc(46);
+    rec.writeUInt32LE(0x02014b50, 0);
+    rec.writeUInt16LE(20, 4);
+    rec.writeUInt16LE(20, 6);
+    rec.writeUInt16LE(f.method, 10);
+    rec.writeUInt32LE(data.length, 20);
+    rec.writeUInt32LE(f.data.length, 24);
+    rec.writeUInt16LE(name.length, 28);
+    rec.writeUInt32LE(offset, 42);
+    records.push(Buffer.concat([rec, name]));
+    offset += 30 + name.length + data.length;
+  }
+  const cdStart = offset;
+  const recordOffsets = [];
+  for (const r of records) { recordOffsets.push(offset); offset += r.length; }
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(files.length, 8);
+  end.writeUInt16LE(files.length, 10);
+  end.writeUInt32LE(offset - cdStart, 12);
+  end.writeUInt32LE(cdStart, 16);
+  return { buf: Buffer.concat([...locals, ...records, end]), recordOffsets, endOffset: offset };
+}
+
+// zipEntries() on a zip it can read and on six damaged copies of it. Each
+// damage is one the reader must refuse whole, with an empty map, so a damaged
+// bundle fails A4 by name rather than passing with some of its entries.
+test('the zip reader refuses a damaged archive', async () => {
+  const files = [
+    { name: 'form.docx', data: Buffer.from('PK'.repeat(500)), method: 8 },
+    { name: 'form.json', data: Buffer.from('{"scales":[]}'), method: 0 },
+    { name: 'README.txt', data: Buffer.from('Read me.\n'), method: 0 },
+  ];
+  const { buf, recordOffsets, endOffset } = makeZip(files);
+  const last = recordOffsets[recordOffsets.length - 1];
+  const damaged = (edit) => { const b = Buffer.from(buf); edit(b); return b; };
+  const read = (b) => [...zipEntries(b).keys()];
+  const whole = zipEntries(buf);
+  expect(
+    {
+      unaltered: [...whole.keys()],
+      contents: files.every((f) => whole.get(f.name)?.equals(f.data)),
+      wrongSignature: read(damaged((b) => b.writeUInt32LE(0x02014b51, last))),
+      fewerRecords: read(damaged((b) => b.writeUInt16LE(files.length + 1, endOffset + 10))),
+      unknownMethod: read(damaged((b) => b.writeUInt16LE(12, last + 10))),
+      pastTheEnd: read(damaged((b) => b.writeUInt32LE(b.length, last + 20))),
+      fewerCounted: read(damaged((b) => b.writeUInt16LE(files.length - 1, endOffset + 10))),
+      repeatedName: read(damaged((b) => b.write('form.docx', recordOffsets[1] + 46, 'utf8'))),
+    },
+    'the zip reader returns every entry of a whole zip and no entry of a damaged one'
+  ).toEqual({
+    unaltered: files.map((f) => f.name),
+    contents: true,
+    wrongSignature: [],
+    fewerRecords: [],
+    unknownMethod: [],
+    pastTheEnd: [],
+    fewerCounted: [],
+    repeatedName: [],
+  });
+});
+
 test('the page boots, lists scales, and builds a Word form', async ({ page }) => {
   const target = await openTarget();
   const url = target.url;
@@ -399,8 +547,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // anywhere in the rendered text, which rules out a host list left in the
     // head. The status is read in the same call, so the read is shown to be
     // of the loading state.
+    // The wait takes the status's prefix, and the soft read below holds the
+    // exact text, so a changed loading text fails A20 by name rather than
+    // as a timeout (LESSONS M127).
     await expect(page.locator('#status'), 'A20: the page shows its loading status')
-      .toHaveText('Starting R in your browser…');
+      .toHaveText(/^Starting R/);
     const loading = await readTechState(page);
     releaseWebr();
     console.log(`header words while loading: ${loading.headerWords}`);
@@ -694,13 +845,13 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // saveOnline() does.
     const beforeSecondPress = await readLinkState(page);
     const secondSaved = page.waitForEvent('download', { timeout: BUILD_MS });
+    await watchStatus(page);
     await page.locator('#downloadBtn').click();
     const atSecondPress = await readLinkState(page);
-    // The status download() writes as it starts, read in the same call.
-    seen.statuses.online = atSecondPress.status;
     await secondSaved;
     await expect(page.locator('#status'), 'A16: the second online save returns the status to a "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    seen.statuses.online = statusNaming(await takeStatuses(page), 'online');
     expect
       .soft(
         {
@@ -875,9 +1026,8 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // webR's own requests come from a Web Worker and are invisible to the
     // page's network panel, which is why nothing here watches for them.
     const downloaded = page.waitForEvent('download', { timeout: BUILD_MS });
+    await watchStatus(page);
     await page.locator('#downloadBtn').click();
-    // The status download() writes as it starts, before its first await.
-    seen.statuses.docx = await page.locator('#status').textContent();
 
     // Every selection change (a tick, an untick, Select all, Clear all) goes
     // through refreshTally(), the one site that can turn the button back on
@@ -952,33 +1102,46 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // and not only on the look.
     await page.mouse.move(0, 0);
     const cards = page.locator('[data-choose]');
-    await expect
-      .poll(
-        () =>
-          cards.evaluateAll((cs) =>
-            cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
-          ),
-        { message: 'A10: the format cards wear the disabled look during a build', timeout: 5000 }
-      )
-      .toBe(true);
-    const cardLook = await cards.evaluateAll((cs) => {
-      const b = getComputedStyle(document.getElementById('downloadBtn'));
-      const looks = cs.map((c) => {
-        const s = getComputedStyle(c);
+    // Waits for the cards' transitions to end, then reads their look against
+    // the disabled download button, the status, the button's background and
+    // which colour scheme the page sees, in one pass (A10, A36).
+    async function readCardLook(label) {
+      await expect
+        .poll(
+          () =>
+            cards.evaluateAll((cs) =>
+              cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
+            ),
+          { message: label, timeout: 5000 }
+        )
+        .toBe(true);
+      return cards.evaluateAll((cs) => {
+        const b = getComputedStyle(document.getElementById('downloadBtn'));
+        const looks = cs.map((c) => {
+          const s = getComputedStyle(c);
+          return {
+            borderTopStyle: s.borderTopStyle,
+            boxShadow: s.boxShadow,
+            background: s.backgroundColor === b.backgroundColor,
+            borderColor: s.borderTopColor === b.borderTopColor,
+            name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
+            what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+          };
+        });
+        const status = document.getElementById('status').textContent;
         return {
-          borderTopStyle: s.borderTopStyle,
-          boxShadow: s.boxShadow,
-          background: s.backgroundColor === b.backgroundColor,
-          borderColor: s.borderTopColor === b.borderTopColor,
-          name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
-          what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+          looks,
+          stillBuilding: status.startsWith('Building'),
+          buttonBackground: b.backgroundColor,
+          dark: matchMedia('(prefers-color-scheme: dark)').matches,
         };
       });
-      const status = document.getElementById('status').textContent;
-      return { looks, stillBuilding: status.startsWith('Building') };
-    });
+    }
+    const A10 = 'A10: the format cards wear the disabled look during a build';
+    const lightLook = await readCardLook(A10);
+    const { buttonBackground: lightButton, dark: _lightDark, ...cardLook } = lightLook;
     expect
-      .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
+      .soft(cardLook, A10)
       .toEqual({
         looks: Array(4).fill({
           borderTopStyle: 'dashed',
@@ -999,19 +1162,46 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // a visitor who clicks and then waits has at the end of the build.
     await page.evaluate(() => document.activeElement?.blur());
 
+    // A36: the same read in the dark scheme, still during the Word build.
+    // The page is switched to prefers-color-scheme: dark, and the read also
+    // takes the button's background, which must differ from the light one, so
+    // a scheme switch that changed nothing fails A36 rather than repeating
+    // the light read. The page goes back to light at once.
+    const A36 = 'A36: in the dark colour scheme, the format cards wear the disabled look during a build';
+    await page.emulateMedia({ colorScheme: 'dark' });
+    const darkLook = await readCardLook(A36);
+    await page.emulateMedia({ colorScheme: 'light' });
+    const { buttonBackground: darkButton, ...darkRest } = darkLook;
+    expect
+      .soft({ ...darkRest, schemeChanged: darkButton !== lightButton }, A36)
+      .toEqual({
+        looks: Array(4).fill({
+          borderTopStyle: 'dashed',
+          boxShadow: 'none',
+          background: true,
+          borderColor: true,
+          name: true,
+          what: true,
+        }),
+        stillBuilding: true,
+        dark: true,
+        schemeChanged: true,
+      });
+
     const download = await downloaded;
     const bundle = zipEntries(await readFile(await download.path()));
 
     // One scale ticked is a module, and the page names a Word module's bundle
     // and its entries hitopsr-word-module; the README travels in every bundle.
-    const STEM = 'hitopsr-word-module';
+    // The names are compared sorted: which entries the bundle holds is the
+    // claim, and the order a zip writer lists them in is not.
     expect
       .soft(
-        Array.from(bundle.keys()),
-        'A4: the downloaded bundle holds exactly the three expected entries'
+        Array.from(bundle.keys()).sort(),
+        'A4: the downloaded bundle holds exactly the three expected entries, whatever their order'
       )
-      .toEqual([`${STEM}.docx`, `${STEM}.json`, 'README.txt']);
-    const docx = bundle.get(`${STEM}.docx`) ?? Buffer.alloc(0);
+      .toEqual(bundleNames('docx'));
+    const docx = bundle.get(BUNDLE_ENTRIES.docx.questionnaire) ?? Buffer.alloc(0);
     expect
       .soft(
         Array.from(docx.subarray(0, 4)),
@@ -1047,23 +1237,69 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     seen.readmes.docx = (bundle.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
     await expect(page.locator('#status'), 'A28: the Word build returns the status to "Ready."')
       .toHaveText(/^Ready\./, { timeout: BUILD_MS });
+    seen.statuses.docx = statusNaming(await takeStatuses(page), 'docx');
+    const bundles = {};
     for (const format of ['qualtrics', 'redcap']) {
       await page.locator(`[data-choose="${format}"]`).click();
-      await page.evaluate(() => {
-        const s = document.getElementById('status');
-        window.smokeStatuses = [];
-        new MutationObserver(() => window.smokeStatuses.push(s.textContent))
-          .observe(s, { childList: true, characterData: true, subtree: true });
-      });
+      await watchStatus(page);
       const saved = page.waitForEvent('download', { timeout: BUILD_MS });
-      await page.locator('#downloadBtn').click();
+      // A35, in the Qualtrics build: A11 needs focus on the body at the end
+      // of the Word build, so this one moves it. The press, the move and the
+      // reads happen in one call, one task of the page: download() turns the
+      // button off before its first await, so the move lands during the build
+      // however fast the build is. The button is focused first, as a press
+      // leaves it, so download() keeps it as the control to give focus back
+      // to. The "Technical details" summary stays enabled while a build runs.
+      let movedDuringBuild = null;
+      if (format === 'qualtrics') {
+        movedDuringBuild = await page.evaluate(() => {
+          const button = document.getElementById('downloadBtn');
+          const summary = document.querySelector('#techDetails > summary');
+          button.focus();
+          button.click();
+          summary.focus();
+          return { buildRunning: button.disabled, focusOnSummary: document.activeElement === summary };
+        });
+      } else {
+        await page.locator('#downloadBtn').click();
+      }
       const zip = zipEntries(await readFile(await (await saved).path()));
       seen.readmes[format] = (zip.get('README.txt')?.toString('utf8') ?? '').split('\n')[0];
+      bundles[format] = {
+        names: [...zip.keys()].sort(),
+        questionnaireBytes: zip.get(BUNDLE_ENTRIES[format].questionnaire)?.length ?? 0,
+      };
       await expect(page.locator('#status'), `A28: the ${FORMAT_NAMES[format]} build returns the status to "Ready."`)
         .toHaveText(/^Ready\./, { timeout: BUILD_MS });
-      const written = await page.evaluate(() => window.smokeStatuses);
-      seen.statuses[format] = written.find((t) => t.includes(FORMAT_NAMES[format])) ?? written.join(' | ');
+      seen.statuses[format] = statusNaming(await takeStatuses(page), format);
+      if (format === 'qualtrics') {
+        const focusAfter = await page.evaluate(() => ({
+          onSummary: document.activeElement === document.querySelector('#techDetails > summary'),
+          buildEnded: !document.getElementById('downloadBtn').disabled,
+        }));
+        expect
+          .soft(
+            { movedDuringBuild, ...focusAfter },
+            'A35: focus moved during a build to an enabled control other than the download button is still there when the build ends'
+          )
+          .toEqual({
+            movedDuringBuild: { buildRunning: true, focusOnSummary: true },
+            onSummary: true,
+            buildEnded: true,
+          });
+      }
     }
+    expect
+      .soft(
+        Object.fromEntries(Object.entries(bundles).map(([f, b]) => [f, {
+          names: b.names, questionnaireNotEmpty: b.questionnaireBytes > 0,
+        }])),
+        'A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty'
+      )
+      .toEqual({
+        qualtrics: { names: bundleNames('qualtrics'), questionnaireNotEmpty: true },
+        redcap: { names: bundleNames('redcap'), questionnaireNotEmpty: true },
+      });
     // The step bar's names, from each button's name span, and the text of
     // each control that changes the step.
     const stepBar = await page.locator('#stepbar button span:not(.num)').allTextContents();
