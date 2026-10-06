@@ -2,11 +2,13 @@
 // Word form on disk. It drives the page the way a visitor does -- it reads
 // only the page's document, no script state, and stubs nothing -- so a green
 // run means the deployed article really does hand over a document. There are
-// two exceptions. The webr.mjs request: the first test holds it for a moment
-// to read the page while it loads (A20), and a second test refuses it to read
-// the page after a failed load (A22). And, as the first test's last step,
+// three exceptions. The webr.mjs request: the first test holds it for a moment
+// to read the page while it loads (A20), and the last test refuses it to read
+// the page after a failed load (A22). As the first test's last step,
 // URL.createObjectURL is made to throw, so the next build fails at its save
-// and the test reads the page after a failed build (A30).
+// and the test reads the page after a failed build (A30, A31). And the second
+// test makes one status write after R starts throw, to read the page after a
+// start-up that failed past R (A32).
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
@@ -42,6 +44,8 @@
 //   A28: each format's card title, download button, build status and README.txt title use its one name, and each step control holds its target step's name
 //   A29: after an online save, a panel headed "Next: make the study link" shows the Study Link Builder link, drawn as a button
 //   A30: a build that fails opens "Technical details", and the status names it
+//   A31: a build that fails while the "Technical details" summary is below the window brings the summary wholly into the window
+//   A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -179,6 +183,19 @@ const HOSTS = ['webr.r-wasm.org', 'jmgirard.r-universe.dev', 'r2.ropensci.org', 
 // The page's first request for R. A20 holds it to read the loading state,
 // and A22 refuses it to make the load fail.
 const WEBR_MJS = '**/webr.mjs';
+
+// The status of a start-up that throws after R started (A32), up to the
+// pointer that every failure status ends with.
+const SETUP_FAILED = 'R started, but the page did not finish setting up.';
+
+// Where the "Technical details" summary sits against the window (A31): its
+// box's top and bottom and the window's height, in CSS pixels.
+function readSummaryBox(page) {
+  return page.evaluate(() => {
+    const r = document.querySelector('#techDetails > summary').getBoundingClientRect();
+    return { top: r.top, bottom: r.bottom, height: window.innerHeight };
+  });
+}
 
 // The word limits AC1 and AC3 set.
 const MAX_HEADER_WORDS = 50;
@@ -1085,6 +1102,11 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
       URL.createObjectURL = () => { throw new Error('made to fail by the smoke test (A30)'); };
     });
     await page.locator('[data-choose="docx"]').click();
+    // A31 starts from the place a visitor builds from: the download button
+    // at the foot of the window, with "Technical details" below it, out of
+    // sight. The button is in view, so the click below does not scroll.
+    await page.locator('#downloadBtn').evaluate((b) => b.scrollIntoView({ block: 'end' }));
+    const boxBefore = await readSummaryBox(page);
     await page.locator('#downloadBtn').click();
     await expect(page.locator('#status'), 'A30: the page reports the failed build')
       .toHaveText(/^The Word form build failed\./, { timeout: BUILD_MS });
@@ -1100,6 +1122,57 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
         'A30: a build that fails opens "Technical details", and the status names it'
       )
       .toEqual({ openBefore: false, open: true, rendered: true, namesIt: true });
+    const boxAfter = await readSummaryBox(page);
+    expect
+      .soft(
+        {
+          belowBefore: boxBefore.top >= boxBefore.height,
+          inWindowAfter: boxAfter.top >= 0 && boxAfter.bottom <= boxAfter.height,
+        },
+        'A31: a build that fails while the "Technical details" summary is below the window brings the summary wholly into the window'
+      )
+      .toEqual({ belowBefore: true, inWindowAfter: true });
+  } finally {
+    await target.close();
+  }
+});
+
+// A start-up that fails after R started. The status write that opens the
+// package download is made to throw, through the textContent setter, for
+// that one text alone, so every other write, the failure's own status
+// included, goes through. The throw comes after R's start and before the
+// install begins, so this test boots R but downloads no package.
+test('a start-up that fails after R started says so', async ({ page }) => {
+  const target = await openTarget();
+  try {
+    await page.addInitScript(() => {
+      const d = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent');
+      Object.defineProperty(Node.prototype, 'textContent', {
+        ...d,
+        set(v) {
+          if (this.id === 'status' && String(v).startsWith('Downloading the hitop package')) {
+            throw new Error('made to fail by the smoke test (A32)');
+          }
+          d.set.call(this, v);
+        },
+      });
+    });
+    await page.goto(target.url);
+    await expect(page.locator('#status'), 'A32: the page reports the failed start-up')
+      .toHaveText(/^R (started|did not)/, { timeout: BOOT_MS });
+    const failed = await readTechState(page);
+    expect
+      .soft(
+        {
+          status: failed.status.startsWith(`${SETUP_FAILED} `) ? SETUP_FAILED : failed.status,
+          open: failed.open,
+          rendered: failed.rendered,
+          namesIt: failed.status.includes(`"${TECH_DETAILS}"`),
+          controlsHidden: await page.locator('#controls').isHidden(),
+        },
+        'A32: a start-up that throws after R started says so in the status, opens "Technical details", and leaves the controls hidden'
+      )
+      .toEqual({ status: SETUP_FAILED, open: true, rendered: true, namesIt: true, controlsHidden: true });
   } finally {
     await target.close();
   }

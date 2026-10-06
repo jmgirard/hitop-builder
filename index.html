@@ -814,11 +814,12 @@ function status(text) { el('status').textContent = text; }
 // Every load or build failure comes through here. The log that says what went
 // wrong is under "Technical details", which stays closed while all goes well,
 // so a failure opens it and the status line says where to look. A build
-// failure leaves the visitor near the download button, with the section below
-// the fold, so the page scrolls it into view. "nearest" moves the page only
-// when the section is not already in full view. It brings the whole section
-// in when it fits, and its top, the summary, when it is taller than the
-// window. The scroll is instant because the page sets no scroll-behavior.
+// failure leaves the visitor near the download button, which can leave the
+// section below the fold, so the page scrolls it into view. "nearest" moves
+// the page only when the section is not already in full view. For a section
+// below the window, it brings the whole section in when it fits, and its top,
+// the summary, when it is taller than the window. The scroll is instant
+// because the page sets no scroll-behavior.
 function showFailure(message) {
   status(`${message} The log under "Technical details" below says more.`);
   el('techDetails').open = true;
