@@ -414,7 +414,10 @@
 
   /* ---- Technical details --------------------------------------------- */
   /* The host list and the log, closed unless a failure opens them. */
-  #techDetails { margin-top: var(--s6); }
+  /* scroll-margin keeps the section a little inside the window when a failed
+     build scrolls it into view, so a fractional scroll position cannot leave
+     its edge a fraction of a pixel outside. */
+  #techDetails { margin-top: var(--s6); scroll-margin: var(--s4); }
   #techDetails[hidden] { display: none; }
   #techDetails > summary {
     cursor: pointer; color: var(--muted); font-size: var(--t-small);
@@ -771,12 +774,11 @@ const INSTALL_TIMEOUT_MS = 120000;
 // webr.mjs import could not be loaded; init() failed; R's download timed out;
 // the connection to R was lost; the package download failed; the package
 // install timed out; the installed version could not be read; the installed
-// package is older than MIN_HITOP -- eight sites. main()'s own catch-all at
-// the foot of this file is not one of them: it reports and stops without
-// latching, so a throw reaching it after the controls are shown leaves them
-// on. None of the eight can cancel what is still in flight, so a
-// late-settling import, init or install would otherwise be free to run the
-// rest of boot and put a build button back within reach.
+// package is older than MIN_HITOP; main()'s own catch-all at the foot of this
+// file, for a throw after R started -- nine sites. None of the nine can cancel
+// what is still in flight, so a late-settling import, init or install would
+// otherwise be free to run the rest of boot and put a build button back within
+// reach.
 // Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
@@ -813,7 +815,10 @@ function status(text) { el('status').textContent = text; }
 
 // Every load or build failure comes through here. The log that says what went
 // wrong is under "Technical details", which stays closed while all goes well,
-// so a failure opens it and the status line says where to look.
+// so a failure opens it and the status line says where to look. Only a build
+// failure also scrolls the section into view (see download()). A load failure
+// does not scroll, so on a short window the status line, just above the
+// section, is not pushed out of view.
 function showFailure(message) {
   status(`${message} The log under "Technical details" below says more.`);
   el('techDetails').open = true;
@@ -1627,6 +1632,11 @@ async function download() {
   } catch (err) {
     log(`  FAILED: ${err && err.message ? err.message : err}`);
     showFailure(`The ${spec.label} build failed.`);
+    // A build starts from the download button, which can leave "Technical
+    // details" below the window, so the section is scrolled into view.
+    // "nearest" moves the page only when the section is not already in full
+    // view. The scroll is instant because the page sets no scroll-behavior.
+    el('techDetails').scrollIntoView({ block: 'nearest' });
   } finally {
     building = false;
     buttons.forEach((b) => (b.disabled = bootAbandoned));
@@ -1639,9 +1649,10 @@ async function download() {
     // back only to a control that is on and on show: a control that the
     // build's end leaves off or hidden, such as the download
     // button with every scale unticked or on a step that is not on show,
-    // cannot take focus, and focus stays on the body. The page does not
+    // cannot take focus, and focus stays on the body. The focus call does not
     // scroll to the control, so a visitor reading the log stays where they
-    // are.
+    // are, and after a failed build the page stays on "Technical details",
+    // where the catch above scrolled it.
     const now = document.activeElement;
     if (
       (!now || now === document.body) &&
@@ -1808,7 +1819,8 @@ async function main() {
   } catch (err) {
     // The guard refuses through its own path rather than throwing: a version
     // this page cannot read or compare is one it cannot vouch for either, and
-    // the top-level catch would blame R for starting badly.
+    // the top-level catch would say only that the page did not finish setting
+    // up.
     log(`  reading the installed hitop version failed: ` +
         `${err && err.message ? err.message : err}`);
     abandonBoot(
@@ -1937,8 +1949,18 @@ async function main() {
   status('Ready.');
 }
 
+// main() reports a failed or stalled download or start of R itself, in the
+// runtime race, so a throw that reaches this catch comes in practice from a
+// later step, after R started: the page's own code or an R call it makes.
+// Only the three writes before the race could reach it sooner. The status says
+// so rather than blaming R. It latches like the other boot failures, so a
+// throw after the controls were shown takes them away again. When the page
+// has already given up, for example when the reader has reported a lost
+// connection to R and a later step then throws, the first and more specific
+// message stays, and the throw only goes to the log. The failure is shown
+// before the log is written, so a throw while logging cannot hide it.
 main().catch((err) => {
-  showFailure('R did not start.');
+  if (!bootAbandoned) abandonBoot('R started, but the page did not finish setting up.');
   log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>

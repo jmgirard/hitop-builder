@@ -302,7 +302,7 @@ const PLANTS = [
     id: 'ad',
     what: 'a failure that leaves "Technical details" closed',
     // showFailure() still writes the status that names the section, and no
-    // longer opens it. A22 reads the section closed.
+    // longer opens it. A22, A30 and A32 read the section closed.
     from: "  el('techDetails').open = true;\n}",
     to: '}',
   },
@@ -450,6 +450,26 @@ const PLANTS = [
     // two from every status their builds write.
     from: 'function buildStatus(format) {',
     to: "function buildStatus(format) {\n  if (format === 'qualtrics' || format === 'redcap') return 'Building…';",
+  },
+  {
+    id: 'au',
+    what: 'a failed build opens "Technical details" without scrolling it into view',
+    from: "    el('techDetails').scrollIntoView({ block: 'nearest' });\n",
+    to: '',
+  },
+  {
+    id: 'av',
+    what: 'the top-level catch back to "R did not start."',
+    // A32 reads the status. The latch is not read: the throw comes before
+    // the controls are shown, so they are hidden either way.
+    from: "  if (!bootAbandoned) abandonBoot('R started, but the page did not finish setting up.');",
+    to: "  showFailure('R did not start.');",
+  },
+  {
+    id: 'aw',
+    what: 'every failure, a failed load included, scrolls "Technical details" into view',
+    from: "  el('techDetails').open = true;\n}",
+    to: "  el('techDetails').open = true;\n  el('techDetails').scrollIntoView({ block: 'nearest' });\n}",
   },
 ];
 
