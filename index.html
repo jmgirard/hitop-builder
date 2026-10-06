@@ -776,9 +776,9 @@ const INSTALL_TIMEOUT_MS = 120000;
 // install timed out; the installed version could not be read; the installed
 // package is older than MIN_HITOP; main()'s own catch-all at the foot of this
 // file, for a throw after R started -- nine sites. None of the nine can cancel
-// what is still in flight, so a
-// late-settling import, init or install would otherwise be free to run the
-// rest of boot and put a build button back within reach.
+// what is still in flight, so a late-settling import, init or install would
+// otherwise be free to run the rest of boot and put a build button back within
+// reach.
 // Every site that turns a control on reads this, so nothing after this can.
 let bootAbandoned = false;
 
@@ -1950,16 +1950,18 @@ async function main() {
 }
 
 // main() reports a failed or stalled download or start of R itself, in the
-// runtime race, so a throw that reaches this catch comes from a later step,
-// after R started: the page's own code or an R call it makes. The status says
+// runtime race, so a throw that reaches this catch comes in practice from a
+// later step, after R started: the page's own code or an R call it makes.
+// Only the three writes before the race could reach it sooner. The status says
 // so rather than blaming R. It latches like the other boot failures, so a
-// throw after the controls were shown takes them away again. When the page has already
-// given up, for example when the reader has already reported a lost
+// throw after the controls were shown takes them away again. When the page
+// has already given up, for example when the reader has reported a lost
 // connection to R and a later step then throws, the first and more specific
-// message stays, and the throw only goes to the log.
+// message stays, and the throw only goes to the log. The failure is shown
+// before the log is written, so a throw while logging cannot hide it.
 main().catch((err) => {
-  log(`FATAL: ${err && err.stack ? err.stack : err}`);
   if (!bootAbandoned) abandonBoot('R started, but the page did not finish setting up.');
+  log(`FATAL: ${err && err.stack ? err.stack : err}`);
 });
 </script>
 </body>

@@ -131,9 +131,9 @@ loads and once it is ready. If the load or a build fails, the page opens it.
 The status line then says where to look: *The log under "Technical details"
 below says more.* If a build fails while the section is below the window, the
 page scrolls the section into view. A failed load does not scroll. If R
-starts and a later step of the load fails in a way that has no message of its
-own, the status line begins *R started, but the page did not finish setting
-up.*
+starts but the page then fails before it is ready, and no more specific
+message fits, the status line begins *R started, but the page did not finish
+setting up.*
 
 ### The module file
 
@@ -440,13 +440,12 @@ says which half stalled and stays switched off. A stalled step that settles
 afterwards does not turn it back on. Every failure to load R or the package,
 and every build failure, goes through `showFailure()`. It opens *Technical
 details*. After a build failure, `download()` also scrolls the section into
-view, or only its top when the section is taller than the window. A load
-failure does not scroll. The page reports a failed or stalled start of R
-inside `main()`. So a throw that reaches the catch on `main()` comes from a
-later step, after R started: the page's own code or an R call it makes. That
-catch says that R started and the page did not finish
-setting up, and it switches the page off. If the page has already given up,
-the catch keeps the first message and only writes the log.
+view. A load failure does not scroll. The page reports a failed or stalled
+start of R inside `main()`. So a throw that reaches the catch on `main()`
+comes in practice from a later step, after R started: the page's own code or
+an R call it makes. That catch says that R started and the page did not
+finish setting up, and it switches the page off. If the page has already
+given up, the catch keeps the first message and only writes the log.
 
 ### Verification notes
 
