@@ -129,7 +129,10 @@ the page fetches R and the packages from. It also holds the log of what the
 page asked R to do and what R replied. The section stays closed while the page
 loads and once it is ready. If the load or a build fails, the page opens it.
 The status line then says where to look: *The log under "Technical details"
-below says more.*
+below says more.* If a build fails while the section is below the window, the
+page scrolls the section into view. If R starts and a later step of the load
+throws an error that has no message of its own, the status line begins *R
+started, but the page did not finish setting up.*
 
 ### The module file
 
@@ -434,8 +437,12 @@ behind it. It races `installPackages` against `INSTALL_TIMEOUT_MS`. The file
 against a first load of about twenty seconds each. On either timeout the page
 says which half stalled and stays switched off. A stalled step that settles
 afterwards does not turn it back on. Every failure to load R or the package,
-and every build failure, goes through `showFailure()`, which opens *Technical
-details*.
+and every build failure, goes through `showFailure()`. It opens *Technical
+details*. If the section lies below the window, it scrolls the section into
+view, or only its top when the section is taller than the window. The page reports a failed or stalled start of R inside `main()`. So a
+throw that reaches the catch on `main()` comes from a later step. That catch
+says that R started and the page did not finish setting up. It also switches
+the page off.
 
 ### Verification notes
 
@@ -487,7 +494,7 @@ Every tracked file:
 | `index.html` | The entire app: markup, styles, and the webR driver script |
 | `.github/workflows/pages.yml` | Publishes `index.html`, `LICENSE.md` and `README.md`, and nothing else in the repository, to GitHub Pages on every push to `main` |
 | `.github/workflows/smoke.yml` | Runs the prose extraction on this checkout on every run, then the smoke test: on pull requests and pushes to `main` against this checkout, and weekly and on demand against the deployed page |
-| `tests/smoke.spec.js` | The smoke test, whose assertions its header lists. One test boots the page and reads its head and *Technical details* while R loads, with the `webr.mjs` request held. It then checks the scale rows, their names, *Definition* buttons and filter line. It checks the step controls' names and focus outlines, and each format's text and names. It saves the Online form's module file and reads the next-step panel. It builds a Word, a Qualtrics and a REDCap zip file and reads them. Last, it makes `URL.createObjectURL` throw and reads the failed build that follows. A second test refuses the `webr.mjs` request and reads the failed load |
+| `tests/smoke.spec.js` | The smoke test, whose assertions its header lists. One test boots the page and reads its head and *Technical details* while R loads, with the `webr.mjs` request held. It then checks the scale rows, their names, *Definition* buttons and filter line. It checks the step controls' names and focus outlines, and each format's text and names. It saves the Online form's module file and reads the next-step panel. It builds a Word, a Qualtrics and a REDCap zip file and reads them. Last, it makes `URL.createObjectURL` throw and starts a build with *Technical details* below the window. It reads the failed build and where the section's summary then sits. A second test makes the status write that starts the package download throw, and reads the failed start-up. A third test refuses the `webr.mjs` request and reads the failed load |
 | `tests/runtime-timeout.spec.js` | Two probes that stall R's download and make sure that the page gives up and says which half stalled |
 | `tests/plants.mjs` | The plant matrix: one planted defect per entry in its `PLANTS` list. Each is run to prove that the smoke test goes red on it. The matrix also checks that every smoke assertion goes red on at least one |
 | `tests/prose.mjs` | The prose extraction, run by `npm run prose` and by the workflow on every run. For a linter, it lists the page's body text with its `placeholder` and `aria-label` attributes. It adds the script's text at the sites its header names, and each zip file's README.txt. It also lists the facts each passage carries. It does not list every string a visitor reads. Its header names what it leaves out, such as the package's scale names and definitions and two "Ready." statuses. It refuses a page whose count of `.textContent`, `.innerHTML` and `.setAttribute` writes differs from its ledger. It also refuses a passage that holds a name the `hitop` package retired from its web pages. And it refuses a page body with no text node, or with a text node whose text appears in no body passage |
