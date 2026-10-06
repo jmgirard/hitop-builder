@@ -49,6 +49,7 @@
 //   A33: a failed load leaves the page unscrolled, with the open section reaching below the window
 //   A34: the Qualtrics and REDCap bundles each hold exactly their three expected entries, whatever their order, and a questionnaire entry that is not empty
 //   A35: focus moved during a build to an enabled control other than the download button is still there when the build ends
+//   A36: in the dark colour scheme, the format cards wear the disabled look during a build
 //
 // A4, A5 and A6 are soft assertions so that one download is measured against
 // all three: a bundle whose form is neither a zip nor long enough has to be
@@ -1086,33 +1087,46 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
     // and not only on the look.
     await page.mouse.move(0, 0);
     const cards = page.locator('[data-choose]');
-    await expect
-      .poll(
-        () =>
-          cards.evaluateAll((cs) =>
-            cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
-          ),
-        { message: 'A10: the format cards wear the disabled look during a build', timeout: 5000 }
-      )
-      .toBe(true);
-    const cardLook = await cards.evaluateAll((cs) => {
-      const b = getComputedStyle(document.getElementById('downloadBtn'));
-      const looks = cs.map((c) => {
-        const s = getComputedStyle(c);
+    // Waits for the cards' transitions to end, then reads their look against
+    // the disabled download button, the status, the button's background and
+    // which colour scheme the page sees, in one pass (A10, A36).
+    async function readCardLook(label) {
+      await expect
+        .poll(
+          () =>
+            cards.evaluateAll((cs) =>
+              cs.every((c) => c.getAnimations({ subtree: true }).length === 0)
+            ),
+          { message: label, timeout: 5000 }
+        )
+        .toBe(true);
+      return cards.evaluateAll((cs) => {
+        const b = getComputedStyle(document.getElementById('downloadBtn'));
+        const looks = cs.map((c) => {
+          const s = getComputedStyle(c);
+          return {
+            borderTopStyle: s.borderTopStyle,
+            boxShadow: s.boxShadow,
+            background: s.backgroundColor === b.backgroundColor,
+            borderColor: s.borderTopColor === b.borderTopColor,
+            name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
+            what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+          };
+        });
+        const status = document.getElementById('status').textContent;
         return {
-          borderTopStyle: s.borderTopStyle,
-          boxShadow: s.boxShadow,
-          background: s.backgroundColor === b.backgroundColor,
-          borderColor: s.borderTopColor === b.borderTopColor,
-          name: getComputedStyle(c.querySelector('.fmtname')).color === b.color,
-          what: getComputedStyle(c.querySelector('.fmtwhat')).color === b.color,
+          looks,
+          stillBuilding: status.startsWith('Building'),
+          buttonBackground: b.backgroundColor,
+          dark: matchMedia('(prefers-color-scheme: dark)').matches,
         };
       });
-      const status = document.getElementById('status').textContent;
-      return { looks, stillBuilding: status.startsWith('Building') };
-    });
+    }
+    const A10 = 'A10: the format cards wear the disabled look during a build';
+    const lightLook = await readCardLook(A10);
+    const { buttonBackground: lightButton, dark: _lightDark, ...cardLook } = lightLook;
     expect
-      .soft(cardLook, 'A10: the format cards wear the disabled look during a build')
+      .soft(cardLook, A10)
       .toEqual({
         looks: Array(4).fill({
           borderTopStyle: 'dashed',
@@ -1123,6 +1137,32 @@ test('the page boots, lists scales, and builds a Word form', async ({ page }) =>
           what: true,
         }),
         stillBuilding: true,
+      });
+
+    // A36: the same read in the dark scheme, still during the Word build.
+    // The page is switched to prefers-color-scheme: dark, and the read also
+    // takes the button's background, which must differ from the light one, so
+    // a scheme switch that changed nothing fails A36 rather than repeating
+    // the light read. The page goes back to light at once.
+    const A36 = 'A36: in the dark colour scheme, the format cards wear the disabled look during a build';
+    await page.emulateMedia({ colorScheme: 'dark' });
+    const darkLook = await readCardLook(A36);
+    await page.emulateMedia({ colorScheme: 'light' });
+    const { buttonBackground: darkButton, ...darkRest } = darkLook;
+    expect
+      .soft({ ...darkRest, schemeChanged: darkButton !== lightButton }, A36)
+      .toEqual({
+        looks: Array(4).fill({
+          borderTopStyle: 'dashed',
+          boxShadow: 'none',
+          background: true,
+          borderColor: true,
+          name: true,
+          what: true,
+        }),
+        stillBuilding: true,
+        dark: true,
+        schemeChanged: true,
       });
 
     // The click above focused the download button, and download() then
