@@ -2,13 +2,16 @@
 // Word form on disk. It drives the page the way a visitor does -- it reads
 // only the page's document, no script state, and stubs nothing -- so a green
 // run means the deployed article really does hand over a document. There are
-// three exceptions. The webr.mjs request: the first test holds it for a moment
-// to read the page while it loads (A20), and the last test refuses it to read
-// the page after a failed load (A22). As the first test's last step,
-// URL.createObjectURL is made to throw, so the next build fails at its save
-// and the test reads the page after a failed build (A30, A31). And the second
-// test makes one status write after R starts throw, to read the page after a
-// start-up that failed past R (A32).
+// these exceptions. The webr.mjs request: the boot test (the second) holds it
+// for a moment to read the page while it loads (A20), and the last test
+// refuses it to read the page after a failed load (A22). As the boot test's
+// last step, URL.createObjectURL is made to throw, so the next build fails at
+// its save and the test reads the page after a failed build (A30, A31). During
+// its Word build the boot test switches the page to the dark colour scheme for
+// one read (A36), and during its Qualtrics build it moves focus by script
+// (A35). The third test makes one status write after R starts throw, to read
+// the page after a start-up that failed past R (A32). The first test loads no
+// page: it checks the zip reader on a zip it writes itself.
 //
 // Its assertions are enumerated here, and tests/plants.mjs reads this list out
 // of this file to check that each one is failed by at least one planted
